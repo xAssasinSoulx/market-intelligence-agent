@@ -21,6 +21,8 @@ import com.marketintel.persistence.SQLiteWatchlistRepository;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
 
+import com.marketintel.providers.MarketDataApiClient;
+import com.marketintel.providers.MarketDataProvider;
 
 public class Main {
 
@@ -84,6 +86,20 @@ public class Main {
 
         CommandParser commandParser =
                 new CommandParser();
+
+        String marketApiKey =
+                System.getenv(
+                        "ALPHA_VANTAGE_API_KEY"
+                );
+
+        if (marketApiKey == null
+                || marketApiKey.isBlank()) {
+
+            System.err.println(
+                    "Warning: ALPHA_VANTAGE_API_KEY "
+                            + "is not configured."
+            );
+        }
 
         UserInterface userInterface =
                 new TerminalUI(

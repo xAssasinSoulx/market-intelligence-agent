@@ -28,7 +28,7 @@
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
+        <exec.mainClass>com.marketintel.Main</exec.mainClass>
         <junit.version>5.13.4</junit.version>
         <jackson.version>2.19.2</jackson.version>
         <sqlite.version>3.50.3.0</sqlite.version>
@@ -108,7 +108,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>com.marketintel.Main</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
 
