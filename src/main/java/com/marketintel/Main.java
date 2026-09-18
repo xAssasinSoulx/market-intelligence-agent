@@ -4,9 +4,14 @@ import com.marketintel.auth.AuthService;
 import com.marketintel.auth.BCryptPasswordHasher;
 import com.marketintel.auth.PasswordHasher;
 import com.marketintel.auth.SessionManager;
+
 import com.marketintel.persistence.DatabaseManager;
 import com.marketintel.persistence.SQLiteUserRepository;
 import com.marketintel.persistence.UserRepository;
+
+import com.marketintel.ui.CommandParser;
+import com.marketintel.ui.TerminalUI;
+import com.marketintel.ui.UserInterface;
 
 public class Main {
 
@@ -15,13 +20,23 @@ public class Main {
 
     public static void main(String[] args) {
 
+        // ----------------------------------------------------
+        // Persistence
+        // ----------------------------------------------------
+
         DatabaseManager databaseManager =
                 new DatabaseManager(DATABASE_URL);
 
         databaseManager.initialize();
 
         UserRepository userRepository =
-                new SQLiteUserRepository(databaseManager);
+                new SQLiteUserRepository(
+                        databaseManager
+                );
+
+        // ----------------------------------------------------
+        // Authentication
+        // ----------------------------------------------------
 
         PasswordHasher passwordHasher =
                 new BCryptPasswordHasher();
@@ -35,12 +50,20 @@ public class Main {
         SessionManager sessionManager =
                 new SessionManager();
 
-        System.out.println(
-                "Market Intelligence Agent"
-        );
+        // ----------------------------------------------------
+        // User Interface
+        // ----------------------------------------------------
 
-        System.out.println(
-                "Database initialized successfully."
-        );
+        CommandParser commandParser =
+                new CommandParser();
+
+        UserInterface userInterface =
+                new TerminalUI(
+                        authService,
+                        sessionManager,
+                        commandParser
+                );
+
+        userInterface.start();
     }
 }
