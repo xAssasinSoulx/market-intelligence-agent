@@ -7,8 +7,19 @@ import com.marketintel.model.User;
 import java.io.Console;
 import java.util.Scanner;
 
+import com.marketintel.model.AssetType;
+import com.marketintel.model.Portfolio;
+import com.marketintel.model.PortfolioPosition;
+import com.marketintel.model.Watchlist;
+import com.marketintel.services.PortfolioService;
+import com.marketintel.services.WatchlistService;
+
+import java.math.BigDecimal;
+
 public class TerminalUI implements UserInterface {
 
+    private final PortfolioService portfolioService;
+    private final WatchlistService watchlistService;
     private final AuthService authService;
     private final SessionManager sessionManager;
     private final CommandParser commandParser;
@@ -19,11 +30,15 @@ public class TerminalUI implements UserInterface {
     public TerminalUI(
             AuthService authService,
             SessionManager sessionManager,
-            CommandParser commandParser) {
+            CommandParser commandParser,
+            PortfolioService portfolioService,
+            WatchlistService watchlistService) {
 
         this.authService = authService;
         this.sessionManager = sessionManager;
         this.commandParser = commandParser;
+        this.portfolioService = portfolioService;
+        this.watchlistService = watchlistService;
         this.scanner = new Scanner(System.in);
     }
 
@@ -188,6 +203,8 @@ public class TerminalUI implements UserInterface {
                 "[Agent functionality will be connected "
                         + "in a later milestone.]"
         );
+
+
     }
 
     private void handleCommand(String input) {
@@ -204,6 +221,12 @@ public class TerminalUI implements UserInterface {
 
                 case "whoami" ->
                         displayCurrentUser();
+
+                case "portfolio" ->
+                        handlePortfolioCommand(parsed);
+
+                case "watchlist" ->
+                        handleWatchlistCommand(parsed);
 
                 case "logout" ->
                         logout();
@@ -284,25 +307,53 @@ public class TerminalUI implements UserInterface {
         printDivider();
 
         System.out.println(
-                "/help       Show available commands"
+                "/help"
+                        + "                         Show available commands"
         );
 
         System.out.println(
-                "/whoami     Show current user"
+                "/whoami"
+                        + "                       Show current user"
         );
 
         System.out.println(
-                "/logout     End the current session"
+                "/portfolio"
+                        + "                     View portfolio"
         );
 
         System.out.println(
-                "/exit       Exit the application"
+                "/portfolio add SYMBOL QTY TYPE"
+                        + " Add portfolio position"
         );
 
-        System.out.println();
         System.out.println(
-                "Financial commands will be added "
-                        + "in later milestones."
+                "/portfolio remove SYMBOL"
+                        + "       Remove portfolio position"
+        );
+
+        System.out.println(
+                "/watchlist"
+                        + "                     View watchlist"
+        );
+
+        System.out.println(
+                "/watchlist add SYMBOL"
+                        + "          Add watchlist symbol"
+        );
+
+        System.out.println(
+                "/watchlist remove SYMBOL"
+                        + "       Remove watchlist symbol"
+        );
+
+        System.out.println(
+                "/logout"
+                        + "                       End current session"
+        );
+
+        System.out.println(
+                "/exit"
+                        + "                         Exit application"
         );
     }
 
@@ -367,5 +418,333 @@ public class TerminalUI implements UserInterface {
         System.out.println(
                 "------------------------------------------------------------"
         );
+    }
+
+    private void handlePortfolioCommand(
+            ParsedCommand command) {
+
+        long userId =
+                sessionManager.getCurrentUserId();
+
+        if (command.getArguments().isEmpty()) {
+            displayPortfolio(userId);
+            return;
+        }
+
+        String action =
+                command.getArguments()
+                        .get(0)
+                        .toLowerCase();
+
+        switch (action) {
+
+            case "add" ->
+                    addPortfolioPosition(
+                            userId,
+                            command
+                    );
+
+            case "remove" ->
+                    removePortfolioPosition(
+                            userId,
+                            command
+                    );
+
+            default ->
+                    displayError(
+                            "Usage: /portfolio, "
+                                    + "/portfolio add SYMBOL QUANTITY TYPE, "
+                                    + "or /portfolio remove SYMBOL"
+                    );
+        }
+    }
+
+    private void displayPortfolio(long userId) {
+
+        Portfolio portfolio =
+                portfolioService.getPortfolio(userId);
+
+        System.out.println();
+        System.out.println("PORTFOLIO");
+        printDivider();
+
+        if (portfolio.getPositions().isEmpty()) {
+
+            System.out.println(
+                    "Your portfolio is empty."
+            );
+
+            return;
+        }
+
+        System.out.printf(
+                "%-10s %-15s %-10s%n",
+                "SYMBOL",
+                "QUANTITY",
+                "TYPE"
+        );
+
+        printDivider();
+
+        for (PortfolioPosition position
+                : portfolio.getPositions()) {
+
+            System.out.printf(
+                    "%-10s %-15s %-10s%n",
+                    position.getSymbol(),
+                    position.getQuantity()
+                            .stripTrailingZeros()
+                            .toPlainString(),
+                    position.getAssetType()
+            );
+        }
+    }
+
+    private void addPortfolioPosition(
+            long userId,
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 4) {
+
+            displayError(
+                    "Usage: /portfolio add SYMBOL QUANTITY TYPE"
+            );
+
+            return;
+        }
+
+        try {
+
+            String symbol =
+                    command.getArguments().get(1);
+
+            BigDecimal quantity =
+                    new BigDecimal(
+                            command.getArguments().get(2)
+                    );
+
+            AssetType assetType =
+                    AssetType.valueOf(
+                            command.getArguments()
+                                    .get(3)
+                                    .toUpperCase()
+                    );
+
+            portfolioService.addPosition(
+                    userId,
+                    symbol,
+                    quantity,
+                    assetType
+            );
+
+            displayResponse(
+                    symbol.toUpperCase()
+                            + " added to portfolio."
+            );
+
+        } catch (NumberFormatException e) {
+
+            displayError(
+                    "Quantity must be a valid number."
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            displayError(e.getMessage());
+        }
+    }
+
+    private void removePortfolioPosition(
+            long userId,
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 2) {
+
+            displayError(
+                    "Usage: /portfolio remove SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().get(1);
+
+        try {
+
+            boolean removed =
+                    portfolioService.removePosition(
+                            userId,
+                            symbol
+                    );
+
+            if (removed) {
+
+                displayResponse(
+                        symbol.toUpperCase()
+                                + " removed from portfolio."
+                );
+
+            } else {
+
+                displayError(
+                        symbol.toUpperCase()
+                                + " is not in your portfolio."
+                );
+            }
+
+        } catch (IllegalArgumentException e) {
+
+            displayError(e.getMessage());
+        }
+    }
+
+    private void handleWatchlistCommand(
+            ParsedCommand command) {
+
+        long userId =
+                sessionManager.getCurrentUserId();
+
+        if (command.getArguments().isEmpty()) {
+            displayWatchlist(userId);
+            return;
+        }
+
+        String action =
+                command.getArguments()
+                        .get(0)
+                        .toLowerCase();
+
+        switch (action) {
+
+            case "add" ->
+                    addWatchlistSymbol(
+                            userId,
+                            command
+                    );
+
+            case "remove" ->
+                    removeWatchlistSymbol(
+                            userId,
+                            command
+                    );
+
+            default ->
+                    displayError(
+                            "Usage: /watchlist, "
+                                    + "/watchlist add SYMBOL, "
+                                    + "or /watchlist remove SYMBOL"
+                    );
+        }
+    }
+
+    private void displayWatchlist(long userId) {
+
+        Watchlist watchlist =
+                watchlistService.getWatchlist(userId);
+
+        System.out.println();
+        System.out.println("WATCHLIST");
+        printDivider();
+
+        if (watchlist.getSymbols().isEmpty()) {
+
+            System.out.println(
+                    "Your watchlist is empty."
+            );
+
+            return;
+        }
+
+        int index = 1;
+
+        for (String symbol
+                : watchlist.getSymbols()) {
+
+            System.out.println(
+                    index + ". " + symbol
+            );
+
+            index++;
+        }
+    }
+
+    private void addWatchlistSymbol(
+            long userId,
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 2) {
+
+            displayError(
+                    "Usage: /watchlist add SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().get(1);
+
+        try {
+
+            watchlistService.addSymbol(
+                    userId,
+                    symbol
+            );
+
+            displayResponse(
+                    symbol.toUpperCase()
+                            + " added to watchlist."
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            displayError(e.getMessage());
+        }
+    }
+
+    private void removeWatchlistSymbol(
+            long userId,
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 2) {
+
+            displayError(
+                    "Usage: /watchlist remove SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().get(1);
+
+        try {
+
+            boolean removed =
+                    watchlistService.removeSymbol(
+                            userId,
+                            symbol
+                    );
+
+            if (removed) {
+
+                displayResponse(
+                        symbol.toUpperCase()
+                                + " removed from watchlist."
+                );
+
+            } else {
+
+                displayError(
+                        symbol.toUpperCase()
+                                + " is not in your watchlist."
+                );
+            }
+
+        } catch (IllegalArgumentException e) {
+
+            displayError(e.getMessage());
+        }
     }
 }

@@ -89,7 +89,9 @@ public class Main {
                 new TerminalUI(
                         authService,
                         sessionManager,
-                        commandParser
+                        commandParser,
+                        portfolioService,
+                        watchlistService
                 );
 
         userInterface.start();
