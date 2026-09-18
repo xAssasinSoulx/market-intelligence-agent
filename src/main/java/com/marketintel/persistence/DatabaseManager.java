@@ -17,24 +17,55 @@ public class DatabaseManager {
     }
 
     public void initialize() {
+
         createDatabaseDirectory();
 
         String createUsersTable = """
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-                    password_hash TEXT NOT NULL,
-                    created_at TEXT NOT NULL
-                );
-                """;
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """;
+
+        String createPortfolioPositionsTable = """
+            CREATE TABLE IF NOT EXISTS portfolio_positions (
+                user_id INTEGER NOT NULL,
+                symbol TEXT NOT NULL COLLATE NOCASE,
+                quantity TEXT NOT NULL,
+                asset_type TEXT NOT NULL,
+
+                PRIMARY KEY (user_id, symbol),
+
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
+            );
+            """;
+
+        String createWatchlistTable = """
+            CREATE TABLE IF NOT EXISTS watchlist_items (
+                user_id INTEGER NOT NULL,
+                symbol TEXT NOT NULL COLLATE NOCASE,
+
+                PRIMARY KEY (user_id, symbol),
+
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
+            );
+            """;
 
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement()) {
 
-            statement.execute("PRAGMA foreign_keys = ON;");
             statement.execute(createUsersTable);
+            statement.execute(createPortfolioPositionsTable);
+            statement.execute(createWatchlistTable);
 
         } catch (SQLException e) {
+
             throw new IllegalStateException(
                     "Failed to initialize database.",
                     e

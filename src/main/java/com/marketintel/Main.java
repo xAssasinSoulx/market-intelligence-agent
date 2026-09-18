@@ -13,6 +13,15 @@ import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
 import com.marketintel.ui.UserInterface;
 
+import com.marketintel.persistence.PortfolioRepository;
+import com.marketintel.persistence.SQLitePortfolioRepository;
+import com.marketintel.persistence.WatchlistRepository;
+import com.marketintel.persistence.SQLiteWatchlistRepository;
+
+import com.marketintel.services.PortfolioService;
+import com.marketintel.services.WatchlistService;
+
+
 public class Main {
 
     private static final String DATABASE_URL =
@@ -32,6 +41,25 @@ public class Main {
         UserRepository userRepository =
                 new SQLiteUserRepository(
                         databaseManager
+                );
+        PortfolioRepository portfolioRepository =
+                new SQLitePortfolioRepository(
+                        databaseManager
+                );
+
+        WatchlistRepository watchlistRepository =
+                new SQLiteWatchlistRepository(
+                        databaseManager
+                );
+
+        PortfolioService portfolioService =
+                new PortfolioService(
+                        portfolioRepository
+                );
+
+        WatchlistService watchlistService =
+                new WatchlistService(
+                        watchlistRepository
                 );
 
         // ----------------------------------------------------
