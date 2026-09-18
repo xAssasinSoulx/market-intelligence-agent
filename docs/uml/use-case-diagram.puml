@@ -1,0 +1,99 @@
+@startuml
+title Market Intelligence Agent - Use-Case Diagram
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam linetype ortho
+
+actor User
+actor "Authenticated User" as AuthUser
+
+actor "Market Data API" as MarketAPI
+actor "ETF Data API" as ETFAPI
+actor "News API" as NewsAPI
+actor "LLM Service" as LLM
+
+User <|-- AuthUser
+
+rectangle "Market Intelligence Agent" {
+
+    package "Account and Session" {
+        usecase "UC-01\nRegister Account" as UC01
+        usecase "UC-02\nLog In" as UC02
+        usecase "UC-03\nLog Out" as UC03
+    }
+
+    package "Market Research" {
+        usecase "UC-04\nGet Market Quote" as UC04
+        usecase "UC-05\nGet Security Overview" as UC05
+        usecase "UC-06\nAnalyze ETF Exposure" as UC06
+        usecase "UC-07\nCompare Securities" as UC07
+        usecase "UC-08\nAnalyze ETF Holding Overlap" as UC08
+        usecase "UC-09\nRetrieve Financial News" as UC09
+        usecase "UC-10\nExplain Recent Market Movement" as UC10
+    }
+
+    package "Portfolio and Watchlist" {
+        usecase "UC-11\nAdd Portfolio Position" as UC11
+        usecase "UC-12\nRemove Portfolio Position" as UC12
+        usecase "UC-13\nView Portfolio" as UC13
+        usecase "UC-14\nManage Watchlist" as UC14
+        usecase "UC-15\nAnalyze Portfolio Exposure" as UC15
+    }
+
+    package "Conversation" {
+        usecase "UC-16\nAsk Contextual Follow-Up" as UC16
+    }
+}
+
+' ============================================================
+' USER ASSOCIATIONS
+' ============================================================
+
+User --> UC01
+User --> UC02
+
+AuthUser --> UC03
+AuthUser --> UC04
+AuthUser --> UC05
+AuthUser --> UC06
+AuthUser --> UC07
+AuthUser --> UC08
+AuthUser --> UC09
+AuthUser --> UC10
+AuthUser --> UC11
+AuthUser --> UC12
+AuthUser --> UC13
+AuthUser --> UC14
+AuthUser --> UC15
+AuthUser --> UC16
+
+
+' ============================================================
+' EXTERNAL SYSTEM ASSOCIATIONS
+' ============================================================
+
+MarketAPI --> UC04
+MarketAPI --> UC05
+MarketAPI --> UC07
+MarketAPI --> UC10
+
+ETFAPI --> UC06
+ETFAPI --> UC07
+ETFAPI --> UC08
+ETFAPI --> UC15
+
+NewsAPI --> UC09
+NewsAPI --> UC10
+
+LLM --> UC04
+LLM --> UC05
+LLM --> UC06
+LLM --> UC07
+LLM --> UC08
+LLM --> UC09
+LLM --> UC10
+LLM --> UC15
+LLM --> UC16
+
+@enduml

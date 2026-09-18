@@ -1,0 +1,225 @@
+@startuml
+title Market Intelligence Agent - Domain Model
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+
+' ============================================================
+' AGENT REQUEST MODELS
+' ============================================================
+
+package "Agent Models" {
+
+    class AgentRequest {
+        + userId: long
+        + input: String
+        + timestamp: LocalDateTime
+    }
+
+    class AgentPlan {
+        + steps: List<PlanStep>
+
+        + addStep(step: PlanStep): void
+        + getSteps(): List<PlanStep>
+    }
+
+    class PlanStep {
+        + action: ActionType
+        + arguments: Map<String, String>
+    }
+
+    class ToolRequest {
+        + userId: long
+        + action: ActionType
+        + arguments: Map<String, String>
+    }
+
+    class ToolResult {
+        + success: boolean
+        + data: Object
+        + errorMessage: String
+
+        + isSuccess(): boolean
+    }
+
+    class AgentResponse {
+        + content: String
+        + generatedAt: LocalDateTime
+    }
+
+    class ConversationContext {
+        + messages: List<ConversationMessage>
+    }
+
+    class ValidationResult {
+        + valid: boolean
+        + message: String
+
+        + isValid(): boolean
+    }
+
+    enum ActionType {
+        MARKET_QUOTE
+        SECURITY_OVERVIEW
+        ETF_SECTOR_EXPOSURE
+        ETF_GEOGRAPHIC_EXPOSURE
+        SECURITY_COMPARISON
+        ETF_OVERLAP
+        FINANCIAL_NEWS
+        PORTFOLIO_VIEW
+        PORTFOLIO_ADD
+        PORTFOLIO_REMOVE
+        PORTFOLIO_EXPOSURE
+        WATCHLIST_VIEW
+        WATCHLIST_ADD
+        WATCHLIST_REMOVE
+    }
+}
+
+AgentPlan "1" *-- "1..*" PlanStep
+
+PlanStep --> ActionType
+ToolRequest --> ActionType
+
+
+' ============================================================
+' MARKET DOMAIN
+' ============================================================
+
+package "Market Domain" {
+
+    class MarketQuote {
+        + symbol: String
+        + price: BigDecimal
+        + previousClose: BigDecimal
+        + percentChange: BigDecimal
+        + currency: String
+        + timestamp: LocalDateTime
+    }
+
+    class SecurityOverview {
+        + symbol: String
+        + name: String
+        + description: String
+        + exchange: String
+        + currency: String
+    }
+
+    class ETFHolding {
+        + symbol: String
+        + name: String
+        + weight: BigDecimal
+        + sector: String
+        + country: String
+    }
+
+    class ExposureResult {
+        + exposureType: ExposureType
+        + categories: Map<String, BigDecimal>
+
+        + getTotalPercentage(): BigDecimal
+    }
+
+    class OverlapResult {
+        + overlapPercentage: BigDecimal
+        + commonHoldings: List<ETFHolding>
+    }
+
+    class NewsArticle {
+        + headline: String
+        + source: String
+        + publicationTime: LocalDateTime
+        + url: String
+        + relatedSymbols: List<String>
+    }
+
+    enum ExposureType {
+        SECTOR
+        GEOGRAPHIC
+        PORTFOLIO
+    }
+}
+
+ExposureResult --> ExposureType
+
+OverlapResult o-- "0..*" ETFHolding
+
+
+' ============================================================
+' PORTFOLIO DOMAIN
+' ============================================================
+
+package "Portfolio Domain" {
+
+    class Portfolio {
+        + userId: long
+        - positions: List<PortfolioPosition>
+
+        + addPosition(position: PortfolioPosition): void
+        + removePosition(symbol: String): boolean
+        + getPositions(): List<PortfolioPosition>
+    }
+
+    class PortfolioPosition {
+        + symbol: String
+        + quantity: BigDecimal
+        + assetType: AssetType
+    }
+
+    class Watchlist {
+        + userId: long
+        - symbols: Set<String>
+
+        + add(symbol: String): void
+        + remove(symbol: String): boolean
+        + contains(symbol: String): boolean
+        + getSymbols(): Set<String>
+    }
+
+    enum AssetType {
+        STOCK
+        ETF
+        OTHER
+    }
+}
+
+Portfolio "1" *-- "0..*" PortfolioPosition
+PortfolioPosition --> AssetType
+
+
+' ============================================================
+' CONVERSATION DOMAIN
+' ============================================================
+
+package "Conversation Domain" {
+
+    class ConversationSession {
+        + id: long
+        + userId: long
+        + startedAt: LocalDateTime
+        + endedAt: LocalDateTime
+    }
+
+    class ConversationMessage {
+        + id: long
+        + conversationId: long
+        + role: MessageRole
+        + content: String
+        + timestamp: LocalDateTime
+    }
+
+    enum MessageRole {
+        USER
+        ASSISTANT
+        SYSTEM
+    }
+}
+
+ConversationSession "1" *-- "0..*" ConversationMessage
+ConversationMessage --> MessageRole
+
+ConversationContext o-- "0..*" ConversationMessage
+
+@enduml

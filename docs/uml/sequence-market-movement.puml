@@ -1,0 +1,73 @@
+@startuml
+title UC-10 - Explain Recent Market Movement
+
+autonumber
+
+actor User
+
+participant TerminalUI <<boundary>>
+participant AgentController <<control>>
+participant SessionManager <<control>>
+participant RequestPlanner <<control>>
+participant LLMClient
+participant ToolManager <<control>>
+participant MarketDataTool
+participant MarketDataProvider
+participant NewsTool
+participant NewsProvider
+participant ResponseComposer <<control>>
+
+User -> TerminalUI : "Why has NVDA been moving recently?"
+TerminalUI -> AgentController : handleRequest(input)
+
+AgentController -> SessionManager : getCurrentUserId()
+SessionManager --> AgentController : userId
+
+AgentController -> RequestPlanner : createPlan(request, context)
+RequestPlanner -> LLMClient : generate(planningPrompt)
+LLMClient --> RequestPlanner : Plan requires market data and financial news
+RequestPlanner --> AgentController : AgentPlan
+
+AgentController -> ToolManager : execute(marketDataRequest)
+ToolManager -> MarketDataTool : execute(request)
+MarketDataTool -> MarketDataProvider : getQuote(NVDA)
+
+alt Market data retrieval succeeds
+    MarketDataProvider --> MarketDataTool : MarketQuote
+    MarketDataTool --> ToolManager : ToolResult(success)
+else Market data retrieval fails
+    MarketDataProvider --> MarketDataTool : provider error
+    MarketDataTool --> ToolManager : ToolResult(failure)
+end
+
+ToolManager --> AgentController : marketDataResult
+
+AgentController -> ToolManager : execute(newsRequest)
+ToolManager -> NewsTool : execute(request)
+NewsTool -> NewsProvider : getNews(NVDA)
+
+alt News retrieval succeeds
+    NewsProvider --> NewsTool : News articles
+    NewsTool --> ToolManager : ToolResult(success)
+else News retrieval fails
+    NewsProvider --> NewsTool : provider error
+    NewsTool --> ToolManager : ToolResult(failure)
+end
+
+ToolManager --> AgentController : newsResult
+
+AgentController -> ResponseComposer : compose(request, results, context)
+
+alt Market data and news are available
+    ResponseComposer -> LLMClient : explain movement using retrieved data
+    LLMClient --> ResponseComposer : evidence-based explanation
+else Information is incomplete
+    ResponseComposer -> LLMClient : explain available data and missing evidence
+    LLMClient --> ResponseComposer : limited response
+end
+
+ResponseComposer --> AgentController : AgentResponse
+AgentController --> TerminalUI : AgentResponse
+TerminalUI --> User : Display market-movement analysis
+
+@enduml

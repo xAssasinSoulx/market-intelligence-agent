@@ -1,0 +1,338 @@
+@startuml
+title Market Intelligence Agent - Authentication and Persistence
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+
+' ============================================================
+' AUTHENTICATION
+' ============================================================
+
+package "Authentication" {
+
+    class AuthService {
+        - userRepository: UserRepository
+        - passwordHasher: PasswordHasher
+
+        + register(
+            username: String,
+            password: String
+          ): User
+
+        + authenticate(
+            username: String,
+            password: String
+          ): User
+    }
+
+    class SessionManager {
+        - currentSession: UserSession
+
+        + startSession(user: User): UserSession
+        + endSession(): void
+        + isAuthenticated(): boolean
+        + getCurrentUser(): User
+        + getCurrentUserId(): long
+    }
+
+    class UserSession {
+        + sessionId: String
+        + userId: long
+        + loginTime: LocalDateTime
+    }
+
+    interface PasswordHasher {
+        + hash(password: String): String
+        + verify(password: String, hash: String): boolean
+    }
+
+    class BCryptPasswordHasher {
+        + hash(password: String): String
+        + verify(password: String, hash: String): boolean
+    }
+}
+
+PasswordHasher <|.. BCryptPasswordHasher
+AuthService --> PasswordHasher
+AuthService --> UserRepository
+
+SessionManager --> UserSession
+
+
+' ============================================================
+' USER DOMAIN
+' ============================================================
+
+package "User Domain" {
+
+    class User {
+        - id: long
+        - username: String
+        - passwordHash: String
+        - createdAt: LocalDateTime
+
+        + getId(): long
+        + getUsername(): String
+    }
+
+    class UserPreferences {
+        - userId: long
+        - preferredCurrency: String
+        - preferredMarket: String
+
+        + getPreferredCurrency(): String
+        + setPreferredCurrency(currency: String): void
+    }
+
+    class Portfolio {
+        - userId: long
+        - positions: List<PortfolioPosition>
+
+        + addPosition(position: PortfolioPosition): void
+        + removePosition(symbol: String): boolean
+        + getPositions(): List<PortfolioPosition>
+    }
+
+    class PortfolioPosition {
+        + symbol: String
+        + quantity: double
+        + assetType: AssetType
+    }
+
+    class Watchlist {
+        - userId: long
+        - symbols: Set<String>
+
+        + add(symbol: String): void
+        + remove(symbol: String): boolean
+        + getSymbols(): Set<String>
+    }
+
+    class ConversationSession {
+        + id: long
+        + userId: long
+        + startedAt: LocalDateTime
+        + endedAt: LocalDateTime
+    }
+
+    class ConversationMessage {
+        + id: long
+        + conversationId: long
+        + role: MessageRole
+        + content: String
+        + timestamp: LocalDateTime
+    }
+
+    enum AssetType {
+        STOCK
+        ETF
+        OTHER
+    }
+
+    enum MessageRole {
+        USER
+        ASSISTANT
+        SYSTEM
+    }
+}
+
+User "1" *-- "1" UserPreferences
+User "1" *-- "1" Portfolio
+User "1" *-- "1" Watchlist
+User "1" o-- "0..*" ConversationSession
+
+Portfolio "1" *-- "0..*" PortfolioPosition
+
+ConversationSession "1" *-- "0..*" ConversationMessage
+
+PortfolioPosition --> AssetType
+ConversationMessage --> MessageRole
+
+UserSession --> User
+
+
+' ============================================================
+' REPOSITORY ABSTRACTIONS
+' ============================================================
+
+package "Persistence Abstractions" {
+
+    interface UserRepository {
+        + save(user: User): User
+        + findById(userId: long): Optional<User>
+        + findByUsername(username: String): Optional<User>
+        + existsByUsername(username: String): boolean
+    }
+
+    interface UserPreferencesRepository {
+        + loadForUser(userId: long): UserPreferences
+        + save(preferences: UserPreferences): void
+    }
+
+    interface PortfolioRepository {
+        + loadForUser(userId: long): Portfolio
+        + saveForUser(userId: long, portfolio: Portfolio): void
+    }
+
+    interface WatchlistRepository {
+        + loadForUser(userId: long): Watchlist
+        + saveForUser(userId: long, watchlist: Watchlist): void
+    }
+
+    interface ConversationRepository {
+        + createSession(userId: long): ConversationSession
+
+        + saveMessage(
+            userId: long,
+            message: ConversationMessage
+          ): void
+
+        + getRecentMessages(
+            userId: long,
+            limit: int
+          ): List<ConversationMessage>
+
+        + getSessions(
+            userId: long
+          ): List<ConversationSession>
+    }
+}
+
+
+' ============================================================
+' SQLITE IMPLEMENTATIONS
+' ============================================================
+
+package "SQLite Persistence" {
+
+    class DatabaseManager {
+        - databaseUrl: String
+
+        + initialize(): void
+        + getConnection(): Connection
+        + close(): void
+    }
+
+    class SQLiteUserRepository {
+        - databaseManager: DatabaseManager
+
+        + save(user: User): User
+        + findById(userId: long): Optional<User>
+        + findByUsername(username: String): Optional<User>
+        + existsByUsername(username: String): boolean
+    }
+
+    class SQLiteUserPreferencesRepository {
+        - databaseManager: DatabaseManager
+
+        + loadForUser(userId: long): UserPreferences
+        + save(preferences: UserPreferences): void
+    }
+
+    class SQLitePortfolioRepository {
+        - databaseManager: DatabaseManager
+
+        + loadForUser(userId: long): Portfolio
+        + saveForUser(userId: long, portfolio: Portfolio): void
+    }
+
+    class SQLiteWatchlistRepository {
+        - databaseManager: DatabaseManager
+
+        + loadForUser(userId: long): Watchlist
+        + saveForUser(userId: long, watchlist: Watchlist): void
+    }
+
+    class SQLiteConversationRepository {
+        - databaseManager: DatabaseManager
+
+        + createSession(userId: long): ConversationSession
+
+        + saveMessage(
+            userId: long,
+            message: ConversationMessage
+          ): void
+
+        + getRecentMessages(
+            userId: long,
+            limit: int
+          ): List<ConversationMessage>
+
+        + getSessions(
+            userId: long
+          ): List<ConversationSession>
+    }
+}
+
+UserRepository <|.. SQLiteUserRepository
+
+UserPreferencesRepository <|.. SQLiteUserPreferencesRepository
+
+PortfolioRepository <|.. SQLitePortfolioRepository
+
+WatchlistRepository <|.. SQLiteWatchlistRepository
+
+ConversationRepository <|.. SQLiteConversationRepository
+
+
+SQLiteUserRepository --> DatabaseManager
+SQLiteUserPreferencesRepository --> DatabaseManager
+SQLitePortfolioRepository --> DatabaseManager
+SQLiteWatchlistRepository --> DatabaseManager
+SQLiteConversationRepository --> DatabaseManager
+
+
+' ============================================================
+' SERVICES
+' ============================================================
+
+package "User Services" {
+
+    class PortfolioService {
+        - repository: PortfolioRepository
+
+        + getPortfolio(userId: long): Portfolio
+
+        + addPosition(
+            userId: long,
+            position: PortfolioPosition
+          ): void
+
+        + removePosition(
+            userId: long,
+            symbol: String
+          ): boolean
+    }
+
+    class WatchlistService {
+        - repository: WatchlistRepository
+
+        + getWatchlist(userId: long): Watchlist
+        + addSymbol(userId: long, symbol: String): void
+        + removeSymbol(userId: long, symbol: String): boolean
+    }
+
+    class MemoryService {
+        - repository: ConversationRepository
+
+        + startConversation(userId: long): ConversationSession
+
+        + saveMessage(
+            userId: long,
+            message: ConversationMessage
+          ): void
+
+        + getRecentContext(
+            userId: long,
+            limit: int
+          ): ConversationContext
+    }
+}
+
+PortfolioService --> PortfolioRepository
+WatchlistService --> WatchlistRepository
+MemoryService --> ConversationRepository
+
+@enduml

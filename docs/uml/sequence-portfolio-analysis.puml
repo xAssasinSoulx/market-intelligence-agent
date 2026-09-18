@@ -1,0 +1,76 @@
+@startuml
+title UC-15 - Analyze Portfolio Exposure
+
+autonumber
+
+actor User
+
+participant TerminalUI <<boundary>>
+participant AgentController <<control>>
+participant SessionManager <<control>>
+participant RequestPlanner <<control>>
+participant LLMClient
+participant ToolManager <<control>>
+participant PortfolioAnalysisTool
+participant PortfolioService <<control>>
+participant PortfolioRepository
+participant ETFDataProvider
+participant ExposureCalculator <<control>>
+participant ResponseComposer <<control>>
+
+User -> TerminalUI : "What sectors am I most exposed to?"
+TerminalUI -> AgentController : handleRequest(input)
+
+AgentController -> SessionManager : getCurrentUserId()
+SessionManager --> AgentController : userId
+
+AgentController -> RequestPlanner : createPlan(request, context)
+RequestPlanner -> LLMClient : generate(planningPrompt)
+LLMClient --> RequestPlanner : PORTFOLIO_EXPOSURE(SECTOR)
+RequestPlanner --> AgentController : AgentPlan
+
+AgentController -> ToolManager : execute(portfolioExposureRequest)
+ToolManager -> PortfolioAnalysisTool : execute(request)
+
+PortfolioAnalysisTool -> PortfolioService : getPortfolio(userId)
+PortfolioService -> PortfolioRepository : loadForUser(userId)
+PortfolioRepository --> PortfolioService : Portfolio
+PortfolioService --> PortfolioAnalysisTool : Portfolio
+
+loop For each ETF position
+    PortfolioAnalysisTool -> ETFDataProvider : getHoldings(symbol)
+
+    alt ETF holdings are available
+        ETFDataProvider --> PortfolioAnalysisTool : ETF holdings
+        PortfolioAnalysisTool -> PortfolioAnalysisTool : store holdings
+    else ETF holdings are unavailable
+        ETFDataProvider --> PortfolioAnalysisTool : provider error
+        PortfolioAnalysisTool -> PortfolioAnalysisTool : record missing data
+    end
+end
+
+alt Required portfolio data is available
+    PortfolioAnalysisTool -> ExposureCalculator : calculatePortfolioExposure(portfolio, etfHoldings)
+    ExposureCalculator --> PortfolioAnalysisTool : ExposureResult
+    PortfolioAnalysisTool --> ToolManager : ToolResult(success)
+else Required ETF information is incomplete
+    PortfolioAnalysisTool --> ToolManager : ToolResult(failure)
+end
+
+ToolManager --> AgentController : ToolResult
+
+AgentController -> ResponseComposer : compose(request, results, context)
+
+alt Exposure result is available
+    ResponseComposer -> LLMClient : explain calculated portfolio exposure
+    LLMClient --> ResponseComposer : portfolio explanation
+else Exposure result is incomplete
+    ResponseComposer -> LLMClient : explain unavailable portfolio data
+    LLMClient --> ResponseComposer : limitation response
+end
+
+ResponseComposer --> AgentController : AgentResponse
+AgentController --> TerminalUI : AgentResponse
+TerminalUI --> User : Display portfolio analysis
+
+@enduml

@@ -1,0 +1,75 @@
+@startuml
+title UC-04 - Get Market Quote
+
+autonumber
+
+actor User
+
+participant TerminalUI <<boundary>>
+participant AgentController <<control>>
+participant SessionManager <<control>>
+participant RequestPlanner <<control>>
+participant LLMClient
+participant ToolManager <<control>>
+participant MarketDataTool
+participant RequestValidator <<control>>
+participant MarketDataProvider
+participant ResponseComposer <<control>>
+
+User -> TerminalUI : "What is the latest price of NVDA?"
+
+TerminalUI -> AgentController : handleRequest(input)
+
+AgentController -> SessionManager : getCurrentUserId()
+SessionManager --> AgentController : userId
+
+AgentController -> RequestPlanner : createPlan(request, context)
+
+RequestPlanner -> LLMClient : generate(planningPrompt)
+LLMClient --> RequestPlanner : MARKET_QUOTE(symbol = "NVDA")
+
+RequestPlanner --> AgentController : AgentPlan
+
+AgentController -> ToolManager : execute(ToolRequest)
+ToolManager -> MarketDataTool : execute(request)
+
+MarketDataTool -> RequestValidator : validateSymbol("NVDA")
+
+alt Symbol is valid
+
+    RequestValidator --> MarketDataTool : ValidationResult(valid)
+
+    MarketDataTool -> MarketDataProvider : getQuote("NVDA")
+
+    alt Market-data provider succeeds
+
+        MarketDataProvider --> MarketDataTool : MarketQuote
+        MarketDataTool --> ToolManager : ToolResult(success, MarketQuote)
+
+    else Market-data provider fails
+
+        MarketDataProvider --> MarketDataTool : provider error
+        MarketDataTool --> ToolManager : ToolResult(failure, errorMessage)
+
+    end
+
+else Symbol is invalid
+
+    RequestValidator --> MarketDataTool : ValidationResult(invalid)
+    MarketDataTool --> ToolManager : ToolResult(failure, "Invalid symbol")
+
+end
+
+ToolManager --> AgentController : ToolResult
+
+AgentController -> ResponseComposer : compose(request, results, context)
+
+ResponseComposer -> LLMClient : generate(responsePrompt)
+LLMClient --> ResponseComposer : natural-language response
+
+ResponseComposer --> AgentController : AgentResponse
+AgentController --> TerminalUI : AgentResponse
+
+TerminalUI --> User : Display quote or explicit failure
+
+@enduml

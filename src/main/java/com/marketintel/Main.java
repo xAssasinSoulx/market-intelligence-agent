@@ -1,17 +1,46 @@
 package com.marketintel;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-public class Main {
-    public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+import com.marketintel.auth.AuthService;
+import com.marketintel.auth.BCryptPasswordHasher;
+import com.marketintel.auth.PasswordHasher;
+import com.marketintel.auth.SessionManager;
+import com.marketintel.persistence.DatabaseManager;
+import com.marketintel.persistence.SQLiteUserRepository;
+import com.marketintel.persistence.UserRepository;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
-        }
+public class Main {
+
+    private static final String DATABASE_URL =
+            "jdbc:sqlite:data/market-intelligence.db";
+
+    public static void main(String[] args) {
+
+        DatabaseManager databaseManager =
+                new DatabaseManager(DATABASE_URL);
+
+        databaseManager.initialize();
+
+        UserRepository userRepository =
+                new SQLiteUserRepository(databaseManager);
+
+        PasswordHasher passwordHasher =
+                new BCryptPasswordHasher();
+
+        AuthService authService =
+                new AuthService(
+                        userRepository,
+                        passwordHasher
+                );
+
+        SessionManager sessionManager =
+                new SessionManager();
+
+        System.out.println(
+                "Market Intelligence Agent"
+        );
+
+        System.out.println(
+                "Database initialized successfully."
+        );
     }
 }

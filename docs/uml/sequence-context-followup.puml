@@ -1,0 +1,81 @@
+@startuml
+title UC-16 - Ask a Contextual Follow-Up Question
+
+autonumber
+
+actor User
+
+participant TerminalUI <<boundary>>
+participant AgentController <<control>>
+participant SessionManager <<control>>
+participant MemoryService <<control>>
+participant ConversationRepository
+participant RequestPlanner <<control>>
+participant LLMClient
+participant ToolManager <<control>>
+participant ETFExposureTool
+participant ETFDataProvider
+participant ExposureCalculator <<control>>
+participant ResponseComposer <<control>>
+
+User -> TerminalUI : "What about its geographic exposure?"
+TerminalUI -> AgentController : handleRequest(input)
+
+AgentController -> SessionManager : getCurrentUserId()
+SessionManager --> AgentController : userId
+
+AgentController -> MemoryService : getRecentContext(userId, limit)
+MemoryService -> ConversationRepository : getRecentMessages(userId, limit)
+ConversationRepository --> MemoryService : recent messages
+MemoryService --> AgentController : ConversationContext
+
+AgentController -> MemoryService : saveMessage(userId, userMessage)
+MemoryService -> ConversationRepository : saveMessage(userId, userMessage)
+ConversationRepository --> MemoryService : saved
+
+AgentController -> RequestPlanner : createPlan(request, context)
+RequestPlanner -> LLMClient : generate(planningPrompt with context)
+
+alt Contextual reference can be resolved
+    LLMClient --> RequestPlanner : ETF_GEOGRAPHIC_EXPOSURE(XEQT)
+    RequestPlanner --> AgentController : AgentPlan
+
+    AgentController -> ToolManager : execute(toolRequest)
+    ToolManager -> ETFExposureTool : execute(request)
+
+    ETFExposureTool -> ETFDataProvider : getHoldings(XEQT)
+
+    alt ETF holdings are available
+        ETFDataProvider --> ETFExposureTool : ETF holdings
+
+        ETFExposureTool -> ExposureCalculator : calculateGeographicExposure(holdings)
+        ExposureCalculator --> ETFExposureTool : ExposureResult
+
+        ETFExposureTool --> ToolManager : ToolResult(success)
+    else ETF holdings are unavailable
+        ETFDataProvider --> ETFExposureTool : provider error
+        ETFExposureTool --> ToolManager : ToolResult(failure)
+    end
+
+    ToolManager --> AgentController : ToolResult
+
+    AgentController -> ResponseComposer : compose(request, results, context)
+    ResponseComposer -> LLMClient : generate(responsePrompt)
+    LLMClient --> ResponseComposer : natural-language response
+    ResponseComposer --> AgentController : AgentResponse
+
+else Contextual reference is ambiguous
+    LLMClient --> RequestPlanner : clarification required
+    RequestPlanner --> AgentController : clarification plan
+    AgentController -> ResponseComposer : compose clarification response
+    ResponseComposer --> AgentController : AgentResponse
+end
+
+AgentController -> MemoryService : saveMessage(userId, assistantResponse)
+MemoryService -> ConversationRepository : saveMessage(userId, assistantResponse)
+ConversationRepository --> MemoryService : saved
+
+AgentController --> TerminalUI : AgentResponse
+TerminalUI --> User : Display response
+
+@enduml
