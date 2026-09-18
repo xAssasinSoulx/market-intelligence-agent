@@ -24,6 +24,15 @@ import com.marketintel.services.WatchlistService;
 import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
 
+import com.marketintel.agent.ToolManager;
+
+import com.marketintel.providers.MarketDataApiClient;
+import com.marketintel.providers.MarketDataProvider;
+
+import com.marketintel.services.RequestValidator;
+
+import com.marketintel.tools.MarketDataTool;
+
 public class Main {
 
     private static final String DATABASE_URL =
@@ -34,6 +43,12 @@ public class Main {
         // ----------------------------------------------------
         // Persistence
         // ----------------------------------------------------
+
+        ToolManager toolManager =
+                new ToolManager();
+
+        RequestValidator requestValidator =
+                new RequestValidator();
 
         DatabaseManager databaseManager =
                 new DatabaseManager(DATABASE_URL);
@@ -92,11 +107,28 @@ public class Main {
                         "ALPHA_VANTAGE_API_KEY"
                 );
 
-        if (marketApiKey == null
-                || marketApiKey.isBlank()) {
+        if (marketApiKey != null
+                && !marketApiKey.isBlank()) {
+
+            MarketDataProvider marketDataProvider =
+                    new MarketDataApiClient(
+                            marketApiKey
+                    );
+
+            MarketDataTool marketDataTool =
+                    new MarketDataTool(
+                            marketDataProvider,
+                            requestValidator
+                    );
+
+            toolManager.registerTool(
+                    marketDataTool
+            );
+
+        } else {
 
             System.err.println(
-                    "Warning: ALPHA_VANTAGE_API_KEY "
+                    "Warning: Market-data API key "
                             + "is not configured."
             );
         }
@@ -107,7 +139,8 @@ public class Main {
                         sessionManager,
                         commandParser,
                         portfolioService,
-                        watchlistService
+                        watchlistService,
+                        toolManager
                 );
 
         userInterface.start();

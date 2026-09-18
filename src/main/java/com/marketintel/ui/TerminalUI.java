@@ -1,5 +1,6 @@
 package com.marketintel.ui;
 
+import com.marketintel.agent.ToolManager;
 import com.marketintel.auth.AuthService;
 import com.marketintel.auth.SessionManager;
 import com.marketintel.model.User;
@@ -16,6 +17,16 @@ import com.marketintel.services.WatchlistService;
 
 import java.math.BigDecimal;
 
+import com.marketintel.agent.ToolManager;
+
+import com.marketintel.model.ActionType;
+import com.marketintel.model.MarketQuote;
+import com.marketintel.model.SecurityOverview;
+import com.marketintel.model.ToolRequest;
+import com.marketintel.model.ToolResult;
+
+import java.util.Map;
+
 public class TerminalUI implements UserInterface {
 
     private final PortfolioService portfolioService;
@@ -24,7 +35,7 @@ public class TerminalUI implements UserInterface {
     private final SessionManager sessionManager;
     private final CommandParser commandParser;
     private final Scanner scanner;
-
+    private final ToolManager toolManager;
     private boolean running = true;
 
     public TerminalUI(
@@ -32,14 +43,18 @@ public class TerminalUI implements UserInterface {
             SessionManager sessionManager,
             CommandParser commandParser,
             PortfolioService portfolioService,
-            WatchlistService watchlistService) {
+            WatchlistService watchlistService,
+            ToolManager toolManager) {
 
         this.authService = authService;
         this.sessionManager = sessionManager;
         this.commandParser = commandParser;
         this.portfolioService = portfolioService;
         this.watchlistService = watchlistService;
-        this.scanner = new Scanner(System.in);
+        this.toolManager = toolManager;
+
+        this.scanner =
+                new Scanner(System.in);
     }
 
     @Override
@@ -228,6 +243,12 @@ public class TerminalUI implements UserInterface {
                 case "watchlist" ->
                         handleWatchlistCommand(parsed);
 
+                case "quote" ->
+                        handleQuoteCommand(parsed);
+
+                case "overview" ->
+                        handleOverviewCommand(parsed);
+
                 case "logout" ->
                         logout();
 
@@ -344,6 +365,16 @@ public class TerminalUI implements UserInterface {
         System.out.println(
                 "/watchlist remove SYMBOL"
                         + "       Remove watchlist symbol"
+        );
+
+        System.out.println(
+                "/quote SYMBOL"
+                        + "       Get current market quote"
+        );
+
+        System.out.println(
+                "/overview SYMBOL"
+                        + "       Get security information"
         );
 
         System.out.println(
@@ -745,6 +776,205 @@ public class TerminalUI implements UserInterface {
         } catch (IllegalArgumentException e) {
 
             displayError(e.getMessage());
+        }
+    }
+    private void handleQuoteCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 1) {
+
+            displayError(
+                    "Usage: /quote SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().getFirst();
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager
+                                .getCurrentUserId(),
+                        ActionType.MARKET_QUOTE,
+                        Map.of(
+                                "symbol",
+                                symbol
+                        )
+                );
+
+        ToolResult result =
+                toolManager.execute(request);
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof MarketQuote quote)) {
+
+            displayError(
+                    "Unexpected market-data response."
+            );
+
+            return;
+        }
+
+        displayMarketQuote(quote);
+    }
+
+    private void displayMarketQuote(
+            MarketQuote quote) {
+
+        System.out.println();
+        System.out.println("MARKET QUOTE");
+        printDivider();
+
+        System.out.println(
+                "Symbol         : "
+                        + quote.getSymbol()
+        );
+
+        System.out.println(
+                "Price          : "
+                        + quote.getPrice()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        System.out.println(
+                "Previous Close : "
+                        + quote.getPreviousClose()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        System.out.println(
+                "Change         : "
+                        + quote.getPercentChange()
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + "%"
+        );
+    }
+
+    private void handleOverviewCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 1) {
+
+            displayError(
+                    "Usage: /overview SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().getFirst();
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager
+                                .getCurrentUserId(),
+                        ActionType.SECURITY_OVERVIEW,
+                        Map.of(
+                                "symbol",
+                                symbol
+                        )
+                );
+
+        ToolResult result =
+                toolManager.execute(request);
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof SecurityOverview overview)) {
+
+            displayError(
+                    "Unexpected security-overview response."
+            );
+
+            return;
+        }
+
+        displaySecurityOverview(
+                overview
+        );
+    }
+
+    private void displaySecurityOverview(
+            SecurityOverview overview) {
+
+        System.out.println();
+        System.out.println("SECURITY OVERVIEW");
+        printDivider();
+
+        System.out.println(
+                "Symbol    : "
+                        + overview.getSymbol()
+        );
+
+        System.out.println(
+                "Name      : "
+                        + overview.getName()
+        );
+
+        System.out.println(
+                "Exchange  : "
+                        + overview.getExchange()
+        );
+
+        System.out.println(
+                "Currency  : "
+                        + overview.getCurrency()
+        );
+
+        System.out.println(
+                "Sector    : "
+                        + overview.getSector()
+        );
+
+        System.out.println(
+                "Industry  : "
+                        + overview.getIndustry()
+        );
+
+        if (overview.getMarketCapitalization()
+                != null) {
+
+            System.out.println(
+                    "Market Cap: "
+                            + overview
+                            .getMarketCapitalization()
+                            .toPlainString()
+            );
+        }
+
+        if (overview.getDescription()
+                != null
+                && !overview
+                .getDescription()
+                .isBlank()) {
+
+            System.out.println();
+            System.out.println(
+                    overview.getDescription()
+            );
         }
     }
 }

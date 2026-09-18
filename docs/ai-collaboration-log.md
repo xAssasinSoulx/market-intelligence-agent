@@ -30,3 +30,44 @@ The proposed architecture was reviewed and expanded to include:
 ### Outcome
 The revised architecture was incorporated into the finalized Stage 1
 UML diagrams and selected as the baseline for Stage 2 implementation.
+
+## Interaction 003 - Market Data Provider and Tool Architecture
+
+### Task
+
+Implement external market-data retrieval and integrate it with the
+agent tool architecture.
+
+### Input / Instruction
+
+Asked ChatGPT to help implement the Stage 1 market-data design using
+a provider abstraction and external financial API.
+
+### AI Contribution
+
+The AI proposed and helped implement:
+
+- `MarketDataProvider`;
+- `MarketDataApiClient`;
+- `MarketDataException`;
+- `MarketQuote`;
+- `SecurityOverview`;
+- provider-side rate limiting;
+- `AgentTool`;
+- `ToolManager`;
+- `MarketDataTool`;
+- `ToolRequest` and `ToolResult`;
+- deterministic request validation;
+- automated tests using a fake market-data provider.
+
+### Human Contribution
+
+The implementation was reviewed and executed locally. Real Alpha Vantage
+requests were tested manually, API throttling behavior was identified,
+and the manual test workflow was adjusted to avoid unnecessary API calls.
+
+### Outcome
+
+The application can retrieve real market quotes and security overview
+data while preserving the Stage 1 separation between external providers,
+deterministic tools, and higher-level agent logic.
