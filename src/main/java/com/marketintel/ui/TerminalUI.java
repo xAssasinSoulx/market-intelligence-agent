@@ -80,50 +80,70 @@ public class TerminalUI
     @Override
     public void start() {
 
-        printBanner();
+        TerminalTheme.enterAlternateScreen();
 
-        while (running) {
+        try {
 
-            if (!sessionManager
-                    .isAuthenticated()) {
+            while (running) {
 
-                showAuthenticationMenu();
+                if (!sessionManager
+                        .isAuthenticated()) {
 
-            } else {
+                    showAuthenticationMenu();
 
-                showAuthenticatedTerminal();
+                } else {
+
+                    showAuthenticatedTerminal();
+                }
             }
+
+        } finally {
+
+            /*
+             * Always restore the user's normal terminal,
+             * even if something inside the application
+             * throws an exception.
+             */
+            TerminalTheme.exitAlternateScreen();
+
+            System.out.println(
+                    "Market Intelligence Agent closed."
+            );
         }
-
-        scanner.close();
-
-        System.out.println();
-
-        System.out.println(
-                "Terminal closed."
-        );
     }
 
     private void showAuthenticationMenu() {
 
-        System.out.println();
+        TerminalTheme.clearScreen();
 
-        System.out.println(
-                "1. Log In"
+        printBanner();
+
+        TerminalComponents.section(
+                "AUTHENTICATION"
         );
 
-        System.out.println(
-                "2. Register"
+        TerminalComponents.row(
+                "1",
+                "Log In"
         );
 
-        System.out.println(
-                "3. Exit"
+        TerminalComponents.row(
+                "2",
+                "Register"
         );
+
+        TerminalComponents.row(
+                "3",
+                "Exit"
+        );
+
+        TerminalComponents.endSection();
 
         System.out.println();
 
         System.out.print(
-                "Select an option: "
+                TerminalTheme.cyan("AUTH")
+                        + TerminalTheme.dim(" ❯ ")
         );
 
         String input =
@@ -141,15 +161,35 @@ public class TerminalUI
             case "3" ->
                     running = false;
 
-            default ->
-                    displayError(
-                            "Invalid option. "
-                                    + "Enter 1, 2, or 3."
-                    );
+            default -> {
+
+                displayError(
+                        "Invalid option. Enter 1, 2, or 3."
+                );
+
+                waitForEnter();
+            }
         }
     }
 
+    private void waitForEnter() {
+
+        System.out.println();
+
+        System.out.print(
+                TerminalTheme.dim(
+                        "Press Enter to continue..."
+                )
+        );
+
+        scanner.nextLine();
+    }
+
     private void register() {
+
+        TerminalTheme.clearScreen();
+
+        printBanner();
 
         System.out.println();
 
@@ -220,13 +260,15 @@ public class TerminalUI
 
     private void login() {
 
-        System.out.println();
+        TerminalTheme.clearScreen();
 
-        System.out.println(
+        printBanner();
+
+        TerminalComponents.section(
                 "USER LOGIN"
         );
 
-        printDivider();
+        System.out.println();
 
         System.out.print(
                 "Username: "
@@ -241,6 +283,8 @@ public class TerminalUI
                         "Password: "
                 );
 
+        TerminalComponents.endSection();
+
         try {
 
             User user =
@@ -253,39 +297,122 @@ public class TerminalUI
                     user
             );
 
-            System.out.println();
+            TerminalTheme.clearScreen();
 
-            System.out.println(
-                    "Authentication successful."
-            );
+            displayTerminalHeader();
 
-            System.out.println(
-                    "Welcome, "
-                            + user.getUsername()
-                            + "."
-            );
+            displayDashboard();
 
         } catch (SecurityException e) {
 
             displayError(
-                    "Invalid username "
-                            + "or password."
+                    "Invalid username or password."
             );
+
+            waitForEnter();
 
         } catch (RuntimeException e) {
 
             displayError(
                     "Unable to complete login."
             );
+
+            waitForEnter();
         }
+    }
+
+    private void displayDashboard() {
+
+        User user =
+                sessionManager.getCurrentUser();
+
+        Portfolio portfolio =
+                portfolioService.getPortfolio(
+                        user.getId()
+                );
+
+        Watchlist watchlist =
+                watchlistService.getWatchlist(
+                        user.getId()
+                );
+
+        TerminalComponents.section(
+                "SESSION"
+        );
+
+        TerminalComponents.row(
+                "USER",
+                user.getUsername()
+        );
+
+        TerminalComponents.row(
+                "STATUS",
+                "CONNECTED"
+        );
+
+        TerminalComponents.row(
+                "PORTFOLIO",
+                portfolio.getPositions()
+                        .size()
+                        + " positions"
+        );
+
+        TerminalComponents.row(
+                "WATCHLIST",
+                watchlist.getSymbols()
+                        .size()
+                        + " symbols"
+        );
+
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "QUICK COMMANDS"
+        );
+
+        TerminalComponents.row(
+                "/quote",
+                "/quote NVDA"
+        );
+
+        TerminalComponents.row(
+                "/sector",
+                "/sector QQQ"
+        );
+
+        TerminalComponents.row(
+                "/overlap",
+                "/overlap QQQ VGT"
+        );
+
+        TerminalComponents.row(
+                "/help",
+                "Show all commands"
+        );
+
+        TerminalComponents.endSection();
     }
 
     private void showAuthenticatedTerminal() {
 
         System.out.println();
 
+        String username =
+                sessionManager
+                        .getCurrentUser()
+                        .getUsername();
+
         System.out.print(
-                "MI > "
+                TerminalTheme.green(
+                        username
+                )
+                        + TerminalTheme.dim("@")
+                        + TerminalTheme.cyan(
+                        "MI"
+                )
+                        + TerminalTheme.dim(
+                        " ❯ "
+                )
         );
 
         String input =
@@ -299,17 +426,25 @@ public class TerminalUI
         if (commandParser
                 .isCommand(input)) {
 
-            handleCommand(input);
+            handleCommand(
+                    input
+            );
 
             return;
         }
 
+        TerminalTheme.clearScreen();
+
+        displayTerminalHeader();
+
         System.out.println();
 
         System.out.println(
-                "[Natural-language agent "
-                        + "functionality will be "
-                        + "connected in a later milestone.]"
+                TerminalTheme.yellow(
+                        "Natural-language agent "
+                                + "functionality is not "
+                                + "connected yet."
+                )
         );
     }
 
@@ -322,6 +457,13 @@ public class TerminalUI
                     commandParser.parse(
                             input
                     );
+
+            /*
+             * New command = new screen.
+             */
+            TerminalTheme.clearScreen();
+
+            displayTerminalHeader();
 
             switch (
                     parsed.getCommand()) {
@@ -378,6 +520,10 @@ public class TerminalUI
 
         } catch (
                 IllegalArgumentException e) {
+
+            TerminalTheme.clearScreen();
+
+            displayTerminalHeader();
 
             displayError(
                     e.getMessage()
@@ -862,40 +1008,73 @@ public class TerminalUI
     private void displayMarketQuote(
             MarketQuote quote) {
 
-        System.out.println();
+        BigDecimal change =
+                quote.getPercentChange();
 
-        System.out.println(
+        String changeText =
+                change
+                        .stripTrailingZeros()
+                        .toPlainString()
+                        + "%";
+
+        if (change.compareTo(
+                BigDecimal.ZERO
+        ) > 0) {
+
+            changeText =
+                    TerminalTheme.green(
+                            "▲ +"
+                                    + changeText
+                    );
+
+        } else if (change.compareTo(
+                BigDecimal.ZERO
+        ) < 0) {
+
+            changeText =
+                    TerminalTheme.red(
+                            "▼ "
+                                    + changeText
+                    );
+
+        } else {
+
+            changeText =
+                    TerminalTheme.yellow(
+                            "● "
+                                    + changeText
+                    );
+        }
+
+        TerminalComponents.section(
                 "MARKET QUOTE"
         );
 
-        printDivider();
-
-        System.out.println(
-                "Symbol         : "
-                        + quote.getSymbol()
+        TerminalComponents.row(
+                "SYMBOL",
+                quote.getSymbol()
         );
 
-        System.out.println(
-                "Price          : "
-                        + quote.getPrice()
+        TerminalComponents.row(
+                "PRICE",
+                quote.getPrice()
                         .stripTrailingZeros()
                         .toPlainString()
         );
 
-        System.out.println(
-                "Previous Close : "
-                        + quote.getPreviousClose()
+        TerminalComponents.row(
+                "PREV CLOSE",
+                quote.getPreviousClose()
                         .stripTrailingZeros()
                         .toPlainString()
         );
 
-        System.out.println(
-                "Change         : "
-                        + quote.getPercentChange()
-                        .stripTrailingZeros()
-                        .toPlainString()
-                        + "%"
+        TerminalComponents.rawRow(
+                "CHANGE",
+                changeText
         );
+
+        TerminalComponents.endSection();
     }
 
     // ========================================================
@@ -1100,22 +1279,20 @@ public class TerminalUI
     private void displaySectorExposure(
             ExposureResult result) {
 
-        System.out.println();
-
-        System.out.println(
-                "ETF SECTOR EXPOSURE - "
+        TerminalComponents.section(
+                "ETF SECTOR EXPOSURE • "
                         + result.getSymbol()
         );
-
-        printDivider();
 
         if (result.getCategories()
                 .isEmpty()) {
 
-            System.out.println(
-                    "No sector exposure data "
-                            + "is available."
+            TerminalComponents.row(
+                    "STATUS",
+                    "No sector exposure data"
             );
+
+            TerminalComponents.endSection();
 
             return;
         }
@@ -1146,13 +1323,58 @@ public class TerminalUI
                                                     RoundingMode.HALF_UP
                                             );
 
-                            System.out.printf(
-                                    "%-30s %8s%%%n",
-                                    entry.getKey(),
-                                    percent
+                            String bar =
+                                    createBar(
+                                            percent
+                                    );
+
+                            TerminalComponents.row(
+                                    truncate(
+                                            entry.getKey(),
+                                            15
+                                    ),
+
+                                    String.format(
+                                            "%6s%% %s",
+                                            percent,
+                                            bar
+                                    )
                             );
                         }
                 );
+
+        TerminalComponents.endSection();
+    }
+
+    private String createBar(
+            BigDecimal percent) {
+
+        int length =
+                percent
+                        .divide(
+                                new BigDecimal("5"),
+                                0,
+                                RoundingMode.DOWN
+                        )
+                        .intValue();
+
+        length =
+                Math.max(
+                        0,
+                        Math.min(
+                                20,
+                                length
+                        )
+                );
+
+        return TerminalTheme.cyan(
+                "█".repeat(length)
+        )
+                + TerminalTheme.dim(
+                "░".repeat(
+                        20 - length
+                )
+        );
     }
 
     // ========================================================
@@ -1361,13 +1583,21 @@ public class TerminalUI
 
         sessionManager.endSession();
 
+        TerminalTheme.clearScreen();
+
+        printBanner();
+
         System.out.println();
 
         System.out.println(
-                "Logged out "
-                        + username
-                        + "."
+                TerminalTheme.green(
+                        "✓ Logged out "
+                                + username
+                                + "."
+                )
         );
+
+        waitForEnter();
     }
 
     private void exitApplication() {
@@ -1387,30 +1617,38 @@ public class TerminalUI
                 sessionManager
                         .getCurrentUser();
 
-        System.out.println();
-
-        System.out.println(
-                "CURRENT USER"
+        TerminalComponents.section(
+                "CURRENT SESSION"
         );
 
-        printDivider();
-
-        System.out.println(
-                "Username : "
-                        + user.getUsername()
+        TerminalComponents.row(
+                "USERNAME",
+                user.getUsername()
         );
 
-        System.out.println(
-                "User ID  : "
-                        + user.getId()
+        TerminalComponents.row(
+                "USER ID",
+                String.valueOf(
+                        user.getId()
+                )
         );
 
-        System.out.println(
-                "Login    : "
-                        + sessionManager
+        TerminalComponents.row(
+                "STATUS",
+                TerminalTheme.green(
+                        "● CONNECTED"
+                )
+        );
+
+        TerminalComponents.row(
+                "LOGIN",
+                sessionManager
                         .getCurrentSession()
                         .getLoginTime()
+                        .toString()
         );
+
+        TerminalComponents.endSection();
     }
 
     // ========================================================
@@ -1419,96 +1657,100 @@ public class TerminalUI
 
     private void displayHelp() {
 
-        System.out.println();
-
-        System.out.println(
-                "AVAILABLE COMMANDS"
+        TerminalComponents.section(
+                "MARKET DATA"
         );
 
-        printDivider();
-
-        System.out.println(
-                "/help"
-                        + "                         "
-                        + "Show available commands"
+        TerminalComponents.row(
+                "/quote SYMBOL",
+                "Current market quote"
         );
 
-        System.out.println(
-                "/whoami"
-                        + "                       "
-                        + "Show current user"
+        TerminalComponents.row(
+                "/overview SYMBOL",
+                "Company/security overview"
         );
 
-        System.out.println(
-                "/quote SYMBOL"
-                        + "                  "
-                        + "Get market quote"
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "ETF ANALYTICS"
         );
 
-        System.out.println(
-                "/overview SYMBOL"
-                        + "               "
-                        + "Get security information"
+        TerminalComponents.row(
+                "/sector ETF",
+                "Sector exposure"
         );
 
-        System.out.println(
-                "/sector ETF"
-                        + "                    "
-                        + "Analyze ETF sector exposure"
+        TerminalComponents.row(
+                "/overlap A B",
+                "ETF holdings overlap"
         );
 
-        System.out.println(
-                "/overlap ETF1 ETF2"
-                        + "             "
-                        + "Analyze ETF holding overlap"
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "PORTFOLIO"
         );
 
-        System.out.println(
-                "/portfolio"
-                        + "                     "
-                        + "View portfolio"
+        TerminalComponents.row(
+                "/portfolio",
+                "View portfolio"
         );
 
-        System.out.println(
-                "/portfolio add SYMBOL QTY TYPE"
-                        + " Add portfolio position"
+        TerminalComponents.row(
+                "/portfolio add",
+                "Add position"
         );
 
-        System.out.println(
-                "/portfolio remove SYMBOL"
-                        + "       "
-                        + "Remove portfolio position"
+        TerminalComponents.row(
+                "/portfolio remove",
+                "Remove position"
         );
 
-        System.out.println(
-                "/watchlist"
-                        + "                     "
-                        + "View watchlist"
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "WATCHLIST"
         );
 
-        System.out.println(
-                "/watchlist add SYMBOL"
-                        + "          "
-                        + "Add watchlist symbol"
+        TerminalComponents.row(
+                "/watchlist",
+                "View watchlist"
         );
 
-        System.out.println(
-                "/watchlist remove SYMBOL"
-                        + "       "
-                        + "Remove watchlist symbol"
+        TerminalComponents.row(
+                "/watchlist add",
+                "Add symbol"
         );
 
-        System.out.println(
-                "/logout"
-                        + "                       "
-                        + "End current session"
+        TerminalComponents.row(
+                "/watchlist remove",
+                "Remove symbol"
         );
 
-        System.out.println(
-                "/exit"
-                        + "                         "
-                        + "Exit application"
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "SYSTEM"
         );
+
+        TerminalComponents.row(
+                "/whoami",
+                "Current session"
+        );
+
+        TerminalComponents.row(
+                "/logout",
+                "Log out"
+        );
+
+        TerminalComponents.row(
+                "/exit",
+                "Exit terminal"
+        );
+
+        TerminalComponents.endSection();
     }
 
     // ========================================================
@@ -1547,8 +1789,10 @@ public class TerminalUI
         System.out.println();
 
         System.out.println(
-                "[OK] "
-                        + response
+                TerminalTheme.green(
+                        "✓ "
+                                + response
+                )
         );
     }
 
@@ -1559,8 +1803,10 @@ public class TerminalUI
         System.out.println();
 
         System.out.println(
-                "[ERROR] "
-                        + message
+                TerminalTheme.red(
+                        "✗ "
+                                + message
+                )
         );
     }
 
@@ -1569,19 +1815,39 @@ public class TerminalUI
         System.out.println();
 
         System.out.println(
-                "============================================================"
+                TerminalTheme.cyan(
+                        "╔══════════════════════════════════════════════════════════════╗"
+                )
         );
 
         System.out.println(
-                "                 MARKET INTELLIGENCE AGENT"
+                TerminalTheme.cyan("║")
+                        + TerminalTheme.bold(
+                        "                 MARKET INTELLIGENCE AGENT                  "
+                )
+                        + TerminalTheme.cyan("║")
         );
 
         System.out.println(
-                "                     TERMINAL v1.0"
+                TerminalTheme.cyan("║")
+                        + TerminalTheme.dim(
+                        "                       FICC TERMINAL                        "
+                )
+                        + TerminalTheme.cyan("║")
         );
 
         System.out.println(
-                "============================================================"
+                TerminalTheme.cyan(
+                        "╚══════════════════════════════════════════════════════════════╝"
+                )
+        );
+
+        System.out.println();
+
+        System.out.println(
+                TerminalTheme.dim(
+                        "  Java 21 • SQLite • Agent Tool Architecture"
+                )
         );
     }
 
@@ -1589,6 +1855,42 @@ public class TerminalUI
 
         System.out.println(
                 "------------------------------------------------------------"
+        );
+    }
+
+    private void displayTerminalHeader() {
+
+        User user =
+                sessionManager.getCurrentUser();
+
+        System.out.println(
+                TerminalTheme.cyan(
+                        "╔══════════════════════════════════════════════════════════════╗"
+                )
+        );
+
+        System.out.println(
+                TerminalTheme.cyan("║")
+                        + TerminalTheme.bold(
+                        "                 MARKET INTELLIGENCE AGENT                  "
+                )
+                        + TerminalTheme.cyan("║")
+        );
+
+        System.out.println(
+                TerminalTheme.cyan("║")
+                        + String.format(
+                        "  %-20s %-37s",
+                        user.getUsername(),
+                        "● CONNECTED"
+                )
+                        + TerminalTheme.cyan("║")
+        );
+
+        System.out.println(
+                TerminalTheme.cyan(
+                        "╚══════════════════════════════════════════════════════════════╝"
+                )
         );
     }
 }
