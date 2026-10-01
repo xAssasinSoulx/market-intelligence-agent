@@ -21,10 +21,13 @@ import com.marketintel.providers.ETFDataProvider;
 import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
 
+import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.RequestValidator;
 import com.marketintel.services.WatchlistService;
 
+import com.marketintel.tools.ComparisonTool;
+import com.marketintel.tools.ETFExposureTool;
 import com.marketintel.tools.MarketDataTool;
 
 import com.marketintel.ui.CommandParser;
@@ -88,7 +91,7 @@ public class Main {
                 new SessionManager();
 
         // ----------------------------------------------------
-        // User Services
+        // Application Services
         // ----------------------------------------------------
 
         PortfolioService portfolioService =
@@ -103,6 +106,9 @@ public class Main {
 
         RequestValidator requestValidator =
                 new RequestValidator();
+
+        ExposureCalculator exposureCalculator =
+                new ExposureCalculator();
 
         // ----------------------------------------------------
         // Tool Manager
@@ -130,6 +136,10 @@ public class Main {
                             alphaVantageApiKey
                     );
 
+            // ----------------------------------------------
+            // Providers
+            // ----------------------------------------------
+
             MarketDataProvider
                     marketDataProvider =
                     new MarketDataApiClient(
@@ -142,27 +152,46 @@ public class Main {
                             alphaVantageClient
                     );
 
+            // ----------------------------------------------
+            // Tools
+            // ----------------------------------------------
+
             MarketDataTool marketDataTool =
                     new MarketDataTool(
                             marketDataProvider,
                             requestValidator
                     );
 
+            ETFExposureTool
+                    etfExposureTool =
+                    new ETFExposureTool(
+                            etfDataProvider,
+                            exposureCalculator,
+                            requestValidator
+                    );
+
+            ComparisonTool comparisonTool =
+                    new ComparisonTool(
+                            etfDataProvider,
+                            exposureCalculator,
+                            requestValidator
+                    );
+
+            // ----------------------------------------------
+            // Tool Registration
+            // ----------------------------------------------
+
             toolManager.registerTool(
                     marketDataTool
             );
 
-            /*
-             * ETFDataProvider will be connected
-             * to ETFExposureTool in the next
-             * milestone.
-             */
-            if (etfDataProvider == null) {
+            toolManager.registerTool(
+                    etfExposureTool
+            );
 
-                throw new IllegalStateException(
-                        "ETF provider initialization failed."
-                );
-            }
+            toolManager.registerTool(
+                    comparisonTool
+            );
 
         } else {
 
