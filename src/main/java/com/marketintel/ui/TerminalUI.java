@@ -1546,43 +1546,57 @@ public class TerminalUI
                         )
                         .toPlainString();
 
+        if (score.compareTo(
+                BigDecimal.ZERO
+        ) > 0) {
+
+            scoreText =
+                    "+"
+                            + scoreText;
+        }
+
         String label =
                 article.getSentimentLabel();
 
-        String text =
+        String displayText =
                 scoreText;
 
         if (label != null
                 && !label.isBlank()) {
 
-            text +=
+            displayText +=
                     " • "
                             + label;
         }
 
-        if (score.compareTo(
-                BigDecimal.ZERO
-        ) > 0) {
+        String normalizedLabel =
+                label == null
+                        ? ""
+                        : label.toLowerCase();
+
+        if (normalizedLabel.contains(
+                "bullish"
+        )) {
 
             return TerminalTheme.green(
-                    "▲ +"
-                            + text
+                    "▲ "
+                            + displayText
             );
         }
 
-        if (score.compareTo(
-                BigDecimal.ZERO
-        ) < 0) {
+        if (normalizedLabel.contains(
+                "bearish"
+        )) {
 
             return TerminalTheme.red(
                     "▼ "
-                            + text
+                            + displayText
             );
         }
 
         return TerminalTheme.yellow(
                 "● "
-                        + text
+                        + displayText
         );
     }
 

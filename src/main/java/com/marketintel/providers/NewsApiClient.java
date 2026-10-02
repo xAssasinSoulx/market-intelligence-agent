@@ -48,6 +48,20 @@ public class NewsApiClient
                         limit
                 );
 
+        /*
+         * Retrieve a larger candidate pool because we
+         * independently verify ticker relevance before
+         * exposing articles to the user.
+         */
+        int providerLimit =
+                Math.min(
+                        MAX_LIMIT,
+                        Math.max(
+                                normalizedLimit * 10,
+                                normalizedLimit
+                        )
+                );
+
         JsonNode root =
                 client.query(
                         "NEWS_SENTIMENT",
@@ -61,7 +75,7 @@ public class NewsApiClient
 
                                 "limit",
                                 String.valueOf(
-                                        normalizedLimit
+                                        providerLimit
                                 )
                         )
                 );
@@ -106,6 +120,20 @@ public class NewsApiClient
                     >= limit) {
 
                 break;
+            }
+
+            /*
+             * Do not blindly trust the provider-side
+             * ticker filter. The article must explicitly
+             * contain a ticker_sentiment entry for the
+             * requested symbol.
+             */
+            if (!mentionsTicker(
+                    symbol,
+                    articleNode
+            )) {
+
+                continue;
             }
 
             String title =
@@ -168,6 +196,41 @@ public class NewsApiClient
         );
     }
 
+    private boolean mentionsTicker(
+            String symbol,
+            JsonNode articleNode) {
+
+        JsonNode tickerSentiment =
+                articleNode.path(
+                        "ticker_sentiment"
+                );
+
+        if (!tickerSentiment.isArray()) {
+
+            return false;
+        }
+
+        for (JsonNode tickerNode
+                : tickerSentiment) {
+
+            String ticker =
+                    textOrNull(
+                            tickerNode,
+                            "ticker"
+                    );
+
+            if (ticker != null
+                    && ticker.equalsIgnoreCase(
+                    symbol
+            )) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private SentimentData extractSentiment(
             String symbol,
             JsonNode articleNode) {
@@ -208,20 +271,9 @@ public class NewsApiClient
             }
         }
 
-        /*
-         * Fall back to article-wide sentiment if the
-         * provider does not include ticker-specific data.
-         */
         return new SentimentData(
-                decimalOrNull(
-                        articleNode,
-                        "overall_sentiment_score"
-                ),
-
-                textOrNull(
-                        articleNode,
-                        "overall_sentiment_label"
-                )
+                null,
+                null
         );
     }
 
@@ -266,6 +318,7 @@ public class NewsApiClient
                 );
 
         if (value == null) {
+
             return null;
         }
 

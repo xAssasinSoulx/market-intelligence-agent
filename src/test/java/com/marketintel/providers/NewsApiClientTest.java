@@ -18,6 +18,15 @@ class NewsApiClientTest {
     private final ObjectMapper objectMapper =
             new ObjectMapper();
 
+    private NewsApiClient createClient() {
+
+        return new NewsApiClient(
+                new AlphaVantageClient(
+                        "dummy-key"
+                )
+        );
+    }
+
     @Test
     void parsesTickerSpecificSentiment()
             throws Exception {
@@ -51,19 +60,13 @@ class NewsApiClientTest {
                         json
                 );
 
-        NewsApiClient client =
-                new NewsApiClient(
-                        new AlphaVantageClient(
-                                "dummy-key"
-                        )
-                );
-
         List<NewsArticle> articles =
-                client.parseNews(
-                        "NVDA",
-                        root,
-                        5
-                );
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                5
+                        );
 
         assertEquals(
                 1,
@@ -97,7 +100,7 @@ class NewsApiClientTest {
     }
 
     @Test
-    void fallsBackToOverallSentiment()
+    void filtersArticlesForOtherTickers()
             throws Exception {
 
         String json =
@@ -105,14 +108,31 @@ class NewsApiClientTest {
                 {
                   "feed": [
                     {
-                      "title": "Technology market update",
-                      "url": "https://example.com/article2",
-                      "source": "Example News",
-                      "time_published": "20261001T190000",
-                      "summary": "A broad market update.",
-                      "overall_sentiment_score": "-0.20",
-                      "overall_sentiment_label": "Somewhat-Bearish",
-                      "ticker_sentiment": []
+                      "title": "Coca-Cola vs PepsiCo",
+                      "url": "https://example.com/coke",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "KO",
+                          "ticker_sentiment_score": "0.33",
+                          "ticker_sentiment_label": "Bullish"
+                        },
+                        {
+                          "ticker": "PEP",
+                          "ticker_sentiment_score": "0.20",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "NVIDIA launches new GPU",
+                      "url": "https://example.com/nvidia",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "ticker_sentiment_score": "0.41",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -123,19 +143,13 @@ class NewsApiClientTest {
                         json
                 );
 
-        NewsApiClient client =
-                new NewsApiClient(
-                        new AlphaVantageClient(
-                                "dummy-key"
-                        )
-                );
-
         List<NewsArticle> articles =
-                client.parseNews(
-                        "NVDA",
-                        root,
-                        5
-                );
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                5
+                        );
 
         assertEquals(
                 1,
@@ -143,12 +157,53 @@ class NewsApiClientTest {
         );
 
         assertEquals(
-                new BigDecimal(
-                        "-0.20"
-                ),
+                "NVIDIA launches new GPU",
                 articles
                         .getFirst()
-                        .getSentimentScore()
+                        .getTitle()
+        );
+    }
+
+    @Test
+    void rejectsArticleWithoutRequestedTicker()
+            throws Exception {
+
+        String json =
+                """
+                {
+                  "feed": [
+                    {
+                      "title": "General technology news",
+                      "url": "https://example.com/general",
+                      "overall_sentiment_score": "0.50",
+                      "overall_sentiment_label": "Bullish",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "MSFT",
+                          "ticker_sentiment_score": "0.50",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+        JsonNode root =
+                objectMapper.readTree(
+                        json
+                );
+
+        List<NewsArticle> articles =
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                5
+                        );
+
+        assertTrue(
+                articles.isEmpty()
         );
     }
 
@@ -161,14 +216,31 @@ class NewsApiClientTest {
                 {
                   "feed": [
                     {
-                      "title": "Valid article",
-                      "url": "https://example.com/valid"
+                      "title": "Valid NVIDIA article",
+                      "url": "https://example.com/valid",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "ticker_sentiment_score": "0.25",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
                     },
                     {
-                      "title": "Missing URL"
+                      "title": "Missing URL",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA"
+                        }
+                      ]
                     },
                     {
-                      "url": "https://example.com/missing-title"
+                      "url": "https://example.com/missing-title",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -179,19 +251,13 @@ class NewsApiClientTest {
                         json
                 );
 
-        NewsApiClient client =
-                new NewsApiClient(
-                        new AlphaVantageClient(
-                                "dummy-key"
-                        )
-                );
-
         List<NewsArticle> articles =
-                client.parseNews(
-                        "NVDA",
-                        root,
-                        5
-                );
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                5
+                        );
 
         assertEquals(
                 1,
@@ -200,7 +266,7 @@ class NewsApiClientTest {
     }
 
     @Test
-    void respectsRequestedLimit()
+    void respectsRequestedLimitAfterFiltering()
             throws Exception {
 
         String json =
@@ -208,16 +274,40 @@ class NewsApiClientTest {
                 {
                   "feed": [
                     {
-                      "title": "Article 1",
-                      "url": "https://example.com/1"
+                      "title": "Unrelated article",
+                      "url": "https://example.com/unrelated",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "MSFT"
+                        }
+                      ]
                     },
                     {
-                      "title": "Article 2",
-                      "url": "https://example.com/2"
+                      "title": "NVIDIA Article 1",
+                      "url": "https://example.com/1",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA"
+                        }
+                      ]
                     },
                     {
-                      "title": "Article 3",
-                      "url": "https://example.com/3"
+                      "title": "NVIDIA Article 2",
+                      "url": "https://example.com/2",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "NVIDIA Article 3",
+                      "url": "https://example.com/3",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -228,23 +318,29 @@ class NewsApiClientTest {
                         json
                 );
 
-        NewsApiClient client =
-                new NewsApiClient(
-                        new AlphaVantageClient(
-                                "dummy-key"
-                        )
-                );
-
         List<NewsArticle> articles =
-                client.parseNews(
-                        "NVDA",
-                        root,
-                        2
-                );
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                2
+                        );
 
         assertEquals(
                 2,
                 articles.size()
+        );
+
+        assertEquals(
+                "NVIDIA Article 1",
+                articles.get(0)
+                        .getTitle()
+        );
+
+        assertEquals(
+                "NVIDIA Article 2",
+                articles.get(1)
+                        .getTitle()
         );
     }
 }
