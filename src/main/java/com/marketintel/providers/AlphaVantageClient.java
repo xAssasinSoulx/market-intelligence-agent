@@ -14,13 +14,19 @@ import java.net.http.HttpResponse;
 
 import java.nio.charset.StandardCharsets;
 
+import java.time.Duration;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class AlphaVantageClient {
 
     private static final String BASE_URL =
             "https://www.alphavantage.co/query";
 
     private static final long
-            MIN_REQUEST_INTERVAL_MILLIS = 2000;
+            MIN_REQUEST_INTERVAL_MILLIS =
+            2000;
 
     private final String apiKey;
 
@@ -28,7 +34,7 @@ public class AlphaVantageClient {
 
     private final ObjectMapper objectMapper;
 
-    private long lastRequestTimeMillis;
+    private long lastRequestTimeMillis = 0;
 
     public AlphaVantageClient(
             String apiKey) {
@@ -37,30 +43,28 @@ public class AlphaVantageClient {
                 || apiKey.isBlank()) {
 
             throw new IllegalArgumentException(
-                    "Alpha Vantage API key is required."
+                    "Alpha Vantage API key "
+                            + "cannot be blank."
             );
         }
 
-        this.apiKey = apiKey;
+        this.apiKey =
+                apiKey.trim();
 
         this.httpClient =
-                HttpClient.newHttpClient();
+                HttpClient.newBuilder()
+                        .connectTimeout(
+                                Duration.ofSeconds(10)
+                        )
+                        .build();
 
         this.objectMapper =
                 new ObjectMapper();
     }
 
-    public synchronized JsonNode query(
+    public JsonNode query(
             String function,
             String symbol) {
-
-        if (function == null
-                || function.isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "API function cannot be blank."
-            );
-        }
 
         if (symbol == null
                 || symbol.isBlank()) {
@@ -70,21 +74,77 @@ public class AlphaVantageClient {
             );
         }
 
-        respectRateLimit();
+        return query(
+                function,
+                Map.of(
+                        "symbol",
+                        symbol.trim()
+                )
+        );
+    }
 
-        URI uri =
-                buildUri(
-                        function,
-                        symbol
-                );
+    public synchronized JsonNode query(
+            String function,
+            Map<String, String> parameters) {
 
-        HttpRequest request =
-                HttpRequest.newBuilder()
-                        .uri(uri)
-                        .GET()
-                        .build();
+        if (function == null
+                || function.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Alpha Vantage function "
+                            + "cannot be blank."
+            );
+        }
+
+        Map<String, String> queryParameters =
+                new LinkedHashMap<>();
+
+        queryParameters.put(
+                "function",
+                function.trim()
+        );
+
+        if (parameters != null) {
+
+            parameters.forEach(
+                    (key, value) -> {
+
+                        if (key != null
+                                && !key.isBlank()
+                                && value != null
+                                && !value.isBlank()) {
+
+                            queryParameters.put(
+                                    key.trim(),
+                                    value.trim()
+                            );
+                        }
+                    }
+            );
+        }
+
+        queryParameters.put(
+                "apikey",
+                apiKey
+        );
 
         try {
+
+            respectRateLimit();
+
+            URI uri =
+                    buildUri(
+                            queryParameters
+                    );
+
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(uri)
+                            .timeout(
+                                    Duration.ofSeconds(20)
+                            )
+                            .GET()
+                            .build();
 
             HttpResponse<String> response =
                     httpClient.send(
@@ -97,13 +157,16 @@ public class AlphaVantageClient {
             lastRequestTimeMillis =
                     System.currentTimeMillis();
 
-            if (response.statusCode() < 200
-                    || response.statusCode() >= 300) {
+            if (response.statusCode()
+                    < 200
+                    || response.statusCode()
+                    >= 300) {
 
                 throw new MarketDataException(
                         "Alpha Vantage request failed "
                                 + "with HTTP status "
                                 + response.statusCode()
+                                + "."
                 );
             }
 
@@ -112,7 +175,9 @@ public class AlphaVantageClient {
                             response.body()
                     );
 
-            checkForApiError(root);
+            checkForApiError(
+                    root
+            );
 
             return root;
 
@@ -137,55 +202,45 @@ public class AlphaVantageClient {
         }
     }
 
-    private void respectRateLimit() {
-
-        if (lastRequestTimeMillis == 0) {
-            return;
-        }
-
-        long elapsed =
-                System.currentTimeMillis()
-                        - lastRequestTimeMillis;
-
-        long remaining =
-                MIN_REQUEST_INTERVAL_MILLIS
-                        - elapsed;
-
-        if (remaining <= 0) {
-            return;
-        }
-
-        try {
-
-            Thread.sleep(remaining);
-
-        } catch (InterruptedException e) {
-
-            Thread.currentThread()
-                    .interrupt();
-
-            throw new MarketDataException(
-                    "Interrupted while waiting "
-                            + "for API rate limit.",
-                    e
-            );
-        }
-    }
-
     private URI buildUri(
-            String function,
-            String symbol) {
+            Map<String, String> parameters) {
 
-        String url =
-                BASE_URL
-                        + "?function="
-                        + encode(function)
-                        + "&symbol="
-                        + encode(symbol)
-                        + "&apikey="
-                        + encode(apiKey);
+        StringBuilder builder =
+                new StringBuilder(
+                        BASE_URL
+                );
 
-        return URI.create(url);
+        builder.append("?");
+
+        boolean first = true;
+
+        for (Map.Entry<String, String> entry
+                : parameters.entrySet()) {
+
+            if (!first) {
+                builder.append("&");
+            }
+
+            builder.append(
+                    encode(
+                            entry.getKey()
+                    )
+            );
+
+            builder.append("=");
+
+            builder.append(
+                    encode(
+                            entry.getValue()
+                    )
+            );
+
+            first = false;
+        }
+
+        return URI.create(
+                builder.toString()
+        );
     }
 
     private String encode(
@@ -197,32 +252,75 @@ public class AlphaVantageClient {
         );
     }
 
+    private void respectRateLimit()
+            throws InterruptedException {
+
+        long now =
+                System.currentTimeMillis();
+
+        long elapsed =
+                now
+                        - lastRequestTimeMillis;
+
+        long remaining =
+                MIN_REQUEST_INTERVAL_MILLIS
+                        - elapsed;
+
+        if (lastRequestTimeMillis > 0
+                && remaining > 0) {
+
+            Thread.sleep(
+                    remaining
+            );
+        }
+    }
+
     private void checkForApiError(
             JsonNode root) {
 
-        if (root.has("Error Message")) {
+        if (root == null
+                || root.isNull()) {
+
+            throw new MarketDataException(
+                    "Alpha Vantage returned "
+                            + "an empty response."
+            );
+        }
+
+        if (root.has(
+                "Error Message")) {
 
             throw new MarketDataException(
                     root.path(
                             "Error Message"
-                    ).asText()
+                    ).asText(
+                            "Alpha Vantage returned an error."
+                    )
             );
         }
 
-        if (root.has("Note")) {
+        if (root.has(
+                "Note")) {
 
             throw new MarketDataException(
-                    root.path("Note")
-                            .asText()
+                    root.path(
+                            "Note"
+                    ).asText(
+                            "Alpha Vantage rate limit reached."
+                    )
             );
         }
 
-        if (root.has("Information")) {
+        if (root.has(
+                "Information")) {
 
             throw new MarketDataException(
                     root.path(
                             "Information"
-                    ).asText()
+                    ).asText(
+                            "Alpha Vantage request "
+                                    + "could not be completed."
+                    )
             );
         }
     }

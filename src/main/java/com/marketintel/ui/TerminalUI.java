@@ -17,6 +17,8 @@ import com.marketintel.model.ToolRequest;
 import com.marketintel.model.ToolResult;
 import com.marketintel.model.User;
 import com.marketintel.model.Watchlist;
+import com.marketintel.model.NewsArticle;
+import com.marketintel.model.NewsResult;
 
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
@@ -382,6 +384,11 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
+                "/news",
+                "/news NVDA"
+        );
+
+        TerminalComponents.row(
                 "/sector",
                 "/sector QQQ"
         );
@@ -502,6 +509,11 @@ public class TerminalUI
 
                 case "compare" ->
                         handleCompareCommand(
+                                parsed
+                        );
+
+                case "news" ->
+                        handleNewsCommand(
                                 parsed
                         );
 
@@ -1377,6 +1389,264 @@ public class TerminalUI
     }
 
     // ========================================================
+// Financial News
+// ========================================================
+
+    private void handleNewsCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments()
+                .size() != 1) {
+
+            displayError(
+                    "Usage: /news SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments()
+                        .getFirst();
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager
+                                .getCurrentUserId(),
+
+                        ActionType.FINANCIAL_NEWS,
+
+                        Map.of(
+                                "symbol",
+                                symbol
+                        )
+                );
+
+        ToolResult result =
+                toolManager.execute(
+                        request
+                );
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof NewsResult newsResult)) {
+
+            displayError(
+                    "Unexpected financial-news "
+                            + "response."
+            );
+
+            return;
+        }
+
+        displayNews(
+                newsResult
+        );
+    }
+
+    private void displayNews(
+            NewsResult result) {
+
+        TerminalComponents.section(
+                "FINANCIAL NEWS • "
+                        + result.getSymbol()
+        );
+
+        if (result.getArticles()
+                .isEmpty()) {
+
+            TerminalComponents.row(
+                    "STATUS",
+                    "No recent articles found"
+            );
+
+            TerminalComponents.endSection();
+
+            return;
+        }
+
+        int index = 1;
+
+        for (NewsArticle article
+                : result.getArticles()) {
+
+            if (index > 1) {
+
+                TerminalComponents.separator();
+            }
+
+            TerminalComponents.wrappedRow(
+                    String.format(
+                            "%02d TITLE",
+                            index
+                    ),
+                    article.getTitle()
+            );
+
+            if (article.getSource()
+                    != null) {
+
+                TerminalComponents.row(
+                        "SOURCE",
+                        article.getSource()
+                );
+            }
+
+            if (article.getPublishedAt()
+                    != null) {
+
+                TerminalComponents.row(
+                        "PUBLISHED",
+                        formatNewsTimestamp(
+                                article.getPublishedAt()
+                        )
+                );
+            }
+
+            if (article.getSentimentScore()
+                    != null) {
+
+                TerminalComponents.row(
+                        "SENTIMENT",
+                        formatSentiment(
+                                article
+                        )
+                );
+            }
+
+            TerminalComponents.wrappedRow(
+                    "URL",
+                    article.getUrl()
+            );
+
+            index++;
+        }
+
+        TerminalComponents.endSection();
+    }
+
+    private String formatSentiment(
+            NewsArticle article) {
+
+        BigDecimal score =
+                article.getSentimentScore();
+
+        String scoreText =
+                score.setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        )
+                        .toPlainString();
+
+        String label =
+                article.getSentimentLabel();
+
+        String text =
+                scoreText;
+
+        if (label != null
+                && !label.isBlank()) {
+
+            text +=
+                    " • "
+                            + label;
+        }
+
+        if (score.compareTo(
+                BigDecimal.ZERO
+        ) > 0) {
+
+            return TerminalTheme.green(
+                    "▲ +"
+                            + text
+            );
+        }
+
+        if (score.compareTo(
+                BigDecimal.ZERO
+        ) < 0) {
+
+            return TerminalTheme.red(
+                    "▼ "
+                            + text
+            );
+        }
+
+        return TerminalTheme.yellow(
+                "● "
+                        + text
+        );
+    }
+
+    private String formatNewsTimestamp(
+            String timestamp) {
+
+        if (timestamp == null
+                || timestamp.length() < 13) {
+
+            return timestamp == null
+                    ? ""
+                    : timestamp;
+        }
+
+        try {
+
+            String year =
+                    timestamp.substring(
+                            0,
+                            4
+                    );
+
+            String month =
+                    timestamp.substring(
+                            4,
+                            6
+                    );
+
+            String day =
+                    timestamp.substring(
+                            6,
+                            8
+                    );
+
+            String hour =
+                    timestamp.substring(
+                            9,
+                            11
+                    );
+
+            String minute =
+                    timestamp.substring(
+                            11,
+                            13
+                    );
+
+            return year
+                    + "-"
+                    + month
+                    + "-"
+                    + day
+                    + " "
+                    + hour
+                    + ":"
+                    + minute;
+
+        } catch (
+                IndexOutOfBoundsException e) {
+
+            return timestamp;
+        }
+    }
+
+    // ========================================================
     // ETF Sector Exposure
     // ========================================================
 
@@ -1954,6 +2224,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/compare A B",
                 "Compare daily performance"
+        );
+
+        TerminalComponents.row(
+                "/news SYMBOL",
+                "Latest financial news"
         );
 
         TerminalComponents.endSection();

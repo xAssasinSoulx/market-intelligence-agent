@@ -29,6 +29,9 @@ import com.marketintel.services.WatchlistService;
 import com.marketintel.tools.ComparisonTool;
 import com.marketintel.tools.ETFExposureTool;
 import com.marketintel.tools.MarketDataTool;
+import com.marketintel.providers.NewsApiClient;
+import com.marketintel.providers.NewsProvider;
+import com.marketintel.tools.NewsTool;
 
 import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
@@ -158,6 +161,11 @@ public class Main {
                             alphaVantageClient
                     );
 
+            NewsProvider newsProvider =
+                    new NewsApiClient(
+                            alphaVantageClient
+                    );
+
             // ----------------------------------------------
             // Tools
             // ----------------------------------------------
@@ -185,6 +193,12 @@ public class Main {
                             requestValidator
                     );
 
+            NewsTool newsTool =
+                    new NewsTool(
+                            newsProvider,
+                            requestValidator
+                    );
+
             // ----------------------------------------------
             // Tool Registration
             // ----------------------------------------------
@@ -199,6 +213,10 @@ public class Main {
 
             toolManager.registerTool(
                     comparisonTool
+            );
+
+            toolManager.registerTool(
+                    newsTool
             );
 
         } else {
