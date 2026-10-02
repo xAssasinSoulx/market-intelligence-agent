@@ -591,48 +591,49 @@ public class TerminalUI
                                 userId
                         );
 
-        System.out.println();
-
-        System.out.println(
+        TerminalComponents.section(
                 "PORTFOLIO"
         );
 
-        printDivider();
-
-        if (portfolio.getPositions()
+        if (portfolio
+                .getPositions()
                 .isEmpty()) {
 
-            System.out.println(
-                    "Your portfolio is empty."
+            TerminalComponents.row(
+                    "STATUS",
+                    "No positions"
             );
+
+            TerminalComponents.endSection();
 
             return;
         }
 
-        System.out.printf(
-                "%-10s %-15s %-10s%n",
+        TerminalComponents.row(
                 "SYMBOL",
-                "QUANTITY",
-                "TYPE"
+                "QUANTITY • TYPE"
         );
 
-        printDivider();
+        TerminalComponents.separator();
 
         for (PortfolioPosition position
                 : portfolio.getPositions()) {
 
-            System.out.printf(
-                    "%-10s %-15s %-10s%n",
-
-                    position.getSymbol(),
-
+            String value =
                     position.getQuantity()
                             .stripTrailingZeros()
-                            .toPlainString(),
+                            .toPlainString()
+                            + " • "
+                            + position
+                            .getAssetType();
 
-                    position.getAssetType()
+            TerminalComponents.row(
+                    position.getSymbol(),
+                    value
             );
         }
+
+        TerminalComponents.endSection();
     }
 
     private void addPortfolioPosition(
@@ -813,20 +814,20 @@ public class TerminalUI
                                 userId
                         );
 
-        System.out.println();
-
-        System.out.println(
+        TerminalComponents.section(
                 "WATCHLIST"
         );
 
-        printDivider();
-
-        if (watchlist.getSymbols()
+        if (watchlist
+                .getSymbols()
                 .isEmpty()) {
 
-            System.out.println(
-                    "Your watchlist is empty."
+            TerminalComponents.row(
+                    "STATUS",
+                    "No symbols"
             );
+
+            TerminalComponents.endSection();
 
             return;
         }
@@ -836,14 +837,18 @@ public class TerminalUI
         for (String symbol
                 : watchlist.getSymbols()) {
 
-            System.out.println(
-                    index
-                            + ". "
-                            + symbol
+            TerminalComponents.row(
+                    String.format(
+                            "%02d",
+                            index
+                    ),
+                    symbol
             );
 
             index++;
         }
+
+        TerminalComponents.endSection();
     }
 
     private void addWatchlistSymbol(
@@ -1146,52 +1151,45 @@ public class TerminalUI
     private void displaySecurityOverview(
             SecurityOverview overview) {
 
-        System.out.println();
-
-        System.out.println(
-                "SECURITY OVERVIEW"
-        );
-
-        printDivider();
-
-        System.out.println(
-                "Symbol     : "
+        TerminalComponents.section(
+                "SECURITY OVERVIEW • "
                         + overview.getSymbol()
         );
 
-        System.out.println(
-                "Name       : "
-                        + overview.getName()
+        TerminalComponents.row(
+                "NAME",
+                overview.getName()
         );
 
-        System.out.println(
-                "Exchange   : "
-                        + overview.getExchange()
+        TerminalComponents.row(
+                "EXCHANGE",
+                overview.getExchange()
         );
 
-        System.out.println(
-                "Currency   : "
-                        + overview.getCurrency()
+        TerminalComponents.row(
+                "CURRENCY",
+                overview.getCurrency()
         );
 
-        System.out.println(
-                "Sector     : "
-                        + overview.getSector()
+        TerminalComponents.row(
+                "SECTOR",
+                overview.getSector()
         );
 
-        System.out.println(
-                "Industry   : "
-                        + overview.getIndustry()
+        TerminalComponents.row(
+                "INDUSTRY",
+                overview.getIndustry()
         );
 
         if (overview
                 .getMarketCapitalization()
                 != null) {
 
-            System.out.println(
-                    "Market Cap : "
-                            + overview
+            TerminalComponents.row(
+                    "MARKET CAP",
+                    overview
                             .getMarketCapitalization()
+                            .stripTrailingZeros()
                             .toPlainString()
             );
         }
@@ -1202,12 +1200,15 @@ public class TerminalUI
                 .getDescription()
                 .isBlank()) {
 
-            System.out.println();
+            TerminalComponents.separator();
 
-            System.out.println(
+            TerminalComponents.wrappedRow(
+                    "DESCRIPTION",
                     overview.getDescription()
             );
         }
+
+        TerminalComponents.endSection();
     }
 
     // ========================================================
@@ -1453,24 +1454,6 @@ public class TerminalUI
     private void displayOverlapResult(
             OverlapResult result) {
 
-        System.out.println();
-
-        System.out.println(
-                "ETF HOLDING OVERLAP"
-        );
-
-        printDivider();
-
-        System.out.println(
-                "First ETF  : "
-                        + result.getFirstSymbol()
-        );
-
-        System.out.println(
-                "Second ETF : "
-                        + result.getSecondSymbol()
-        );
-
         BigDecimal overlapPercent =
                 result.getOverlapWeight()
                         .multiply(
@@ -1483,41 +1466,56 @@ public class TerminalUI
                                 RoundingMode.HALF_UP
                         );
 
-        System.out.println(
-                "Overlap    : "
-                        + overlapPercent
-                        + "%"
+        TerminalComponents.section(
+                "ETF HOLDING OVERLAP"
         );
 
-        System.out.println();
+        TerminalComponents.row(
+                "FIRST ETF",
+                result.getFirstSymbol()
+        );
 
-        if (result.getCommonHoldings()
+        TerminalComponents.row(
+                "SECOND ETF",
+                result.getSecondSymbol()
+        );
+
+        TerminalComponents.row(
+                "OVERLAP",
+                TerminalTheme.cyan(
+                        overlapPercent
+                                + "%"
+                )
+        );
+
+        if (result
+                .getCommonHoldings()
                 .isEmpty()) {
 
-            System.out.println(
-                    "No common holdings found."
+            TerminalComponents.separator();
+
+            TerminalComponents.row(
+                    "STATUS",
+                    "No common holdings"
             );
+
+            TerminalComponents.endSection();
 
             return;
         }
 
-        System.out.println(
-                "TOP COMMON HOLDINGS"
-        );
+        TerminalComponents.separator();
 
-        printDivider();
-
-        System.out.printf(
-                "%-10s %-35s %10s%n",
+        TerminalComponents.row(
                 "SYMBOL",
-                "DESCRIPTION",
-                "SHARED"
+                "DESCRIPTION / SHARED WEIGHT"
         );
+
+        TerminalComponents.separator();
 
         result.getCommonHoldings()
                 .stream()
                 .limit(15)
-
                 .forEach(
                         holding -> {
 
@@ -1534,20 +1532,67 @@ public class TerminalUI
                                                     RoundingMode.HALF_UP
                                             );
 
-                            System.out.printf(
-                                    "%-10s %-35s %9s%%%n",
-
-                                    holding.getSymbol(),
-
+                            String description =
                                     truncate(
-                                            holding.getDescription(),
-                                            35
-                                    ),
+                                            holding
+                                                    .getDescription(),
+                                            28
+                                    );
 
-                                    percent
+                            String value =
+                                    String.format(
+                                            "%-28s %6s%%",
+                                            description,
+                                            percent
+                                    );
+
+                            TerminalComponents.row(
+                                    holding.getSymbol(),
+                                    value
                             );
                         }
                 );
+
+        TerminalComponents.endSection();
+    }
+
+    private String centerText(
+            String text,
+            int width) {
+
+        if (text.length() >= width) {
+            return text;
+        }
+
+        int totalPadding =
+                width - text.length();
+
+        int leftPadding =
+                totalPadding / 2;
+
+        int rightPadding =
+                totalPadding - leftPadding;
+
+        return " ".repeat(leftPadding)
+                + text
+                + " ".repeat(rightPadding);
+    }
+
+    private String padText(
+            String text,
+            int width) {
+
+        if (text.length() >= width) {
+            return text.substring(
+                    0,
+                    width
+            );
+        }
+
+        return text
+                + " ".repeat(
+                width - text.length()
+        );
     }
 
     private String truncate(
@@ -1860,36 +1905,54 @@ public class TerminalUI
 
     private void displayTerminalHeader() {
 
+        final int width = 62;
+
         User user =
                 sessionManager.getCurrentUser();
 
+        String title =
+                "MARKET INTELLIGENCE AGENT";
+
+        String session =
+                user.getUsername()
+                        + "                    "
+                        + "● CONNECTED";
+
+        System.out.println();
+
         System.out.println(
                 TerminalTheme.cyan(
-                        "╔══════════════════════════════════════════════════════════════╗"
+                        "╔"
+                                + "═".repeat(width)
+                                + "╗"
                 )
         );
 
         System.out.println(
                 TerminalTheme.cyan("║")
                         + TerminalTheme.bold(
-                        "                 MARKET INTELLIGENCE AGENT                  "
+                        centerText(
+                                title,
+                                width
+                        )
                 )
                         + TerminalTheme.cyan("║")
         );
 
         System.out.println(
                 TerminalTheme.cyan("║")
-                        + String.format(
-                        "  %-20s %-37s",
-                        user.getUsername(),
-                        "● CONNECTED"
+                        + padText(
+                        "  " + session,
+                        width
                 )
                         + TerminalTheme.cyan("║")
         );
 
         System.out.println(
                 TerminalTheme.cyan(
-                        "╚══════════════════════════════════════════════════════════════╝"
+                        "╚"
+                                + "═".repeat(width)
+                                + "╝"
                 )
         );
     }
