@@ -20,6 +20,7 @@ import com.marketintel.model.Watchlist;
 
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
+import com.marketintel.model.SecurityComparisonResult;
 
 import java.io.Console;
 
@@ -376,6 +377,11 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
+                "/compare",
+                "/compare NVDA MSFT"
+        );
+
+        TerminalComponents.row(
                 "/sector",
                 "/sector QQQ"
         );
@@ -491,6 +497,11 @@ public class TerminalUI
 
                 case "overview" ->
                         handleOverviewCommand(
+                                parsed
+                        );
+
+                case "compare" ->
+                        handleCompareCommand(
                                 parsed
                         );
 
@@ -1212,6 +1223,160 @@ public class TerminalUI
     }
 
     // ========================================================
+// Security Comparison
+// ========================================================
+
+    private void handleCompareCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments()
+                .size() != 2) {
+
+            displayError(
+                    "Usage: /compare "
+                            + "SYMBOL1 SYMBOL2"
+            );
+
+            return;
+        }
+
+        String firstSymbol =
+                command.getArguments()
+                        .get(0);
+
+        String secondSymbol =
+                command.getArguments()
+                        .get(1);
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager
+                                .getCurrentUserId(),
+
+                        ActionType
+                                .SECURITY_COMPARISON,
+
+                        Map.of(
+                                "firstSymbol",
+                                firstSymbol,
+
+                                "secondSymbol",
+                                secondSymbol
+                        )
+                );
+
+        ToolResult result =
+                toolManager.execute(
+                        request
+                );
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof SecurityComparisonResult
+                comparison)) {
+
+            displayError(
+                    "Unexpected security "
+                            + "comparison response."
+            );
+
+            return;
+        }
+
+        displaySecurityComparison(
+                comparison
+        );
+    }
+
+    private void displaySecurityComparison(
+            SecurityComparisonResult result) {
+
+        MarketQuote first =
+                result.getFirstQuote();
+
+        MarketQuote second =
+                result.getSecondQuote();
+
+        TerminalComponents.section(
+                "SECURITY COMPARISON"
+        );
+
+        TerminalComponents.row(
+                "FIRST",
+                first.getSymbol()
+        );
+
+        TerminalComponents.row(
+                "PRICE",
+                first.getPrice()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "PREV CLOSE",
+                first.getPreviousClose()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "CHANGE",
+                formatChange(
+                        first.getPercentChange()
+                )
+        );
+
+        TerminalComponents.separator();
+
+        TerminalComponents.row(
+                "SECOND",
+                second.getSymbol()
+        );
+
+        TerminalComponents.row(
+                "PRICE",
+                second.getPrice()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "PREV CLOSE",
+                second.getPreviousClose()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "CHANGE",
+                formatChange(
+                        second.getPercentChange()
+                )
+        );
+
+        TerminalComponents.separator();
+
+        TerminalComponents.row(
+                "CHANGE GAP",
+                formatPercentagePointDifference(
+                        result
+                                .getPercentChangeDifference()
+                )
+        );
+
+        TerminalComponents.endSection();
+    }
+
+    // ========================================================
     // ETF Sector Exposure
     // ========================================================
 
@@ -1615,6 +1780,76 @@ public class TerminalUI
         ) + "...";
     }
 
+    private String formatChange(
+            BigDecimal change) {
+
+        String absoluteText =
+                change.abs()
+                        .stripTrailingZeros()
+                        .toPlainString();
+
+        if (change.compareTo(
+                BigDecimal.ZERO
+        ) > 0) {
+
+            return TerminalTheme.green(
+                    "▲ +"
+                            + absoluteText
+                            + "%"
+            );
+        }
+
+        if (change.compareTo(
+                BigDecimal.ZERO
+        ) < 0) {
+
+            return TerminalTheme.red(
+                    "▼ -"
+                            + absoluteText
+                            + "%"
+            );
+        }
+
+        return TerminalTheme.yellow(
+                "● 0%"
+        );
+    }
+
+    private String formatPercentagePointDifference(
+            BigDecimal difference) {
+
+        String absoluteText =
+                difference.abs()
+                        .stripTrailingZeros()
+                        .toPlainString();
+
+        if (difference.compareTo(
+                BigDecimal.ZERO
+        ) > 0) {
+
+            return TerminalTheme.green(
+                    "+"
+                            + absoluteText
+                            + " pp"
+            );
+        }
+
+        if (difference.compareTo(
+                BigDecimal.ZERO
+        ) < 0) {
+
+            return TerminalTheme.red(
+                    "-"
+                            + absoluteText
+                            + " pp"
+            );
+        }
+
+        return TerminalTheme.yellow(
+                "0 pp"
+        );
+    }
+
     // ========================================================
     // Session
     // ========================================================
@@ -1714,6 +1949,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/overview SYMBOL",
                 "Company/security overview"
+        );
+
+        TerminalComponents.row(
+                "/compare A B",
+                "Compare daily performance"
         );
 
         TerminalComponents.endSection();

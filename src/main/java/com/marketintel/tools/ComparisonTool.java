@@ -2,26 +2,39 @@ package com.marketintel.tools;
 
 import com.marketintel.model.ActionType;
 import com.marketintel.model.ETFProfile;
+import com.marketintel.model.MarketQuote;
 import com.marketintel.model.ToolRequest;
 import com.marketintel.model.ToolResult;
 import com.marketintel.model.ValidationResult;
 
 import com.marketintel.providers.ETFDataProvider;
 import com.marketintel.providers.MarketDataException;
+import com.marketintel.providers.MarketDataProvider;
 
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.RequestValidator;
+import com.marketintel.services.SecurityComparisonCalculator;
 
 public class ComparisonTool
         implements AgentTool {
 
     private final ETFDataProvider etfDataProvider;
-    private final ExposureCalculator calculator;
+
+    private final MarketDataProvider marketDataProvider;
+
+    private final ExposureCalculator exposureCalculator;
+
+    private final SecurityComparisonCalculator
+            securityComparisonCalculator;
+
     private final RequestValidator validator;
 
     public ComparisonTool(
             ETFDataProvider etfDataProvider,
-            ExposureCalculator calculator,
+            MarketDataProvider marketDataProvider,
+            ExposureCalculator exposureCalculator,
+            SecurityComparisonCalculator
+                    securityComparisonCalculator,
             RequestValidator validator) {
 
         if (etfDataProvider == null) {
@@ -31,10 +44,25 @@ public class ComparisonTool
             );
         }
 
-        if (calculator == null) {
+        if (marketDataProvider == null) {
+
+            throw new IllegalArgumentException(
+                    "Market data provider cannot be null."
+            );
+        }
+
+        if (exposureCalculator == null) {
 
             throw new IllegalArgumentException(
                     "Exposure calculator cannot be null."
+            );
+        }
+
+        if (securityComparisonCalculator == null) {
+
+            throw new IllegalArgumentException(
+                    "Security comparison calculator "
+                            + "cannot be null."
             );
         }
 
@@ -48,8 +76,14 @@ public class ComparisonTool
         this.etfDataProvider =
                 etfDataProvider;
 
-        this.calculator =
-                calculator;
+        this.marketDataProvider =
+                marketDataProvider;
+
+        this.exposureCalculator =
+                exposureCalculator;
+
+        this.securityComparisonCalculator =
+                securityComparisonCalculator;
 
         this.validator =
                 validator;
@@ -65,6 +99,8 @@ public class ComparisonTool
             ActionType action) {
 
         return action
+                == ActionType.SECURITY_COMPARISON
+                || action
                 == ActionType.ETF_OVERLAP;
     }
 
@@ -85,13 +121,29 @@ public class ComparisonTool
             );
         }
 
-        if (!supports(request.getAction())) {
+        return switch (
+                request.getAction()) {
 
-            return ToolResult.failure(
-                    "Unsupported comparison action: "
-                            + request.getAction()
-            );
-        }
+            case SECURITY_COMPARISON ->
+                    executeSecurityComparison(
+                            request
+                    );
+
+            case ETF_OVERLAP ->
+                    executeEtfOverlap(
+                            request
+                    );
+
+            default ->
+                    ToolResult.failure(
+                            "Unsupported comparison action: "
+                                    + request.getAction()
+                    );
+        };
+    }
+
+    private ToolResult executeSecurityComparison(
+            ToolRequest request) {
 
         String firstSymbol =
                 request.getArgument(
@@ -103,41 +155,118 @@ public class ComparisonTool
                         "secondSymbol"
                 );
 
-        ValidationResult firstValidation =
-                validator.validateSymbol(
-                        firstSymbol
-                );
-
-        if (!firstValidation.isValid()) {
-
-            return ToolResult.failure(
-                    firstValidation
-                            .getErrorMessage()
-            );
-        }
-
-        ValidationResult secondValidation =
-                validator.validateSymbol(
+        ValidationResult validation =
+                validateSymbols(
+                        firstSymbol,
                         secondSymbol
                 );
 
-        if (!secondValidation.isValid()) {
+        if (!validation.isValid()) {
 
             return ToolResult.failure(
-                    secondValidation
-                            .getErrorMessage()
+                    validation.getErrorMessage()
             );
         }
 
         String normalizedFirst =
-                firstSymbol
-                        .trim()
-                        .toUpperCase();
+                normalizeSymbol(
+                        firstSymbol
+                );
 
         String normalizedSecond =
-                secondSymbol
-                        .trim()
-                        .toUpperCase();
+                normalizeSymbol(
+                        secondSymbol
+                );
+
+        if (normalizedFirst.equals(
+                normalizedSecond)) {
+
+            return ToolResult.failure(
+                    "Please provide two different "
+                            + "symbols to compare."
+            );
+        }
+
+        try {
+
+            MarketQuote firstQuote =
+                    marketDataProvider
+                            .getQuote(
+                                    normalizedFirst
+                            );
+
+            MarketQuote secondQuote =
+                    marketDataProvider
+                            .getQuote(
+                                    normalizedSecond
+                            );
+
+            return ToolResult.success(
+                    securityComparisonCalculator
+                            .compare(
+                                    firstQuote,
+                                    secondQuote
+                            )
+            );
+
+        } catch (MarketDataException e) {
+
+            return ToolResult.failure(
+                    e.getMessage()
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            return ToolResult.failure(
+                    e.getMessage()
+            );
+        }
+    }
+
+    private ToolResult executeEtfOverlap(
+            ToolRequest request) {
+
+        String firstSymbol =
+                request.getArgument(
+                        "firstSymbol"
+                );
+
+        String secondSymbol =
+                request.getArgument(
+                        "secondSymbol"
+                );
+
+        ValidationResult validation =
+                validateSymbols(
+                        firstSymbol,
+                        secondSymbol
+                );
+
+        if (!validation.isValid()) {
+
+            return ToolResult.failure(
+                    validation.getErrorMessage()
+            );
+        }
+
+        String normalizedFirst =
+                normalizeSymbol(
+                        firstSymbol
+                );
+
+        String normalizedSecond =
+                normalizeSymbol(
+                        secondSymbol
+                );
+
+        if (normalizedFirst.equals(
+                normalizedSecond)) {
+
+            return ToolResult.failure(
+                    "Please provide two different "
+                            + "ETF symbols."
+            );
+        }
 
         try {
 
@@ -154,10 +283,11 @@ public class ComparisonTool
                             );
 
             return ToolResult.success(
-                    calculator.calculateOverlap(
-                            firstProfile,
-                            secondProfile
-                    )
+                    exposureCalculator
+                            .calculateOverlap(
+                                    firstProfile,
+                                    secondProfile
+                            )
             );
 
         } catch (MarketDataException e) {
@@ -172,5 +302,40 @@ public class ComparisonTool
                     e.getMessage()
             );
         }
+    }
+
+    private ValidationResult validateSymbols(
+            String firstSymbol,
+            String secondSymbol) {
+
+        ValidationResult firstValidation =
+                validator.validateSymbol(
+                        firstSymbol
+                );
+
+        if (!firstValidation.isValid()) {
+
+            return firstValidation;
+        }
+
+        ValidationResult secondValidation =
+                validator.validateSymbol(
+                        secondSymbol
+                );
+
+        if (!secondValidation.isValid()) {
+
+            return secondValidation;
+        }
+
+        return ValidationResult.valid();
+    }
+
+    private String normalizeSymbol(
+            String symbol) {
+
+        return symbol
+                .trim()
+                .toUpperCase();
     }
 }

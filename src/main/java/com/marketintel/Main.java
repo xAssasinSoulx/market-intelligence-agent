@@ -33,6 +33,8 @@ import com.marketintel.tools.MarketDataTool;
 import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
 import com.marketintel.ui.UserInterface;
+import com.marketintel.services.SecurityComparisonCalculator;
+
 
 public class Main {
 
@@ -110,6 +112,10 @@ public class Main {
         ExposureCalculator exposureCalculator =
                 new ExposureCalculator();
 
+        SecurityComparisonCalculator
+                securityComparisonCalculator =
+                new SecurityComparisonCalculator();
+
         // ----------------------------------------------------
         // Tool Manager
         // ----------------------------------------------------
@@ -173,7 +179,9 @@ public class Main {
             ComparisonTool comparisonTool =
                     new ComparisonTool(
                             etfDataProvider,
+                            marketDataProvider,
                             exposureCalculator,
+                            securityComparisonCalculator,
                             requestValidator
                     );
 
