@@ -7,6 +7,7 @@ import com.marketintel.model.NewsArticle;
 import java.math.BigDecimal;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +15,11 @@ public class NewsApiClient
         implements NewsProvider {
 
     private static final int MAX_LIMIT =
-            50;
+            100;
+
+    private static final BigDecimal
+            MIN_RELEVANCE_SCORE =
+            new BigDecimal("0.20");
 
     private final AlphaVantageClient client;
 
@@ -49,15 +54,17 @@ public class NewsApiClient
                 );
 
         /*
-         * Retrieve a larger candidate pool because we
-         * independently verify ticker relevance before
-         * exposing articles to the user.
+         * Retrieve a larger recent candidate pool.
+         *
+         * We independently rank the results using
+         * ticker-specific relevance before returning
+         * them to the user.
          */
         int providerLimit =
                 Math.min(
                         MAX_LIMIT,
                         Math.max(
-                                normalizedLimit * 10,
+                                normalizedLimit * 20,
                                 normalizedLimit
                         )
                 );
@@ -110,31 +117,21 @@ public class NewsApiClient
             return List.of();
         }
 
-        List<NewsArticle> articles =
+        List<NewsCandidate> candidates =
                 new ArrayList<>();
 
+        /*
+         * IMPORTANT:
+         *
+         * Do not stop once we have five articles.
+         *
+         * The provider response is sorted by recency,
+         * not by ticker relevance. We therefore inspect
+         * the whole candidate pool first and rank it
+         * afterward.
+         */
         for (JsonNode articleNode
                 : feed) {
-
-            if (articles.size()
-                    >= limit) {
-
-                break;
-            }
-
-            /*
-             * Do not blindly trust the provider-side
-             * ticker filter. The article must explicitly
-             * contain a ticker_sentiment entry for the
-             * requested symbol.
-             */
-            if (!mentionsTicker(
-                    symbol,
-                    articleNode
-            )) {
-
-                continue;
-            }
 
             String title =
                     textOrNull(
@@ -150,6 +147,35 @@ public class NewsApiClient
 
             if (title == null
                     || url == null) {
+
+                continue;
+            }
+
+            SentimentData sentiment =
+                    extractSentiment(
+                            symbol,
+                            articleNode
+                    );
+
+            /*
+             * No ticker-specific information means the
+             * article is not sufficiently grounded in
+             * the requested security.
+             */
+            if (sentiment.relevanceScore()
+                    == null) {
+
+                continue;
+            }
+
+            /*
+             * Ignore passing references to the ticker.
+             */
+            if (sentiment
+                    .relevanceScore()
+                    .compareTo(
+                            MIN_RELEVANCE_SCORE
+                    ) < 0) {
 
                 continue;
             }
@@ -172,13 +198,7 @@ public class NewsApiClient
                             "summary"
                     );
 
-            SentimentData sentiment =
-                    extractSentiment(
-                            symbol,
-                            articleNode
-                    );
-
-            articles.add(
+            NewsArticle article =
                     new NewsArticle(
                             title,
                             url,
@@ -187,48 +207,40 @@ public class NewsApiClient
                             summary,
                             sentiment.score(),
                             sentiment.label()
+                    );
+
+            candidates.add(
+                    new NewsCandidate(
+                            article,
+                            sentiment.relevanceScore()
                     )
             );
         }
 
-        return List.copyOf(
-                articles
+        /*
+         * Rank by ticker relevance.
+         *
+         * Java's list sort is stable, so articles with
+         * equal relevance preserve the provider's
+         * original recency ordering.
+         */
+        candidates.sort(
+                Comparator
+                        .comparing(
+                                NewsCandidate::relevanceScore
+                        )
+                        .reversed()
         );
-    }
 
-    private boolean mentionsTicker(
-            String symbol,
-            JsonNode articleNode) {
-
-        JsonNode tickerSentiment =
-                articleNode.path(
-                        "ticker_sentiment"
-                );
-
-        if (!tickerSentiment.isArray()) {
-
-            return false;
-        }
-
-        for (JsonNode tickerNode
-                : tickerSentiment) {
-
-            String ticker =
-                    textOrNull(
-                            tickerNode,
-                            "ticker"
-                    );
-
-            if (ticker != null
-                    && ticker.equalsIgnoreCase(
-                    symbol
-            )) {
-
-                return true;
-            }
-        }
-
-        return false;
+        return candidates
+                .stream()
+                .limit(
+                        limit
+                )
+                .map(
+                        NewsCandidate::article
+                )
+                .toList();
     }
 
     private SentimentData extractSentiment(
@@ -240,38 +252,52 @@ public class NewsApiClient
                         "ticker_sentiment"
                 );
 
-        if (tickerSentiment.isArray()) {
+        if (!tickerSentiment.isArray()) {
 
-            for (JsonNode tickerNode
-                    : tickerSentiment) {
+            return new SentimentData(
+                    null,
+                    null,
+                    null
+            );
+        }
 
-                String ticker =
-                        textOrNull(
-                                tickerNode,
-                                "ticker"
-                        );
+        for (JsonNode tickerNode
+                : tickerSentiment) {
 
-                if (ticker != null
-                        && ticker.equalsIgnoreCase(
-                        symbol
-                )) {
-
-                    return new SentimentData(
-                            decimalOrNull(
-                                    tickerNode,
-                                    "ticker_sentiment_score"
-                            ),
-
-                            textOrNull(
-                                    tickerNode,
-                                    "ticker_sentiment_label"
-                            )
+            String ticker =
+                    textOrNull(
+                            tickerNode,
+                            "ticker"
                     );
-                }
+
+            if (ticker == null
+                    || !ticker.equalsIgnoreCase(
+                    symbol
+            )) {
+
+                continue;
             }
+
+            return new SentimentData(
+                    decimalOrNull(
+                            tickerNode,
+                            "ticker_sentiment_score"
+                    ),
+
+                    textOrNull(
+                            tickerNode,
+                            "ticker_sentiment_label"
+                    ),
+
+                    decimalOrNull(
+                            tickerNode,
+                            "relevance_score"
+                    )
+            );
         }
 
         return new SentimentData(
+                null,
                 null,
                 null
         );
@@ -369,6 +395,12 @@ public class NewsApiClient
 
     private record SentimentData(
             BigDecimal score,
-            String label) {
+            String label,
+            BigDecimal relevanceScore) {
+    }
+
+    private record NewsCandidate(
+            NewsArticle article,
+            BigDecimal relevanceScore) {
     }
 }

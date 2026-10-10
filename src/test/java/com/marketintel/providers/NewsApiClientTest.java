@@ -46,6 +46,7 @@ class NewsApiClientTest {
                       "ticker_sentiment": [
                         {
                           "ticker": "NVDA",
+                          "relevance_score": "0.85",
                           "ticker_sentiment_score": "0.35",
                           "ticker_sentiment_label": "Bullish"
                         }
@@ -113,12 +114,8 @@ class NewsApiClientTest {
                       "ticker_sentiment": [
                         {
                           "ticker": "KO",
+                          "relevance_score": "0.90",
                           "ticker_sentiment_score": "0.33",
-                          "ticker_sentiment_label": "Bullish"
-                        },
-                        {
-                          "ticker": "PEP",
-                          "ticker_sentiment_score": "0.20",
                           "ticker_sentiment_label": "Bullish"
                         }
                       ]
@@ -129,6 +126,7 @@ class NewsApiClientTest {
                       "ticker_sentiment": [
                         {
                           "ticker": "NVDA",
+                          "relevance_score": "0.80",
                           "ticker_sentiment_score": "0.41",
                           "ticker_sentiment_label": "Bullish"
                         }
@@ -180,6 +178,7 @@ class NewsApiClientTest {
                       "ticker_sentiment": [
                         {
                           "ticker": "MSFT",
+                          "relevance_score": "0.75",
                           "ticker_sentiment_score": "0.50",
                           "ticker_sentiment_label": "Bullish"
                         }
@@ -221,6 +220,7 @@ class NewsApiClientTest {
                       "ticker_sentiment": [
                         {
                           "ticker": "NVDA",
+                          "relevance_score": "0.75",
                           "ticker_sentiment_score": "0.25",
                           "ticker_sentiment_label": "Bullish"
                         }
@@ -230,7 +230,8 @@ class NewsApiClientTest {
                       "title": "Missing URL",
                       "ticker_sentiment": [
                         {
-                          "ticker": "NVDA"
+                          "ticker": "NVDA",
+                          "relevance_score": "0.80"
                         }
                       ]
                     },
@@ -238,7 +239,8 @@ class NewsApiClientTest {
                       "url": "https://example.com/missing-title",
                       "ticker_sentiment": [
                         {
-                          "ticker": "NVDA"
+                          "ticker": "NVDA",
+                          "relevance_score": "0.80"
                         }
                       ]
                     }
@@ -263,6 +265,13 @@ class NewsApiClientTest {
                 1,
                 articles.size()
         );
+
+        assertEquals(
+                "Valid NVIDIA article",
+                articles
+                        .getFirst()
+                        .getTitle()
+        );
     }
 
     @Test
@@ -278,7 +287,8 @@ class NewsApiClientTest {
                       "url": "https://example.com/unrelated",
                       "ticker_sentiment": [
                         {
-                          "ticker": "MSFT"
+                          "ticker": "MSFT",
+                          "relevance_score": "0.90"
                         }
                       ]
                     },
@@ -287,7 +297,8 @@ class NewsApiClientTest {
                       "url": "https://example.com/1",
                       "ticker_sentiment": [
                         {
-                          "ticker": "NVDA"
+                          "ticker": "NVDA",
+                          "relevance_score": "0.80"
                         }
                       ]
                     },
@@ -296,7 +307,8 @@ class NewsApiClientTest {
                       "url": "https://example.com/2",
                       "ticker_sentiment": [
                         {
-                          "ticker": "NVDA"
+                          "ticker": "NVDA",
+                          "relevance_score": "0.70"
                         }
                       ]
                     },
@@ -305,7 +317,8 @@ class NewsApiClientTest {
                       "url": "https://example.com/3",
                       "ticker_sentiment": [
                         {
-                          "ticker": "NVDA"
+                          "ticker": "NVDA",
+                          "relevance_score": "0.60"
                         }
                       ]
                     }
@@ -333,12 +346,161 @@ class NewsApiClientTest {
 
         assertEquals(
                 "NVIDIA Article 1",
-                articles.get(0)
+                articles
+                        .get(0)
                         .getTitle()
         );
 
         assertEquals(
                 "NVIDIA Article 2",
+                articles
+                        .get(1)
+                        .getTitle()
+        );
+    }
+
+    @Test
+    void filtersLowRelevanceTickerMentions()
+            throws Exception {
+
+        String json =
+                """
+                {
+                  "feed": [
+                    {
+                      "title": "Coca-Cola vs PepsiCo",
+                      "url": "https://example.com/coke",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "KO",
+                          "relevance_score": "0.75",
+                          "ticker_sentiment_score": "0.30",
+                          "ticker_sentiment_label": "Bullish"
+                        },
+                        {
+                          "ticker": "NVDA",
+                          "relevance_score": "0.02",
+                          "ticker_sentiment_score": "0.33",
+                          "ticker_sentiment_label": "Somewhat-Bullish"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "NVIDIA launches new AI platform",
+                      "url": "https://example.com/nvidia",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "relevance_score": "0.82",
+                          "ticker_sentiment_score": "0.41",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+        JsonNode root =
+                objectMapper.readTree(
+                        json
+                );
+
+        List<NewsArticle> articles =
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                5
+                        );
+
+        assertEquals(
+                1,
+                articles.size()
+        );
+
+        assertEquals(
+                "NVIDIA launches new AI platform",
+                articles
+                        .getFirst()
+                        .getTitle()
+        );
+    }
+
+    @Test
+    void returnsMostRelevantArticlesInsteadOfFirstMatching()
+            throws Exception {
+
+        String json =
+                """
+                {
+                  "feed": [
+                    {
+                      "title": "Newest but weak NVIDIA mention",
+                      "url": "https://example.com/weak",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "relevance_score": "0.25",
+                          "ticker_sentiment_score": "0.10",
+                          "ticker_sentiment_label": "Neutral"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "Strong NVIDIA story",
+                      "url": "https://example.com/strong",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "relevance_score": "0.92",
+                          "ticker_sentiment_score": "0.45",
+                          "ticker_sentiment_label": "Bullish"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "Another relevant NVIDIA story",
+                      "url": "https://example.com/relevant",
+                      "ticker_sentiment": [
+                        {
+                          "ticker": "NVDA",
+                          "relevance_score": "0.75",
+                          "ticker_sentiment_score": "0.30",
+                          "ticker_sentiment_label": "Somewhat-Bullish"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """;
+
+        JsonNode root =
+                objectMapper.readTree(
+                        json
+                );
+
+        List<NewsArticle> articles =
+                createClient()
+                        .parseNews(
+                                "NVDA",
+                                root,
+                                2
+                        );
+
+        assertEquals(
+                2,
+                articles.size()
+        );
+
+        assertEquals(
+                "Strong NVIDIA story",
+                articles.get(0)
+                        .getTitle()
+        );
+
+        assertEquals(
+                "Another relevant NVIDIA story",
                 articles.get(1)
                         .getTitle()
         );
