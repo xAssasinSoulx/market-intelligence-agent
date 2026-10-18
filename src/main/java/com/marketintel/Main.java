@@ -20,6 +20,10 @@ import com.marketintel.providers.ETFDataApiClient;
 import com.marketintel.providers.ETFDataProvider;
 import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
+import com.marketintel.providers.MarketauxNewsClient;
+import com.marketintel.providers.NewsProvider;
+import com.marketintel.tools.NewsTool;
+
 
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.PortfolioService;
@@ -32,6 +36,7 @@ import com.marketintel.tools.MarketDataTool;
 import com.marketintel.providers.NewsApiClient;
 import com.marketintel.providers.NewsProvider;
 import com.marketintel.tools.NewsTool;
+
 
 import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
@@ -145,6 +150,35 @@ public class Main {
                             alphaVantageApiKey
                     );
 
+        // ----------------------------------------------------
+        // Financial News Provider
+        // ----------------------------------------------------
+
+            String marketauxToken =
+                    System.getenv("MARKETAUX_API_TOKEN");
+
+            if (marketauxToken != null
+                    && !marketauxToken.isBlank()) {
+
+                NewsProvider newsProvider =
+                        new MarketauxNewsClient(marketauxToken);
+
+                NewsTool newsTool =
+                        new NewsTool(
+                                newsProvider,
+                                requestValidator
+                        );
+
+                toolManager.registerTool(newsTool);
+
+            } else {
+
+                System.err.println(
+                        "Warning: MARKETAUX_API_TOKEN "
+                                + "is not configured."
+                );
+            }
+
             // ----------------------------------------------
             // Providers
             // ----------------------------------------------
@@ -161,10 +195,6 @@ public class Main {
                             alphaVantageClient
                     );
 
-            NewsProvider newsProvider =
-                    new NewsApiClient(
-                            alphaVantageClient
-                    );
 
             // ----------------------------------------------
             // Tools
@@ -193,11 +223,6 @@ public class Main {
                             requestValidator
                     );
 
-            NewsTool newsTool =
-                    new NewsTool(
-                            newsProvider,
-                            requestValidator
-                    );
 
             // ----------------------------------------------
             // Tool Registration
@@ -215,9 +240,6 @@ public class Main {
                     comparisonTool
             );
 
-            toolManager.registerTool(
-                    newsTool
-            );
 
         } else {
 

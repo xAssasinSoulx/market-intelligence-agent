@@ -17,8 +17,7 @@ import java.util.List;
 public class NewsTool
         implements AgentTool {
 
-    private static final int DEFAULT_LIMIT =
-            5;
+    private static final int DEFAULT_LIMIT = 3;
 
     private final NewsProvider newsProvider;
 

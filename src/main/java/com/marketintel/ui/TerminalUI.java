@@ -19,6 +19,10 @@ import com.marketintel.model.User;
 import com.marketintel.model.Watchlist;
 import com.marketintel.model.NewsArticle;
 import com.marketintel.model.NewsResult;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
@@ -1600,64 +1604,37 @@ public class TerminalUI
         );
     }
 
-    private String formatNewsTimestamp(
-            String timestamp) {
+    private String formatNewsTimestamp(String timestamp) {
 
-        if (timestamp == null
-                || timestamp.length() < 13) {
-
-            return timestamp == null
-                    ? ""
-                    : timestamp;
+        if (timestamp == null || timestamp.isBlank()) {
+            return "";
         }
 
+        // Marketaux ISO-8601 timestamp
         try {
+            Instant instant = Instant.parse(timestamp);
 
-            String year =
-                    timestamp.substring(
-                            0,
-                            4
-                    );
+            return DateTimeFormatter
+                    .ofPattern("yyyy-MM-dd HH:mm 'UTC'")
+                    .withZone(ZoneOffset.UTC)
+                    .format(instant);
 
-            String month =
-                    timestamp.substring(
-                            4,
-                            6
-                    );
-
-            String day =
-                    timestamp.substring(
-                            6,
-                            8
-                    );
-
-            String hour =
-                    timestamp.substring(
-                            9,
-                            11
-                    );
-
-            String minute =
-                    timestamp.substring(
-                            11,
-                            13
-                    );
-
-            return year
-                    + "-"
-                    + month
-                    + "-"
-                    + day
-                    + " "
-                    + hour
-                    + ":"
-                    + minute;
-
-        } catch (
-                IndexOutOfBoundsException e) {
-
-            return timestamp;
+        } catch (DateTimeParseException ignored) {
+            // Try the legacy Alpha Vantage format.
         }
+
+        // Alpha Vantage: 20261018T142500
+        if (timestamp.matches("\\d{8}T\\d{4}(\\d{2})?")) {
+
+            return timestamp.substring(0, 4)
+                    + "-" + timestamp.substring(4, 6)
+                    + "-" + timestamp.substring(6, 8)
+                    + " " + timestamp.substring(9, 11)
+                    + ":" + timestamp.substring(11, 13)
+                    + " UTC";
+        }
+
+        return timestamp;
     }
 
     // ========================================================
