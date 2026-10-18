@@ -18,5 +18,6 @@ public enum ActionType {
 
     WATCHLIST_VIEW,
     WATCHLIST_ADD,
-    WATCHLIST_REMOVE
+    WATCHLIST_REMOVE,
+    MARKET_MOVEMENT,
 }

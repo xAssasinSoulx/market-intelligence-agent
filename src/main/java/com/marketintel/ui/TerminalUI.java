@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import com.marketintel.model.MarketMovementContext;
 
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
@@ -403,6 +404,11 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
+                "/why",
+                "/why NVDA"
+        );
+
+        TerminalComponents.row(
                 "/help",
                 "Show all commands"
         );
@@ -520,6 +526,9 @@ public class TerminalUI
                         handleNewsCommand(
                                 parsed
                         );
+
+                case "why" ->
+                        handleWhyCommand(parsed);
 
                 case "sector" ->
                         handleSectorCommand(
@@ -1393,8 +1402,8 @@ public class TerminalUI
     }
 
     // ========================================================
-// Financial News
-// ========================================================
+    // Financial News
+    // ========================================================
 
     private void handleNewsCommand(
             ParsedCommand command) {
@@ -1636,6 +1645,179 @@ public class TerminalUI
 
         return timestamp;
     }
+
+
+    // ========================================================
+    // Market Movement Evidence
+    // ========================================================
+
+    private void handleWhyCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments().size() != 1) {
+
+            displayError(
+                    "Usage: /why SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments().getFirst();
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager.getCurrentUserId(),
+                        ActionType.MARKET_MOVEMENT,
+                        Map.of("symbol", symbol)
+                );
+
+        ToolResult result =
+                toolManager.execute(request);
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof MarketMovementContext context)) {
+
+            displayError(
+                    "Unexpected market movement response."
+            );
+
+            return;
+        }
+
+        displayMarketMovementContext(context);
+    }
+
+
+    private void displayMarketMovementContext(
+            MarketMovementContext context) {
+
+        MarketQuote quote = context.getQuote();
+
+        TerminalComponents.section(
+                "MARKET MOVEMENT • " + context.getSymbol()
+        );
+
+        TerminalComponents.row(
+                "CURRENT/LATEST",
+                quote.getPrice()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "PREVIOUS CLOSE",
+                quote.getPreviousClose()
+                        .stripTrailingZeros()
+                        .toPlainString()
+        );
+
+        TerminalComponents.row(
+                "DAILY CHANGE",
+                formatChange(
+                        quote.getPercentChange()
+                )
+        );
+
+        TerminalComponents.row(
+                "RETRIEVED UTC",
+                context.getRetrievedAt().toString()
+        );
+
+        TerminalComponents.separator();
+
+        TerminalComponents.wrappedRow(
+                "IMPORTANT",
+                "The quote does not include its trading-session "
+                        + "timestamp. News may have been published "
+                        + "after the price movement. A causal "
+                        + "relationship has not been established."
+        );
+
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "RECENT RELATED NEWS"
+        );
+
+        if (context.getArticles().isEmpty()) {
+
+            TerminalComponents.row(
+                    "STATUS",
+                    "No qualifying articles available"
+            );
+
+        } else {
+
+            int index = 1;
+
+            for (NewsArticle article
+                    : context.getArticles()) {
+
+                if (index > 1) {
+                    TerminalComponents.separator();
+                }
+
+                TerminalComponents.wrappedRow(
+                        String.format("%02d HEADLINE", index),
+                        article.getTitle()
+                );
+
+                TerminalComponents.row(
+                        "SOURCE",
+                        article.getSource() == null
+                                ? "Unknown"
+                                : article.getSource()
+                );
+
+                TerminalComponents.row(
+                        "PUBLISHED",
+                        formatNewsTimestamp(
+                                article.getPublishedAt()
+                        )
+                );
+
+                index++;
+            }
+        }
+
+        TerminalComponents.endSection();
+
+        TerminalComponents.section(
+                "ANALYSIS STATUS"
+        );
+
+        TerminalComponents.row(
+                "STAGE",
+                "Evidence gathering complete"
+        );
+
+        TerminalComponents.row(
+                "EXPLANATION",
+                "LLM integration pending"
+        );
+
+        if (context.getNewsWarning() != null) {
+
+            TerminalComponents.wrappedRow(
+                    "NEWS WARNING",
+                    context.getNewsWarning()
+            );
+        }
+
+        TerminalComponents.endSection();
+    }
+
 
     // ========================================================
     // ETF Sector Exposure
@@ -2278,6 +2460,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/watchlist remove",
                 "Remove symbol"
+        );
+
+        TerminalComponents.row(
+                "/why SYMBOL",
+                "Gather movement evidence"
         );
 
         TerminalComponents.endSection();

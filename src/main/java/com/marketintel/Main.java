@@ -1,3 +1,4 @@
+
 package com.marketintel;
 
 import com.marketintel.agent.ToolManager;
@@ -22,71 +23,51 @@ import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
 import com.marketintel.providers.MarketauxNewsClient;
 import com.marketintel.providers.NewsProvider;
-import com.marketintel.tools.NewsTool;
-
 
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.RequestValidator;
+import com.marketintel.services.SecurityComparisonCalculator;
 import com.marketintel.services.WatchlistService;
 
 import com.marketintel.tools.ComparisonTool;
 import com.marketintel.tools.ETFExposureTool;
 import com.marketintel.tools.MarketDataTool;
-import com.marketintel.providers.NewsApiClient;
-import com.marketintel.providers.NewsProvider;
+import com.marketintel.tools.MarketMovementTool;
 import com.marketintel.tools.NewsTool;
-
 
 import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
 import com.marketintel.ui.UserInterface;
-import com.marketintel.services.SecurityComparisonCalculator;
-
 
 public class Main {
 
     private static final String DATABASE_URL =
             "jdbc:sqlite:data/market-intelligence.db";
 
-    public static void main(
-            String[] args) {
+    public static void main(String[] args) {
 
-        // ----------------------------------------------------
+        // --------------------------------------------------
         // Database
-        // ----------------------------------------------------
+        // --------------------------------------------------
 
         DatabaseManager databaseManager =
-                new DatabaseManager(
-                        DATABASE_URL
-                );
+                new DatabaseManager(DATABASE_URL);
 
         databaseManager.initialize();
 
-        // ----------------------------------------------------
-        // Repositories
-        // ----------------------------------------------------
-
         UserRepository userRepository =
-                new SQLiteUserRepository(
-                        databaseManager
-                );
+                new SQLiteUserRepository(databaseManager);
 
-        PortfolioRepository
-                portfolioRepository =
-                new SQLitePortfolioRepository(
-                        databaseManager
-                );
+        PortfolioRepository portfolioRepository =
+                new SQLitePortfolioRepository(databaseManager);
 
-        WatchlistRepository
-                watchlistRepository =
-                new SQLiteWatchlistRepository(
-                        databaseManager
-                );
+        WatchlistRepository watchlistRepository =
+                new SQLiteWatchlistRepository(databaseManager);
 
-        // ----------------------------------------------------
+        // --------------------------------------------------
         // Authentication
-        // ----------------------------------------------------
+        // --------------------------------------------------
 
         PasswordHasher passwordHasher =
                 new BCryptPasswordHasher();
@@ -100,19 +81,15 @@ public class Main {
         SessionManager sessionManager =
                 new SessionManager();
 
-        // ----------------------------------------------------
-        // Application Services
-        // ----------------------------------------------------
+        // --------------------------------------------------
+        // Services
+        // --------------------------------------------------
 
         PortfolioService portfolioService =
-                new PortfolioService(
-                        portfolioRepository
-                );
+                new PortfolioService(portfolioRepository);
 
         WatchlistService watchlistService =
-                new WatchlistService(
-                        watchlistRepository
-                );
+                new WatchlistService(watchlistRepository);
 
         RequestValidator requestValidator =
                 new RequestValidator();
@@ -124,122 +101,65 @@ public class Main {
                 securityComparisonCalculator =
                 new SecurityComparisonCalculator();
 
-        // ----------------------------------------------------
-        // Tool Manager
-        // ----------------------------------------------------
-
         ToolManager toolManager =
                 new ToolManager();
 
-        // ----------------------------------------------------
-        // External APIs
-        // ----------------------------------------------------
+        // --------------------------------------------------
+        // Provider references
+        // --------------------------------------------------
+
+        MarketDataProvider marketDataProvider = null;
+        NewsProvider newsProvider = null;
+
+        // --------------------------------------------------
+        // Alpha Vantage: Quotes and ETF Data
+        // --------------------------------------------------
 
         String alphaVantageApiKey =
-                System.getenv(
-                        "ALPHA_VANTAGE_API_KEY"
-                );
+                System.getenv("ALPHA_VANTAGE_API_KEY");
 
         if (alphaVantageApiKey != null
-                && !alphaVantageApiKey
-                .isBlank()) {
+                && !alphaVantageApiKey.isBlank()) {
 
-            AlphaVantageClient
-                    alphaVantageClient =
+            AlphaVantageClient alphaVantageClient =
                     new AlphaVantageClient(
                             alphaVantageApiKey
                     );
 
-        // ----------------------------------------------------
-        // Financial News Provider
-        // ----------------------------------------------------
-
-            String marketauxToken =
-                    System.getenv("MARKETAUX_API_TOKEN");
-
-            if (marketauxToken != null
-                    && !marketauxToken.isBlank()) {
-
-                NewsProvider newsProvider =
-                        new MarketauxNewsClient(marketauxToken);
-
-                NewsTool newsTool =
-                        new NewsTool(
-                                newsProvider,
-                                requestValidator
-                        );
-
-                toolManager.registerTool(newsTool);
-
-            } else {
-
-                System.err.println(
-                        "Warning: MARKETAUX_API_TOKEN "
-                                + "is not configured."
-                );
-            }
-
-            // ----------------------------------------------
-            // Providers
-            // ----------------------------------------------
-
-            MarketDataProvider
-                    marketDataProvider =
+            marketDataProvider =
                     new MarketDataApiClient(
                             alphaVantageClient
                     );
 
-            ETFDataProvider
-                    etfDataProvider =
+            ETFDataProvider etfDataProvider =
                     new ETFDataApiClient(
                             alphaVantageClient
                     );
 
-
-            // ----------------------------------------------
-            // Tools
-            // ----------------------------------------------
-
-            MarketDataTool marketDataTool =
+            toolManager.registerTool(
                     new MarketDataTool(
                             marketDataProvider,
                             requestValidator
-                    );
+                    )
+            );
 
-            ETFExposureTool
-                    etfExposureTool =
+            toolManager.registerTool(
                     new ETFExposureTool(
                             etfDataProvider,
                             exposureCalculator,
                             requestValidator
-                    );
+                    )
+            );
 
-            ComparisonTool comparisonTool =
+            toolManager.registerTool(
                     new ComparisonTool(
                             etfDataProvider,
                             marketDataProvider,
                             exposureCalculator,
                             securityComparisonCalculator,
                             requestValidator
-                    );
-
-
-            // ----------------------------------------------
-            // Tool Registration
-            // ----------------------------------------------
-
-            toolManager.registerTool(
-                    marketDataTool
+                    )
             );
-
-            toolManager.registerTool(
-                    etfExposureTool
-            );
-
-            toolManager.registerTool(
-                    comparisonTool
-            );
-
 
         } else {
 
@@ -249,9 +169,62 @@ public class Main {
             );
         }
 
-        // ----------------------------------------------------
-        // Terminal Interface
-        // ----------------------------------------------------
+        // --------------------------------------------------
+        // Marketaux: Financial News
+        // --------------------------------------------------
+
+        String marketauxToken =
+                System.getenv("MARKETAUX_API_TOKEN");
+
+        if (marketauxToken != null
+                && !marketauxToken.isBlank()) {
+
+            newsProvider =
+                    new MarketauxNewsClient(
+                            marketauxToken
+                    );
+
+            toolManager.registerTool(
+                    new NewsTool(
+                            newsProvider,
+                            requestValidator
+                    )
+            );
+
+        } else {
+
+            System.err.println(
+                    "Warning: MARKETAUX_API_TOKEN "
+                            + "is not configured."
+            );
+        }
+
+        // --------------------------------------------------
+        // Combined Market Movement Tool
+        // --------------------------------------------------
+
+        if (marketDataProvider != null
+                && newsProvider != null) {
+
+            toolManager.registerTool(
+                    new MarketMovementTool(
+                            marketDataProvider,
+                            newsProvider,
+                            requestValidator
+                    )
+            );
+
+        } else {
+
+            System.err.println(
+                    "Warning: Market movement analysis "
+                            + "requires both API providers."
+            );
+        }
+
+        // --------------------------------------------------
+        // Terminal
+        // --------------------------------------------------
 
         CommandParser commandParser =
                 new CommandParser();
