@@ -227,6 +227,13 @@ public final class MarketExplanationService {
 
                 Keep the response factual and professional.
                 Prefer clarity over unnecessary financial jargon.
+                
+                FORMATTING REQUIREMENTS:
+                Use plain text only.
+                Do not use Markdown headings, asterisks, or tables.
+                Use short paragraphs with numbered section titles.
+                Limit your explanation to approximately 250 words.
+                Avoid repeating information.
                 """);
 
         return prompt.toString();

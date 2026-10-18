@@ -30,6 +30,9 @@ public final class TerminalTheme {
     private static final boolean ANSI_ENABLED =
             System.getenv("NO_COLOR") == null;
 
+    private static final boolean SCROLLBACK_MODE =
+            "1".equals(System.getenv("MI_SCROLLBACK"));
+
     public static String color(
             String text,
             String color) {
@@ -84,14 +87,11 @@ public final class TerminalTheme {
      */
     public static void enterAlternateScreen() {
 
-        if (!ANSI_ENABLED) {
+        if (!ANSI_ENABLED || SCROLLBACK_MODE) {
             return;
         }
 
-        System.out.print(
-                "\u001B[?1049h"
-        );
-
+        System.out.print("\u001B[?1049h");
         System.out.flush();
 
         clearScreen();
@@ -102,14 +102,11 @@ public final class TerminalTheme {
      */
     public static void exitAlternateScreen() {
 
-        if (!ANSI_ENABLED) {
+        if (!ANSI_ENABLED || SCROLLBACK_MODE) {
             return;
         }
 
-        System.out.print(
-                "\u001B[?1049l"
-        );
-
+        System.out.print("\u001B[?1049l");
         System.out.flush();
     }
 
@@ -118,6 +115,19 @@ public final class TerminalTheme {
      * back to the upper-left corner.
      */
     public static void clearScreen() {
+
+        if (SCROLLBACK_MODE) {
+
+            // Keep previous output in terminal history.
+            // Separate commands visually instead of
+            // clearing the entire terminal.
+
+            System.out.println();
+            System.out.println("─".repeat(64));
+            System.out.println();
+
+            return;
+        }
 
         if (!ANSI_ENABLED) {
             return;

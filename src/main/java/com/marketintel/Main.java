@@ -40,6 +40,10 @@ import com.marketintel.ui.CommandParser;
 import com.marketintel.ui.TerminalUI;
 import com.marketintel.ui.UserInterface;
 
+import com.marketintel.providers.GeminiLLMClient;
+import com.marketintel.providers.LLMProvider;
+import com.marketintel.services.MarketExplanationService;
+
 public class Main {
 
     private static final String DATABASE_URL =
@@ -223,6 +227,49 @@ public class Main {
         }
 
         // --------------------------------------------------
+        // Gemini: Market Explanation Service
+        // --------------------------------------------------
+
+        MarketExplanationService marketExplanationService = null;
+
+        String geminiApiKey =
+                System.getenv("GEMINI_API_KEY");
+
+        if (geminiApiKey != null
+                && !geminiApiKey.isBlank()) {
+
+            String geminiModel =
+                    System.getenv("GEMINI_MODEL");
+
+            LLMProvider llmProvider;
+
+            if (geminiModel == null
+                    || geminiModel.isBlank()) {
+
+                llmProvider =
+                        new GeminiLLMClient(geminiApiKey);
+
+            } else {
+
+                llmProvider =
+                        new GeminiLLMClient(
+                                geminiApiKey,
+                                geminiModel.trim()
+                        );
+            }
+
+            marketExplanationService =
+                    new MarketExplanationService(llmProvider);
+
+        } else {
+
+            System.err.println(
+                    "Warning: GEMINI_API_KEY is not configured. "
+                            + "AI explanations will be unavailable."
+            );
+        }
+
+        // --------------------------------------------------
         // Terminal
         // --------------------------------------------------
 
@@ -236,7 +283,8 @@ public class Main {
                         commandParser,
                         portfolioService,
                         watchlistService,
-                        toolManager
+                        toolManager,
+                        marketExplanationService
                 );
 
         userInterface.start();
