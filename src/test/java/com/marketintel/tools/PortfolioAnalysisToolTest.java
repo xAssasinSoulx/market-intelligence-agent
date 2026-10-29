@@ -113,7 +113,52 @@ class PortfolioAnalysisToolTest {
         ));
     }
 
-    private static final class FixedMarketData implements MarketDataProvider {
+    @Test
+    void keepsAnEtfInTheProvidersMarketWhenItHasNoCompanyProfile() {
+        portfolioService.addPosition(firstUser, "AAPL", new BigDecimal("1"), AssetType.STOCK);
+        portfolioService.addPosition(firstUser, "QQQ", new BigDecimal("1"), AssetType.ETF);
+
+        PortfolioAnalysisTool singleMarket = new PortfolioAnalysisTool(
+                portfolioService,
+                new UsOnlyMarketData(),
+                new FixedEtfData(),
+                new PortfolioExposureCalculator(),
+                new RequestValidator()
+        );
+
+        ToolResult result = singleMarket.execute(new ToolRequest(
+                firstUser,
+                ActionType.PORTFOLIO_EXPOSURE,
+                Map.of()
+        ));
+
+        PortfolioExposureResult exposure = (PortfolioExposureResult) result.getData();
+        assertEquals(1, exposure.getBooks().size());
+        assertEquals("USD", exposure.getBooks().getFirst().getCurrency());
+        assertEquals(0, new BigDecimal("200").compareTo(
+                exposure.getBooks().getFirst().getTotalMarketValue()
+        ));
+        assertTrue(exposure.getLimitations().stream().anyMatch(note ->
+                note.contains("QQQ") && note.contains("USD")));
+    }
+
+    private static final class UsOnlyMarketData extends FixedMarketData {
+
+        @Override
+        public SecurityOverview getSecurityOverview(String symbol) {
+            if ("QQQ".equals(symbol)) {
+                throw new MarketDataException("No security overview found for symbol: QQQ");
+            }
+            return super.getSecurityOverview(symbol);
+        }
+
+        @Override
+        public java.util.Optional<String> quoteCurrency() {
+            return java.util.Optional.of("USD");
+        }
+    }
+
+    private static class FixedMarketData implements MarketDataProvider {
 
         @Override
         public MarketQuote getQuote(String symbol) {

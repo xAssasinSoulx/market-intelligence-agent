@@ -400,7 +400,9 @@ public final class MarketIntelFrame extends JFrame {
 
     private void refreshFeeds() {
         feedLabel.setText(
-                flag("AV", gateway.isAvailable(ActionType.MARKET_QUOTE))
+                flag("QUOTES", gateway.isAvailable(ActionType.MARKET_QUOTE))
+                        + "   "
+                        + flag("ETF", gateway.isAvailable(ActionType.ETF_SECTOR_EXPOSURE))
                         + "   "
                         + flag("NEWS", gateway.isAvailable(ActionType.FINANCIAL_NEWS))
                         + "   "

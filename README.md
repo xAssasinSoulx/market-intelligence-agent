@@ -1,6 +1,6 @@
 # Market Intelligence Agent
 
-A Java 21 application for multi-user market research, built for EECS 3311. The same SQLite accounts, portfolios, watchlists, and tool services back both a terminal interface and a Swing window. Quotes, ETF data, news, and Gemini explanations come from live providers when the matching environment variables are set.
+A Java 21 application for multi-user market research, built for EECS 3311. The same SQLite accounts, portfolios, watchlists, and tool services back both a terminal interface and a Swing window. Quotes and security overviews come from Finnhub, ETF holdings from Alpha Vantage, news from Marketaux, and explanations from Gemini, each only when its environment variable is set.
 
 ## Requirements
 
@@ -9,6 +9,7 @@ A Java 21 application for multi-user market research, built for EECS 3311. The s
 - Optional API keys, exported in the shell. See `.env.example` for names only. Do not commit real keys.
 
 ```bash
+export FINNHUB_API_KEY="your-finnhub-key"
 export ALPHA_VANTAGE_API_KEY="your-alpha-vantage-key"
 export MARKETAUX_API_TOKEN="your-marketaux-token"
 export GEMINI_API_KEY="your-gemini-key"
@@ -18,6 +19,8 @@ export MI_SCROLLBACK=1
 ```
 
 `MI_SCROLLBACK=1` keeps terminal history instead of clearing the screen. The application reads environment variables directly. It does not load a `.env` file.
+
+Finnhub's free plan serves quotes and company profiles for US listings at 60 requests per minute. Non-US symbols such as `XEQT.TO` are refused on that plan, so a TSX position stays unpriced and the exposure report says so. Its profile has a currency, an exchange, and an industry label, but no company description and no separate GICS sector; the overview says so. ETFs have no company profile on Finnhub, so an ETF position is placed in US dollars with a note. Alpha Vantage's free plan still serves ETF profiles and holdings, but its company overview is now a premium endpoint and the plan allows 25 requests per day. If only `ALPHA_VANTAGE_API_KEY` is set, quotes fall back to Alpha Vantage and overviews return the premium error.
 
 ## Run
 
@@ -31,7 +34,7 @@ Tests do not call live APIs. The Gemini smoke test runs only when `RUN_GEMINI_LI
 
 With no arguments, the process starts the command-line interface. The window does not need an interactive terminal after launch. Both interfaces use `data/market-intelligence.db`.
 
-Without `ALPHA_VANTAGE_API_KEY`, quote, overview, comparison, sector, and overlap actions are unavailable. Without `MARKETAUX_API_TOKEN`, news is unavailable. Movement analysis needs both. Without `GEMINI_API_KEY`, movement analysis can still show the quote and news, and it says that the explanation is unavailable.
+Without `FINNHUB_API_KEY`, quote, overview, comparison, and portfolio exposure fall back to Alpha Vantage if that key is set, and are otherwise unavailable. Without `ALPHA_VANTAGE_API_KEY`, sector and overlap are unavailable, and ETF positions in a portfolio are reported as unknown. Without `MARKETAUX_API_TOKEN`, news is unavailable. Movement analysis needs quotes and news. Without `GEMINI_API_KEY`, movement analysis can still show the quote and news, and it says that the explanation is unavailable.
 
 ## Command-line actions
 

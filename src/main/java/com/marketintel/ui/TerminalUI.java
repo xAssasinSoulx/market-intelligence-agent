@@ -652,7 +652,7 @@ public class TerminalUI
         if (toolManager.findTool(ActionType.PORTFOLIO_EXPOSURE).isEmpty()) {
             displayError(
                     "Portfolio exposure is unavailable. "
-                            + "Set ALPHA_VANTAGE_API_KEY and restart."
+                            + "Set FINNHUB_API_KEY and restart."
             );
             return;
         }

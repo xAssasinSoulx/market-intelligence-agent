@@ -15,12 +15,14 @@ import com.marketintel.persistence.WatchlistRepository;
 import com.marketintel.providers.AlphaVantageClient;
 import com.marketintel.providers.ETFDataApiClient;
 import com.marketintel.providers.ETFDataProvider;
+import com.marketintel.providers.FinnhubMarketDataClient;
 import com.marketintel.providers.GeminiLLMClient;
 import com.marketintel.providers.LLMProvider;
 import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
 import com.marketintel.providers.MarketauxNewsClient;
 import com.marketintel.providers.NewsProvider;
+import com.marketintel.providers.UnconfiguredETFDataProvider;
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.MarketExplanationService;
 import com.marketintel.services.PortfolioExposureCalculator;
@@ -118,22 +120,43 @@ public final class ApplicationContext {
         ToolManager toolManager = new ToolManager();
 
         MarketDataProvider marketDataProvider = null;
+        ETFDataProvider etfDataProvider = null;
         NewsProvider newsProvider = null;
 
-        String alphaVantageApiKey =
-                System.getenv("ALPHA_VANTAGE_API_KEY");
+        String finnhubApiKey = System.getenv("FINNHUB_API_KEY");
+        String alphaVantageApiKey = System.getenv("ALPHA_VANTAGE_API_KEY");
 
-        if (alphaVantageApiKey != null
-                && !alphaVantageApiKey.isBlank()) {
+        AlphaVantageClient alphaVantageClient = null;
+        if (alphaVantageApiKey != null && !alphaVantageApiKey.isBlank()) {
+            alphaVantageClient = new AlphaVantageClient(alphaVantageApiKey);
+            etfDataProvider = new ETFDataApiClient(alphaVantageClient);
+        }
 
-            AlphaVantageClient alphaVantageClient =
-                    new AlphaVantageClient(alphaVantageApiKey);
+        if (finnhubApiKey != null && !finnhubApiKey.isBlank()) {
+            marketDataProvider = new FinnhubMarketDataClient(finnhubApiKey);
+        } else if (alphaVantageClient != null) {
+            marketDataProvider = new MarketDataApiClient(alphaVantageClient);
+            System.err.println(
+                    "Warning: FINNHUB_API_KEY is not configured. Quotes use Alpha Vantage, "
+                            + "whose company overview is a premium endpoint."
+            );
+        } else {
+            System.err.println(
+                    "Warning: Neither FINNHUB_API_KEY nor ALPHA_VANTAGE_API_KEY is configured."
+            );
+        }
 
-            marketDataProvider =
-                    new MarketDataApiClient(alphaVantageClient);
+        if (etfDataProvider == null) {
+            System.err.println(
+                    "Warning: ALPHA_VANTAGE_API_KEY is not configured. ETF holdings are unavailable."
+            );
+        }
 
-            ETFDataProvider etfDataProvider =
-                    new ETFDataApiClient(alphaVantageClient);
+        if (marketDataProvider != null) {
+
+            ETFDataProvider etfForTools = etfDataProvider != null
+                    ? etfDataProvider
+                    : new UnconfiguredETFDataProvider();
 
             toolManager.registerTool(
                     new MarketDataTool(
@@ -143,16 +166,8 @@ public final class ApplicationContext {
             );
 
             toolManager.registerTool(
-                    new ETFExposureTool(
-                            etfDataProvider,
-                            exposureCalculator,
-                            requestValidator
-                    )
-            );
-
-            toolManager.registerTool(
                     new ComparisonTool(
-                            etfDataProvider,
+                            etfForTools,
                             marketDataProvider,
                             exposureCalculator,
                             securityComparisonCalculator,
@@ -164,16 +179,21 @@ public final class ApplicationContext {
                     new PortfolioAnalysisTool(
                             portfolioService,
                             marketDataProvider,
-                            etfDataProvider,
+                            etfForTools,
                             new PortfolioExposureCalculator(),
                             requestValidator
                     )
             );
+        }
 
-        } else {
+        if (etfDataProvider != null) {
 
-            System.err.println(
-                    "Warning: ALPHA_VANTAGE_API_KEY is not configured."
+            toolManager.registerTool(
+                    new ETFExposureTool(
+                            etfDataProvider,
+                            exposureCalculator,
+                            requestValidator
+                    )
             );
         }
 
