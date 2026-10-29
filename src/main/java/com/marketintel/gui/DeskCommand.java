@@ -27,6 +27,7 @@ public final class DeskCommand {
         OVERLAP,
         NEWS,
         WHY,
+        ASK,
         PORTFOLIO_ADD,
         PORTFOLIO_REMOVE,
         WATCHLIST_ADD,
@@ -117,14 +118,23 @@ public final class DeskCommand {
             case "HISTORY", "HIST" -> needs(Action.HISTORY, args, 1, "Usage: HISTORY SYMBOL");
             case "SENTIMENT", "SENT" -> needs(Action.SENTIMENT, args, 1, "Usage: SENTIMENT SYMBOL");
             case "WHY", "EXPLAIN" -> why(args);
+            case "ASK", "FOLLOW" -> ask(args);
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
             case "WATCH", "MON", "WATCHLIST" -> watchlist(args);
-            default -> new DeskCommand(
-                    Action.INVALID,
-                    args,
-                    "Unknown command. Type HELP."
-            );
+            default -> {
+                if (parts.length >= 2) {
+                    List<String> sentence = new ArrayList<>();
+                    sentence.add(verb);
+                    sentence.addAll(args);
+                    yield new DeskCommand(Action.ASK, sentence, null);
+                }
+                yield new DeskCommand(
+                        Action.INVALID,
+                        args,
+                        "Unknown command. Type HELP, or ask a question such as why did NVDA move."
+                );
+            }
         };
     }
 
@@ -148,6 +158,7 @@ public final class DeskCommand {
                 HISTORY SYMBOL                 Daily prices and RSI
                 SENTIMENT SYMBOL               News sentiment score
                 WHY SYMBOL                     Evidence, then Gemini
+                ASK question                   Follow-up using the last symbol
                 EXPOSURE                       Portfolio sector weights
                 PORT ADD SYMBOL QTY TYPE       TYPE is STOCK, ETF, or OTHER
                 PORT REMOVE SYMBOL
@@ -156,8 +167,8 @@ public final class DeskCommand {
                 HELP
                 LOGOUT
 
-                GEO uses the provider's reported country weights. It does not guess a country.
-                A leading slash is accepted, as in /quote NVDA.
+                A question in the command line is a follow-up, for example how is Nvidia doing.
+                ASK uses the last symbol when you say it, its, or that.
                 """;
     }
 
@@ -193,6 +204,13 @@ public final class DeskCommand {
             return navigate(Action.EXPLAIN);
         }
         return needs(Action.WHY, args, 1, "Usage: WHY SYMBOL");
+    }
+
+    private static DeskCommand ask(List<String> args) {
+        if (args.isEmpty()) {
+            return navigate(Action.EXPLAIN);
+        }
+        return new DeskCommand(Action.ASK, args, null);
     }
 
     private static DeskCommand portfolio(List<String> args) {

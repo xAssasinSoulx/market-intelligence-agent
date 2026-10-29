@@ -141,7 +141,7 @@ public final class DashboardPanel extends JPanel {
         tile("10", "MON", symbols + " SYM", "Watchlist", true);
         tile("11", "EXPOSURE", state(available(ActionType.PORTFOLIO_EXPOSURE)), "Portfolio",
                 available(ActionType.PORTFOLIO_EXPOSURE));
-        tile("12", "FOLLOW-UP", "N/A", null, false);
+        tile("12", "FOLLOW-UP", "ASK", "Explain", true);
 
         board.revalidate();
         board.repaint();

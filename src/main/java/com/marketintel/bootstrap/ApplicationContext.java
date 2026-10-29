@@ -1,12 +1,17 @@
 package com.marketintel.bootstrap;
 
+import com.marketintel.agent.AgentController;
+import com.marketintel.agent.RequestPlanner;
+import com.marketintel.agent.ResponseComposer;
 import com.marketintel.agent.ToolManager;
 import com.marketintel.auth.AuthService;
 import com.marketintel.auth.BCryptPasswordHasher;
 import com.marketintel.auth.PasswordHasher;
 import com.marketintel.auth.SessionManager;
+import com.marketintel.persistence.ConversationRepository;
 import com.marketintel.persistence.DatabaseManager;
 import com.marketintel.persistence.PortfolioRepository;
+import com.marketintel.persistence.SQLiteConversationRepository;
 import com.marketintel.persistence.SQLitePortfolioRepository;
 import com.marketintel.persistence.SQLiteUserRepository;
 import com.marketintel.persistence.SQLiteWatchlistRepository;
@@ -32,6 +37,7 @@ import com.marketintel.providers.ProviderRouter;
 import com.marketintel.providers.SentiSenseAdapter;
 import com.marketintel.providers.TwelveDataAdapter;
 import com.marketintel.providers.UnconfiguredETFDataProvider;
+import com.marketintel.services.ConversationMemory;
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.MarketExplanationService;
 import com.marketintel.services.PortfolioExposureCalculator;
@@ -67,6 +73,7 @@ public final class ApplicationContext {
     private final ToolManager toolManager;
     private final MarketExplanationService marketExplanationService;
     private final CommandParser commandParser;
+    private final AgentController followUp;
 
     private ApplicationContext(
             AuthService authService,
@@ -75,7 +82,8 @@ public final class ApplicationContext {
             WatchlistService watchlistService,
             ToolManager toolManager,
             MarketExplanationService marketExplanationService,
-            CommandParser commandParser) {
+            CommandParser commandParser,
+            AgentController followUp) {
 
         this.authService = authService;
         this.sessionManager = sessionManager;
@@ -84,6 +92,7 @@ public final class ApplicationContext {
         this.toolManager = toolManager;
         this.marketExplanationService = marketExplanationService;
         this.commandParser = commandParser;
+        this.followUp = followUp;
     }
 
     public static ApplicationContext createDefault() {
@@ -295,14 +304,13 @@ public final class ApplicationContext {
         }
 
         MarketExplanationService marketExplanationService = null;
+        LLMProvider llmProvider = null;
 
         String geminiApiKey = System.getenv("GEMINI_API_KEY");
 
         if (geminiApiKey != null && !geminiApiKey.isBlank()) {
 
             String geminiModel = System.getenv("GEMINI_MODEL");
-
-            LLMProvider llmProvider;
 
             if (geminiModel == null || geminiModel.isBlank()) {
                 llmProvider = new GeminiLLMClient(geminiApiKey);
@@ -324,6 +332,17 @@ public final class ApplicationContext {
             );
         }
 
+        ConversationRepository conversationRepository =
+                new SQLiteConversationRepository(databaseManager);
+        AgentController followUp = new AgentController(
+                new ConversationMemory(conversationRepository),
+                new RequestPlanner(llmProvider),
+                toolManager,
+                new ResponseComposer(),
+                marketExplanationService,
+                llmProvider
+        );
+
         return new ApplicationContext(
                 authService,
                 sessionManager,
@@ -331,7 +350,8 @@ public final class ApplicationContext {
                 watchlistService,
                 toolManager,
                 marketExplanationService,
-                new CommandParser()
+                new CommandParser(),
+                followUp
         );
     }
 
@@ -353,6 +373,10 @@ public final class ApplicationContext {
 
     public ToolManager getToolManager() {
         return toolManager;
+    }
+
+    public AgentController getFollowUp() {
+        return followUp;
     }
 
     public MarketExplanationService getMarketExplanationService() {
@@ -428,7 +452,8 @@ public final class ApplicationContext {
                 portfolioService,
                 watchlistService,
                 toolManager,
-                marketExplanationService
+                marketExplanationService,
+                followUp
         );
     }
 }

@@ -113,6 +113,8 @@ Sign in, then:
 /history NVDA
 /sentiment NVDA
 /why NVDA
+/ask why did NVDA move
+/ask what about its sector exposure
 /portfolio
 /portfolio add NVDA 10 STOCK
 /portfolio remove NVDA
@@ -139,6 +141,7 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | `/history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
 | `/sentiment` | Latest SentiSense score. The label is this desk's band for that score |
 | `/why` | Quote, news, and a Gemini explanation grounded in that evidence |
+| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini chooses an allowed action and writes the reply from the tool result. Without it, a keyword reading is used. A pronoun such as "its" uses the last symbol stored for this user |
 | `/portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 
 ## Window
@@ -169,6 +172,7 @@ STATEMENTS NVDA
 HISTORY NVDA
 SENTIMENT NVDA
 WHY NVDA
+ASK what about its sector exposure
 PORT
 PORT ADD NVDA 10 STOCK
 PORT REMOVE NVDA

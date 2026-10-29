@@ -1,5 +1,6 @@
 package com.marketintel.app;
 
+import com.marketintel.agent.AgentController;
 import com.marketintel.agent.ToolManager;
 import com.marketintel.auth.SessionManager;
 import com.marketintel.model.ActionType;
@@ -21,15 +22,26 @@ public final class ResearchGateway {
     private final SessionManager sessionManager;
     private final ToolManager toolManager;
     private final MarketExplanationService marketExplanationService;
+    private final AgentController followUp;
 
     public ResearchGateway(
             SessionManager sessionManager,
             ToolManager toolManager,
             MarketExplanationService marketExplanationService) {
 
+        this(sessionManager, toolManager, marketExplanationService, null);
+    }
+
+    public ResearchGateway(
+            SessionManager sessionManager,
+            ToolManager toolManager,
+            MarketExplanationService marketExplanationService,
+            AgentController followUp) {
+
         this.sessionManager = sessionManager;
         this.toolManager = toolManager;
         this.marketExplanationService = marketExplanationService;
+        this.followUp = followUp;
     }
 
     public boolean isAvailable(ActionType action) {
@@ -38,6 +50,17 @@ public final class ResearchGateway {
 
     public long currentUserId() {
         return sessionManager.getCurrentUserId();
+    }
+
+    public String ask(long expectedUserId, String text) {
+        if (!sessionManager.isAuthenticated()
+                || sessionManager.getCurrentUserId() != expectedUserId) {
+            return "Sign in again before asking a follow-up.\n";
+        }
+        if (followUp == null) {
+            return "Follow-up is not available.\n";
+        }
+        return followUp.handle(expectedUserId, text);
     }
 
     public ToolResult execute(
@@ -64,9 +87,21 @@ public final class ResearchGateway {
         Map<String, String> safeArguments =
                 arguments == null ? Map.of() : arguments;
 
-        return toolManager.execute(
+        ToolResult result = toolManager.execute(
                 new ToolRequest(expectedUserId, action, safeArguments)
         );
+        if (result.isSuccess() && followUp != null) {
+            followUp.noteLookup(expectedUserId, notedSymbol(safeArguments), action);
+        }
+        return result;
+    }
+
+    private static String notedSymbol(Map<String, String> arguments) {
+        String symbol = arguments.get("symbol");
+        if (symbol == null || symbol.isBlank()) {
+            symbol = arguments.get("firstSymbol");
+        }
+        return symbol;
     }
 
     public MovementReport explainMovement(

@@ -80,7 +80,8 @@ public final class MarketIntelFrame extends JFrame {
         gateway = new ResearchGateway(
                 context.getSessionManager(),
                 context.getToolManager(),
-                context.getMarketExplanationService()
+                context.getMarketExplanationService(),
+                context.getFollowUp()
         );
         explanationsAvailable = context.isExplanationAvailable();
 
@@ -449,6 +450,10 @@ public final class MarketIntelFrame extends JFrame {
             case WHY -> {
                 showSection("Explain");
                 agentPanel.explainSymbol(command.argument(0));
+            }
+            case ASK -> {
+                showSection("Explain");
+                agentPanel.ask(String.join(" ", command.arguments()));
             }
             case PORTFOLIO_ADD -> {
                 showSection("Portfolio");
