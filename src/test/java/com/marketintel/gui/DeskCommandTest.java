@@ -73,6 +73,23 @@ class DeskCommandTest {
     }
 
     @Test
+    void treatsAWhySentenceAsAQuestion() {
+        DeskCommand command = DeskCommand.parse("why did microsoft fall");
+
+        assertEquals(DeskCommand.Action.ASK, command.action());
+        assertEquals("WHY", command.argument(0));
+        assertEquals("MICROSOFT", command.argument(2));
+    }
+
+    @Test
+    void stillAcceptsWhyWithOnlyASymbol() {
+        DeskCommand command = DeskCommand.parse("WHY MSFT");
+
+        assertEquals(DeskCommand.Action.WHY, command.action());
+        assertEquals("MSFT", command.argument(0));
+    }
+
+    @Test
     void treatsASentenceAsAFollowUpQuestion() {
         DeskCommand command = DeskCommand.parse("how is nvidia doing");
 

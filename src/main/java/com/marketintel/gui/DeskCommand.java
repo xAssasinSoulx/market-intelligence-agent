@@ -117,7 +117,7 @@ public final class DeskCommand {
                     needs(Action.STATEMENTS, args, 1, "Usage: STATEMENTS SYMBOL");
             case "HISTORY", "HIST" -> needs(Action.HISTORY, args, 1, "Usage: HISTORY SYMBOL");
             case "SENTIMENT", "SENT" -> needs(Action.SENTIMENT, args, 1, "Usage: SENTIMENT SYMBOL");
-            case "WHY", "EXPLAIN" -> why(args);
+            case "WHY", "EXPLAIN" -> why(verb, args);
             case "ASK", "FOLLOW" -> ask(args);
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
@@ -199,11 +199,17 @@ public final class DeskCommand {
         return needs(Action.OVERVIEW, args, 1, "Usage: DES SYMBOL");
     }
 
-    private static DeskCommand why(List<String> args) {
+    private static DeskCommand why(String verb, List<String> args) {
         if (args.isEmpty()) {
             return navigate(Action.EXPLAIN);
         }
-        return needs(Action.WHY, args, 1, "Usage: WHY SYMBOL");
+        if (args.size() == 1 && args.getFirst().matches("[A-Z][A-Z0-9.]{0,14}")) {
+            return needs(Action.WHY, args, 1, "Usage: WHY SYMBOL");
+        }
+        List<String> sentence = new ArrayList<>();
+        sentence.add(verb);
+        sentence.addAll(args);
+        return new DeskCommand(Action.ASK, sentence, null);
     }
 
     private static DeskCommand ask(List<String> args) {

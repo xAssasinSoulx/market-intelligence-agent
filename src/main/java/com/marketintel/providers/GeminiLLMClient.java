@@ -22,10 +22,13 @@ public final class GeminiLLMClient implements LLMProvider {
             "https://generativelanguage.googleapis.com/v1beta/models/";
 
     private static final String DEFAULT_MODEL =
-            "gemini-3.8-flash";
+            "gemini-3.5-flash-lite";
 
-    private static final Duration REQUEST_TIMEOUT =
-            Duration.ofSeconds(120);
+    private static final Duration BRIEF_TIMEOUT = Duration.ofSeconds(25);
+    private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(60);
+
+    private static final int EXPLANATION_TOKENS = 400;
+    private static final int BRIEF_TOKENS = 160;
 
     private final String apiKey;
     private final String model;
@@ -73,7 +76,19 @@ public final class GeminiLLMClient implements LLMProvider {
             );
         }
 
-        String requestBody = createRequestBody(prompt);
+        String requestBody = createRequestBody(prompt, EXPLANATION_TOKENS);
+        return send(requestBody, EXPLANATION_TIMEOUT);
+    }
+
+    @Override
+    public String generateBrief(String prompt) {
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException("LLM prompt cannot be blank.");
+        }
+        return send(createRequestBody(prompt, BRIEF_TOKENS), BRIEF_TIMEOUT);
+    }
+
+    private String send(String requestBody, Duration timeout) {
 
         URI uri = URI.create(
                 BASE_URL + model + ":generateContent"
@@ -81,7 +96,7 @@ public final class GeminiLLMClient implements LLMProvider {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
-                .timeout(REQUEST_TIMEOUT)
+                .timeout(timeout)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("x-goog-api-key", apiKey)
@@ -127,17 +142,21 @@ public final class GeminiLLMClient implements LLMProvider {
         } catch (IOException e) {
 
             throw new LLMException(
-                    describeCommunicationFailure(e),
+                    describeCommunicationFailure(e, timeout),
                     e
             );
         }
     }
 
     static String describeCommunicationFailure(IOException exception) {
+        return describeCommunicationFailure(exception, BRIEF_TIMEOUT);
+    }
+
+    static String describeCommunicationFailure(IOException exception, Duration timeout) {
 
         if (exception instanceof HttpTimeoutException) {
             return "Unable to communicate with Gemini. The request exceeded "
-                    + REQUEST_TIMEOUT.toSeconds()
+                    + timeout.toSeconds()
                     + " seconds.";
         }
 
@@ -159,6 +178,10 @@ public final class GeminiLLMClient implements LLMProvider {
      * Package-private for offline JUnit testing.
      */
     String createRequestBody(String prompt) {
+        return createRequestBody(prompt, EXPLANATION_TOKENS);
+    }
+
+    String createRequestBody(String prompt, int maxOutputTokens) {
 
         if (prompt == null || prompt.isBlank()) {
             throw new IllegalArgumentException(
@@ -180,6 +203,16 @@ public final class GeminiLLMClient implements LLMProvider {
         content.putArray("parts")
                 .addObject()
                 .put("text", prompt);
+
+        ObjectNode generation = root.putObject("generationConfig");
+        generation.put("maxOutputTokens", maxOutputTokens);
+        generation.put("temperature", 0.2);
+        ObjectNode thinking = generation.putObject("thinkingConfig");
+        if (model.startsWith("gemini-3")) {
+            thinking.put("thinkingLevel", "LOW");
+        } else {
+            thinking.put("thinkingBudget", 0);
+        }
 
         try {
 
@@ -259,11 +292,12 @@ public final class GeminiLLMClient implements LLMProvider {
 
             for (JsonNode part : parts) {
 
-                JsonNode textNode =
-                        part.path("text");
+                if (part.path("thought").asBoolean(false)) {
+                    continue;
+                }
 
-                if (!textNode.isTextual()
-                        || textNode.asText().isBlank()) {
+                JsonNode textNode = part.path("text");
+                if (!textNode.isTextual() || textNode.asText().isBlank()) {
                     continue;
                 }
 

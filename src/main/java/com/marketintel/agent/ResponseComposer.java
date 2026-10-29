@@ -51,6 +51,9 @@ public final class ResponseComposer {
             case PRICE_HISTORY -> ResultFormatter.priceHistory(result);
             case NEWS_SENTIMENT -> ResultFormatter.sentiment(result);
             case PORTFOLIO_EXPOSURE -> ResultFormatter.portfolioExposure(result);
+            case MARKET_MOVEMENT -> result.isSuccess()
+                    ? ResultFormatter.unavailable("That action has no follow-up view.")
+                    : ResultFormatter.unavailable(result.getErrorMessage());
             default -> ResultFormatter.unavailable("That action has no follow-up view.");
         };
     }

@@ -82,7 +82,7 @@ public final class RequestPlanner {
         }
         try {
             AgentPlan interpreted = interpret(
-                    languageModel.generate(prompts.planPrompt(input, previousSymbol)),
+                    languageModel.generateBrief(prompts.planPrompt(input, previousSymbol)),
                     previousSymbol
             );
             return interpreted == null ? keywords : interpreted;
@@ -190,12 +190,12 @@ public final class RequestPlanner {
         }
         if (needsTwo(action)) {
             if (symbol == null || second == null) {
-                return AgentPlan.clarify("Name two symbols to " + label(action) + ".");
+                return null;
             }
             return AgentPlan.run(action, symbol, second);
         }
         if (symbol == null) {
-            return AgentPlan.clarify("Which symbol? There is no earlier symbol to use.");
+            return null;
         }
         return AgentPlan.run(action, symbol, null);
     }
@@ -209,7 +209,7 @@ public final class RequestPlanner {
                 || token.equals("THIS") || token.equals("PREVIOUS") || token.equals("SAME")) {
             return previous;
         }
-        if (!TICKER.matcher(token).matches()) {
+        if (STOP.contains(token) || !TICKER.matcher(token).matches()) {
             return null;
         }
         return token;
