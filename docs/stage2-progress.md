@@ -21,6 +21,8 @@ Done in commit `3770181` (`refactor: share service wiring for both interfaces`).
 
 ## Milestone B
 
+Done in `fea8b85` (`feat(app): bind research and portfolios to the signed-in user`) and `f103405` (`feat(gui): add a Swing window over the existing market services`).
+
 Swing window on the same services:
 
 - Register, login, and logout. Passwords use a masked field and are not copied into status text.
