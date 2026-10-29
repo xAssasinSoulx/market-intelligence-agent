@@ -8,24 +8,29 @@ import com.marketintel.model.PortfolioPosition;
 
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Per-user portfolio editing through PortfolioService. Exposure analysis
- * is shown as unavailable rather than as a placeholder chart.
+ * Per-user portfolio editing and market-value exposure.
+ * Exposure uses price times quantity through PortfolioAnalysisTool.
  */
 public final class PortfolioPanel extends JPanel {
 
     private final SessionWorkspace workspace;
+    private final ResearchGateway gateway;
     private final JLabel statusLabel;
     private final JTextField symbolField = UiTheme.textField(10);
     private final JTextField quantityField = UiTheme.textField(8);
@@ -45,9 +50,17 @@ public final class PortfolioPanel extends JPanel {
             "NO POSITIONS. ADD A SYMBOL, A QUANTITY ABOVE ZERO, AND A TYPE.",
             true
     );
+    private final JTextArea exposureOutput = UiTheme.resultArea();
+    private final JButton exposureButton = UiTheme.button("EXPOS");
+    private int requestGeneration;
 
-    public PortfolioPanel(SessionWorkspace workspace, JLabel statusLabel) {
+    public PortfolioPanel(
+            SessionWorkspace workspace,
+            ResearchGateway gateway,
+            JLabel statusLabel) {
+
         this.workspace = workspace;
+        this.gateway = gateway;
         this.statusLabel = statusLabel;
         UiTheme.uppercase(symbolField);
 
@@ -68,11 +81,7 @@ public final class PortfolioPanel extends JPanel {
         JButton add = UiTheme.button("ADD", true);
         JButton remove = UiTheme.button("DEL");
         JButton refresh = UiTheme.button("RFRSH");
-        JButton exposure = UiTheme.button("EXPOS");
-        exposure.setEnabled(false);
-        exposure.setToolTipText(ResearchGateway.unavailableMessage(
-                ActionType.PORTFOLIO_EXPOSURE
-        ));
+        exposureButton.addActionListener(event -> loadExposure());
 
         add.addActionListener(event -> addPosition());
         remove.addActionListener(event -> removePosition());
@@ -80,7 +89,7 @@ public final class PortfolioPanel extends JPanel {
         form.add(add);
         form.add(remove);
         form.add(refresh);
-        form.add(exposure);
+        form.add(exposureButton);
 
         UiTheme.styleTable(table);
         table.getSelectionModel().addListSelectionListener(event -> {
@@ -96,10 +105,12 @@ public final class PortfolioPanel extends JPanel {
         center.setBackground(Color.BLACK);
         center.add(emptyLabel, BorderLayout.NORTH);
         center.add(tableScroll, BorderLayout.CENTER);
-        center.add(UiTheme.text(
-                "EXPOSURE IS NOT IMPLEMENTED. QUANTITY IS A SHARE COUNT, NOT MARKET VALUE.",
-                true
-        ), BorderLayout.SOUTH);
+        exposureOutput.setRows(8);
+        exposureOutput.setText(
+                "EXPOS uses quantity times the latest price.\n"
+                        + "Share count is not treated as market value.\n"
+        );
+        center.add(UiTheme.scroll(exposureOutput), BorderLayout.SOUTH);
 
         JPanel body = new JPanel(new BorderLayout(0, 8));
         body.setBackground(Color.BLACK);
@@ -135,6 +146,34 @@ public final class PortfolioPanel extends JPanel {
         quantityField.setText("");
         assetTypeField.setSelectedItem(AssetType.STOCK);
         tableModel.setRowCount(0);
+        exposureOutput.setText("");
+    }
+
+    public void loadExposure() {
+        if (!workspace.isAuthenticated()) {
+            statusLabel.setText("SIGN ON BEFORE CALCULATING EXPOSURE");
+            return;
+        }
+        long userId = gateway.currentUserId();
+        int generation = ++requestGeneration;
+        List<JComponent> controls = List.of(exposureButton);
+        BackgroundWork.submit(
+                statusLabel,
+                controls,
+                () -> exposureButton.setEnabled(true),
+                "Pricing positions...",
+                () -> ResultFormatter.portfolioExposure(gateway.execute(
+                        userId,
+                        ActionType.PORTFOLIO_EXPOSURE,
+                        Map.of()
+                )),
+                text -> {
+                    if (generation == requestGeneration) {
+                        exposureOutput.setText(text == null ? "" : text);
+                        exposureOutput.setCaretPosition(0);
+                    }
+                }
+        );
     }
 
     public void addFromDesk(String symbol, String quantity, String type) {

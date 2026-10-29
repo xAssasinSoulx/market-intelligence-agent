@@ -87,7 +87,7 @@ public final class MarketIntelFrame extends JFrame {
                 openSection
         );
         researchPanel = new MarketResearchPanel(workspace, gateway, statusLabel);
-        portfolioPanel = new PortfolioPanel(workspace, statusLabel);
+        portfolioPanel = new PortfolioPanel(workspace, gateway, statusLabel);
         watchlistPanel = new WatchlistPanel(workspace, statusLabel);
         agentPanel = new AgentPanel(workspace, gateway, statusLabel);
 
@@ -313,7 +313,7 @@ public final class MarketIntelFrame extends JFrame {
         DeskCommand command = DeskCommand.parse(typed);
 
         switch (command.action()) {
-            case EMPTY, INVALID, GEOGRAPHY, EXPOSURE ->
+            case EMPTY, INVALID, GEOGRAPHY ->
                     statusLabel.setText(command.message());
             case HELP -> {
                 showSection("Dashboard");
@@ -323,6 +323,10 @@ public final class MarketIntelFrame extends JFrame {
             case HOME -> showSection("Dashboard");
             case RESEARCH -> showSection("Research");
             case PORTFOLIO -> showSection("Portfolio");
+            case EXPOSURE -> {
+                showSection("Portfolio");
+                portfolioPanel.loadExposure();
+            }
             case WATCHLIST -> showSection("Watchlist");
             case EXPLAIN -> showSection("Explain");
             case LOGOUT -> logout();

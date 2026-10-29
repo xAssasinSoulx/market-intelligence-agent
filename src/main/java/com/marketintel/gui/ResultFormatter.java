@@ -7,9 +7,11 @@ import com.marketintel.model.MarketQuote;
 import com.marketintel.model.NewsArticle;
 import com.marketintel.model.NewsResult;
 import com.marketintel.model.OverlapResult;
+import com.marketintel.model.PortfolioExposureResult;
 import com.marketintel.model.SecurityComparisonResult;
 import com.marketintel.model.SecurityOverview;
 import com.marketintel.model.ToolResult;
+import com.marketintel.services.PortfolioExposureReport;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -252,6 +254,16 @@ public final class ResultFormatter {
             text.append("No explanation was produced.\n");
         }
         return text.toString();
+    }
+
+    public static String portfolioExposure(ToolResult result) {
+        if (!result.isSuccess()) {
+            return error(result.getErrorMessage());
+        }
+        if (!(result.getData() instanceof PortfolioExposureResult exposure)) {
+            return error("Unexpected portfolio exposure response.");
+        }
+        return PortfolioExposureReport.format(exposure);
     }
 
     public static String unavailable(String message) {

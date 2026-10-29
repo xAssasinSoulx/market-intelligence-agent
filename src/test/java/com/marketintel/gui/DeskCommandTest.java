@@ -54,7 +54,7 @@ class DeskCommandTest {
         assertEquals(DeskCommand.Action.GEOGRAPHY, geography.action());
         assertTrue(geography.message().contains("not implemented"));
         assertEquals(DeskCommand.Action.EXPOSURE, exposure.action());
-        assertTrue(exposure.message().contains("not implemented"));
+        assertEquals(null, exposure.message());
     }
 
     @Test

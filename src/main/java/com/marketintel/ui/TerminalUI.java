@@ -10,6 +10,7 @@ import com.marketintel.model.AssetType;
 import com.marketintel.model.ExposureResult;
 import com.marketintel.model.MarketQuote;
 import com.marketintel.model.OverlapResult;
+import com.marketintel.model.PortfolioExposureResult;
 import com.marketintel.model.Portfolio;
 import com.marketintel.model.PortfolioPosition;
 import com.marketintel.model.SecurityOverview;
@@ -25,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import com.marketintel.model.MarketMovementContext;
 
+import com.marketintel.services.PortfolioExposureReport;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
 import com.marketintel.model.SecurityComparisonResult;
@@ -630,15 +632,50 @@ public class TerminalUI
                             command
                     );
 
+            case "exposure" ->
+                    showPortfolioExposure(userId);
+
             default ->
                     displayError(
                             "Usage: /portfolio, "
+                                    + "/portfolio exposure, "
                                     + "/portfolio add "
                                     + "SYMBOL QUANTITY TYPE, "
                                     + "or /portfolio remove "
                                     + "SYMBOL"
                     );
         }
+    }
+
+    private void showPortfolioExposure(long userId) {
+
+        if (toolManager.findTool(ActionType.PORTFOLIO_EXPOSURE).isEmpty()) {
+            displayError(
+                    "Portfolio exposure is unavailable. "
+                            + "Set ALPHA_VANTAGE_API_KEY and restart."
+            );
+            return;
+        }
+
+        ToolResult result = toolManager.execute(
+                new ToolRequest(
+                        userId,
+                        ActionType.PORTFOLIO_EXPOSURE,
+                        Map.of()
+                )
+        );
+
+        if (!result.isSuccess()) {
+            displayError(result.getErrorMessage());
+            return;
+        }
+
+        if (!(result.getData() instanceof PortfolioExposureResult exposure)) {
+            displayError("Unexpected portfolio exposure response.");
+            return;
+        }
+
+        System.out.println(PortfolioExposureReport.format(exposure));
     }
 
     private void displayPortfolio(
@@ -2599,6 +2636,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/portfolio remove",
                 "Remove position"
+        );
+
+        TerminalComponents.row(
+                "/portfolio exposure",
+                "Sector weights by market value"
         );
 
         TerminalComponents.endSection();
