@@ -93,4 +93,4 @@ LOGOUT
 
 ## Layout
 
-Java 21, Maven, SQLite JDBC, BCrypt, Jackson, and JUnit 5. Stage 1 diagrams are in `docs/uml` and `docs/Stage1-pdfs`. Stage 2 progress is tracked in `docs/stage2-progress.md` and `docs/stage2-feature-matrix.md`.
+Java 21, Maven, SQLite JDBC, BCrypt, Jackson, and JUnit 5. Stage 1 diagrams are in `docs/uml` and `docs/Stage1-pdfs`.
