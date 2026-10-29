@@ -425,6 +425,11 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
+                "/geography",
+                "/geography QQQ"
+        );
+
+        TerminalComponents.row(
                 "/overlap",
                 "/overlap QQQ VGT"
         );
@@ -558,6 +563,11 @@ public class TerminalUI
 
                 case "sector" ->
                         handleSectorCommand(
+                                parsed
+                        );
+
+                case "geography", "geo" ->
+                        handleGeographyCommand(
                                 parsed
                         );
 
@@ -2173,6 +2183,154 @@ public class TerminalUI
                         }
                 );
 
+        if (result.getNote() != null) {
+
+            TerminalComponents.wrappedRow(
+                    "NOTE",
+                    result.getNote()
+            );
+        }
+
+        TerminalComponents.endSection();
+    }
+
+    private void handleGeographyCommand(
+            ParsedCommand command) {
+
+        if (command.getArguments()
+                .size() != 1) {
+
+            displayError(
+                    "Usage: /geography ETF_SYMBOL"
+            );
+
+            return;
+        }
+
+        String symbol =
+                command.getArguments()
+                        .getFirst();
+
+        ToolRequest request =
+                new ToolRequest(
+                        sessionManager
+                                .getCurrentUserId(),
+
+                        ActionType
+                                .ETF_GEOGRAPHIC_EXPOSURE,
+
+                        Map.of(
+                                "symbol",
+                                symbol
+                        )
+                );
+
+        ToolResult result =
+                toolManager.execute(
+                        request
+                );
+
+        if (!result.isSuccess()) {
+
+            displayError(
+                    result.getErrorMessage()
+            );
+
+            return;
+        }
+
+        if (!(result.getData()
+                instanceof ExposureResult
+                exposureResult)) {
+
+            displayError(
+                    "Unexpected ETF exposure "
+                            + "response."
+            );
+
+            return;
+        }
+
+        displayGeographicExposure(
+                exposureResult
+        );
+    }
+
+    private void displayGeographicExposure(
+            ExposureResult result) {
+
+        TerminalComponents.section(
+                "ETF COUNTRY EXPOSURE • "
+                        + result.getSymbol()
+        );
+
+        if (result.getCategories()
+                .isEmpty()) {
+
+            TerminalComponents.row(
+                    "STATUS",
+                    "No country exposure data"
+            );
+
+            TerminalComponents.endSection();
+
+            return;
+        }
+
+        result.getCategories()
+                .entrySet()
+                .stream()
+
+                .sorted(
+                        Map.Entry
+                                .<String, BigDecimal>
+                                        comparingByValue()
+                                .reversed()
+                )
+
+                .forEach(
+                        entry -> {
+
+                            BigDecimal percent =
+                                    entry.getValue()
+                                            .multiply(
+                                                    new BigDecimal(
+                                                            "100"
+                                                    )
+                                            )
+                                            .setScale(
+                                                    2,
+                                                    RoundingMode.HALF_UP
+                                            );
+
+                            String bar =
+                                    createBar(
+                                            percent
+                                    );
+
+                            TerminalComponents.row(
+                                    truncate(
+                                            entry.getKey(),
+                                            15
+                                    ),
+
+                                    String.format(
+                                            "%6s%% %s",
+                                            percent,
+                                            bar
+                                    )
+                            );
+                        }
+                );
+
+        if (result.getNote() != null) {
+
+            TerminalComponents.wrappedRow(
+                    "NOTE",
+                    result.getNote()
+            );
+        }
+
         TerminalComponents.endSection();
     }
 
@@ -2634,6 +2792,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/sector ETF",
                 "Sector exposure"
+        );
+
+        TerminalComponents.row(
+                "/geography ETF",
+                "Country exposure"
         );
 
         TerminalComponents.row(

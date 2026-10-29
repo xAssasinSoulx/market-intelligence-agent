@@ -287,39 +287,29 @@ public class AlphaVantageClient {
             );
         }
 
-        if (root.has(
-                "Error Message")) {
-
+        if (root.has("Error Message")) {
             throw new MarketDataException(
-                    root.path(
-                            "Error Message"
-                    ).asText(
-                            "Alpha Vantage returned an error."
+                    ProviderText.alphaVantageNotice(
+                            root.path("Error Message").asText(""),
+                            apiKey
                     )
             );
         }
 
-        if (root.has(
-                "Note")) {
-
+        if (root.has("Note")) {
             throw new MarketDataException(
-                    root.path(
-                            "Note"
-                    ).asText(
-                            "Alpha Vantage rate limit reached."
+                    ProviderText.alphaVantageNotice(
+                            root.path("Note").asText(""),
+                            apiKey
                     )
             );
         }
 
-        if (root.has(
-                "Information")) {
-
+        if (root.has("Information")) {
             throw new MarketDataException(
-                    root.path(
-                            "Information"
-                    ).asText(
-                            "Alpha Vantage request "
-                                    + "could not be completed."
+                    ProviderText.alphaVantageNotice(
+                            root.path("Information").asText(""),
+                            apiKey
                     )
             );
         }

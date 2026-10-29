@@ -110,8 +110,10 @@ public final class ResearchGateway {
     public static String unavailableMessage(ActionType action) {
         return switch (action) {
             case ETF_GEOGRAPHIC_EXPOSURE ->
-                    "Geographic ETF exposure is not implemented. "
-                            + "Sector exposure is available for one ETF.";
+                    "Geographic ETF exposure is unavailable. "
+                            + "Set FINNHUB_API_KEY and restart. "
+                            + "Country weights are the provider's reported fund exposure, "
+                            + "not a guessed allocation.";
             case PORTFOLIO_EXPOSURE ->
                     "Portfolio exposure is unavailable. "
                             + "Set FINNHUB_API_KEY and restart.";

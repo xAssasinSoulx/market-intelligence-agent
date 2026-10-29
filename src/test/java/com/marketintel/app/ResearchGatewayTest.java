@@ -88,7 +88,8 @@ class ResearchGatewayTest {
         );
 
         assertFalse(result.isSuccess());
-        assertTrue(result.getErrorMessage().contains("not implemented"));
+        assertTrue(result.getErrorMessage().contains("FINNHUB_API_KEY"));
+        assertTrue(result.getErrorMessage().contains("not a guessed allocation"));
         assertFalse(gateway.isAvailable(ActionType.ETF_GEOGRAPHIC_EXPOSURE));
     }
 

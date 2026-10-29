@@ -12,9 +12,19 @@ public class ExposureResult {
     private final Map<String, BigDecimal>
             categories;
 
+    private final String note;
+
     public ExposureResult(
             String symbol,
             Map<String, BigDecimal> categories) {
+
+        this(symbol, categories, null);
+    }
+
+    public ExposureResult(
+            String symbol,
+            Map<String, BigDecimal> categories,
+            String note) {
 
         this.symbol = symbol;
 
@@ -22,6 +32,10 @@ public class ExposureResult {
                 new LinkedHashMap<>(
                         categories
                 );
+
+        this.note = note == null || note.isBlank()
+                ? null
+                : note.trim();
     }
 
     public String getSymbol() {
@@ -34,5 +48,12 @@ public class ExposureResult {
         return Collections.unmodifiableMap(
                 categories
         );
+    }
+
+    /**
+     * Explains what the weights measure. Null for a plain sector breakdown.
+     */
+    public String getNote() {
+        return note;
     }
 }

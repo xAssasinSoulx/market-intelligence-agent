@@ -46,6 +46,24 @@ class ResultFormatterTest {
 
         assertTrue(text.contains("QQQ"));
         assertTrue(text.contains("60.00%"));
+        assertTrue(text.contains("provider allocation"));
+    }
+
+    @Test
+    void formatsCountryExposureWithItsBasisNote() {
+        String text = ResultFormatter.geographicExposure(ToolResult.success(
+                new ExposureResult(
+                        "SPY",
+                        Map.of("United States", new BigDecimal("0.975")),
+                        "Weights are the provider's reported country exposure for the fund. "
+                                + "They are not a sum of the listing countries of the holdings."
+                )
+        ));
+
+        assertTrue(text.contains("ETF COUNTRY EXPOSURE"));
+        assertTrue(text.contains("United States"));
+        assertTrue(text.contains("97.50%"));
+        assertTrue(text.contains("not a sum of the listing countries"));
     }
 
     @Test

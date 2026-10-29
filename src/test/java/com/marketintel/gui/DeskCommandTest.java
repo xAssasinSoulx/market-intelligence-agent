@@ -47,12 +47,16 @@ class DeskCommandTest {
     }
 
     @Test
-    void reportsUnimplementedCommandsInsteadOfGuessing() {
-        DeskCommand geography = DeskCommand.parse("GEO QQQ");
+    void parsesGeographyAndLeavesPortfolioExposureAsNavigation() {
+        DeskCommand geography = DeskCommand.parse("GEO qqq");
+        DeskCommand missing = DeskCommand.parse("GEO");
         DeskCommand exposure = DeskCommand.parse("EXPOSURE");
 
         assertEquals(DeskCommand.Action.GEOGRAPHY, geography.action());
-        assertTrue(geography.message().contains("not implemented"));
+        assertEquals("QQQ", geography.argument(0));
+        assertEquals(null, geography.message());
+        assertEquals(DeskCommand.Action.INVALID, missing.action());
+        assertTrue(missing.message().contains("GEO ETF"));
         assertEquals(DeskCommand.Action.EXPOSURE, exposure.action());
         assertEquals(null, exposure.message());
     }
@@ -63,6 +67,7 @@ class DeskCommandTest {
 
         assertEquals(DeskCommand.Action.HELP, command.action());
         assertTrue(command.message().contains("QUOTE SYMBOL"));
+        assertTrue(command.message().contains("GEO ETF"));
         assertTrue(command.message().contains("WHY SYMBOL"));
     }
 }

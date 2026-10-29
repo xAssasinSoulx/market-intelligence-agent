@@ -127,13 +127,15 @@ public final class ApplicationContext {
         String alphaVantageApiKey = System.getenv("ALPHA_VANTAGE_API_KEY");
 
         AlphaVantageClient alphaVantageClient = null;
+        FinnhubMarketDataClient finnhubClient = null;
         if (alphaVantageApiKey != null && !alphaVantageApiKey.isBlank()) {
             alphaVantageClient = new AlphaVantageClient(alphaVantageApiKey);
             etfDataProvider = new ETFDataApiClient(alphaVantageClient);
         }
 
         if (finnhubApiKey != null && !finnhubApiKey.isBlank()) {
-            marketDataProvider = new FinnhubMarketDataClient(finnhubApiKey);
+            finnhubClient = new FinnhubMarketDataClient(finnhubApiKey);
+            marketDataProvider = finnhubClient;
         } else if (alphaVantageClient != null) {
             marketDataProvider = new MarketDataApiClient(alphaVantageClient);
             System.err.println(
@@ -186,13 +188,18 @@ public final class ApplicationContext {
             );
         }
 
-        if (etfDataProvider != null) {
+        if (etfDataProvider != null || finnhubClient != null) {
 
             toolManager.registerTool(
                     new ETFExposureTool(
-                            etfDataProvider,
+                            etfDataProvider != null
+                                    ? etfDataProvider
+                                    : new UnconfiguredETFDataProvider(),
                             exposureCalculator,
-                            requestValidator
+                            requestValidator,
+                            finnhubClient,
+                            etfDataProvider != null,
+                            finnhubClient
                     )
             );
         }

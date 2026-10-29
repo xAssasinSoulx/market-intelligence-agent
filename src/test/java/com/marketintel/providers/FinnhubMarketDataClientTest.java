@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -105,6 +106,109 @@ class FinnhubMarketDataClientTest {
         );
 
         assertTrue(error.getMessage().contains("ZZZZ"));
+    }
+
+    @Test
+    void convertsPercentCountryExposureToFractions() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {"countryExposure": [
+                   {"country": "United States", "exposure": 97.5},
+                   {"country": "Ireland", "exposure": 2.5}
+                ], "symbol": "SPY"}
+                """);
+
+        Map<String, BigDecimal> weights = client.parseCountryExposure("SPY", root);
+
+        assertDecimal("0.975", weights.get("United States"));
+        assertDecimal("0.025", weights.get("Ireland"));
+    }
+
+    @Test
+    void keepsCountryWeightsThatAreAlreadyFractions() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {"countryExposure": [
+                   {"country": "United States", "exposure": 0.60},
+                   {"country": "Japan", "exposure": 0.40}
+                ]}
+                """);
+
+        Map<String, BigDecimal> weights = client.parseCountryExposure("QQQ", root);
+
+        assertDecimal("0.60", weights.get("United States"));
+        assertDecimal("0.40", weights.get("Japan"));
+    }
+
+    @Test
+    void treatsABlankCountryAsUnknownAndRefusesAnEmptyReport() throws Exception {
+        JsonNode mixed = mapper.readTree("""
+                {"countryExposure": [
+                   {"country": "Canada", "exposure": 70},
+                   {"country": "", "exposure": 30}
+                ]}
+                """);
+
+        Map<String, BigDecimal> weights = client.parseCountryExposure("XEQT", mixed);
+
+        assertDecimal("0.70", weights.get("Canada"));
+        assertDecimal("0.30", weights.get("Unknown"));
+
+        JsonNode empty = mapper.readTree("""
+                {"countryExposure": [], "symbol": "QQQ"}
+                """);
+
+        MarketDataException error = assertThrows(
+                MarketDataException.class,
+                () -> client.parseCountryExposure("QQQ", empty)
+        );
+
+        assertTrue(error.getMessage().contains("QQQ"));
+        assertTrue(error.getMessage().contains("No allocation was estimated"));
+    }
+
+    @Test
+    void describesACountry403AsAPlanLimitRatherThanABadKey() {
+        String message = FinnhubMarketDataClient.rejectionMessage(
+                FinnhubMarketDataClient.countryExposureUri("IVV"),
+                403,
+                "{\"error\":\"You don't have access to this resource.\"}"
+        );
+
+        assertTrue(message.contains("HTTP 403"));
+        assertTrue(message.contains("free plan"));
+        assertTrue(message.contains("quotes"));
+        assertTrue(message.contains("You don't have access to this resource."));
+        assertTrue(!message.contains("rejected the API key"));
+    }
+
+    @Test
+    void stillTreats401AsARejectedKey() {
+        String message = FinnhubMarketDataClient.rejectionMessage(
+                java.net.URI.create("https://finnhub.io/api/v1/quote?symbol=NVDA"),
+                401,
+                "{\"error\":\"Invalid API key\"}"
+        );
+
+        assertEquals("Finnhub rejected the API key (HTTP 401).", message);
+    }
+
+    @Test
+    void readsHeadquartersCountryFromACompanyProfile() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {"country": "US", "name": "Apple Inc", "ticker": "AAPL"}
+                """);
+
+        assertEquals("US", FinnhubMarketDataClient.parseHeadquartersCountry(root));
+        assertEquals(null, FinnhubMarketDataClient.parseHeadquartersCountry(mapper.readTree("{}")));
+    }
+
+    @Test
+    void requestsTheLiveCountryEndpointRatherThanTheRedirectingPath() {
+        java.net.URI uri = FinnhubMarketDataClient.countryExposureUri("SPY");
+
+        assertEquals(
+                "https://api.finnhub.io/api/v1/etf/country?symbol=SPY",
+                uri.toString()
+        );
     }
 
     @Test
