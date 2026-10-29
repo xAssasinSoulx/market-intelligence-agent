@@ -68,7 +68,7 @@ These are started or partially present. They are not finished.
 - UC-06 sector path. Geographic exposure has an action name and a disabled `GEO` control, and no calculator.
 - Design-pattern notes. Tool dispatch, provider adapters, and `LLMProvider` exist in the code. Five course patterns are not yet written up with participants, methods, and updated UML.
 - The Swing manual checklist in `docs/stage2-gui-verification.md`. The `WHY AAPL` path was exercised. The rest of that list has not been checked off.
-- Weekly commits for October 27–November 2. Four code commits are on GitHub. The course asks for five in this window. A documentation-only commit does not count. See the commit section.
+- Weekly commits for October 27–November 2. Five code commits are on `feature/gui`. A documentation-only commit does not count. `origin/main` already contains the desk through merge commit `ab26f7b`. The Gemini fix is on `feature/gui` as `bf2019e` and also exists locally on `main` as `5902de6`, which has not been pushed.
 - `docs/stage2-commit-summary.md` is behind `feature/gui`. This file is the current record.
 
 ## Still missing
@@ -95,6 +95,7 @@ Pushed to `https://github.com/xAssasinSoulx/market-intelligence-agent/tree/featu
 | 2026-10-28 22:01 | `f1034052dedb7e04a8fbc2f5e3812880d99d6e91` | Yes | First Swing window |
 | 2026-10-28 22:02 | `ce42198` | No. Documentation only | Progress notes |
 | 2026-10-28 22:15 | `cefbc92` | Yes | Amber command desk |
+| 2026-10-28 22:29 | `bf2019ee02d73f653696543b5e30bc5cff3f31a8` | Yes | Gemini failures name a timeout or connection error |
 
 `main` and `feature/llm-integration` do not contain these commits. Open the `feature/gui` branch on GitHub.
 
