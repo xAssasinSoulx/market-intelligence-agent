@@ -1,5 +1,7 @@
 # Stage 2 progress
 
+The current record is [`stage2-status.md`](stage2-status.md). This file is the earlier milestone log.
+
 Updated October 28, 2026, Toronto time, on branch `feature/gui`.
 
 ## Baseline

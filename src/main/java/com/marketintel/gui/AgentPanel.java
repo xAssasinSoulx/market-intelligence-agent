@@ -110,7 +110,7 @@ public final class AgentPanel extends JPanel {
                     symbolField.setEnabled(true);
                     explainButton.setEnabled(true);
                 },
-                "Gathering evidence...",
+                "Requesting quote, news, and Gemini. This can take up to 2 minutes.",
                 () -> ResultFormatter.movement(
                         gateway.explainMovement(userId, symbol)
                 ),
