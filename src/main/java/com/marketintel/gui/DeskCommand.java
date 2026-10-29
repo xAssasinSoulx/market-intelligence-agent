@@ -122,11 +122,19 @@ public final class DeskCommand {
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
             case "WATCH", "MON", "WATCHLIST" -> watchlist(args);
-            default -> new DeskCommand(
-                    Action.INVALID,
-                    args,
-                    "Unknown command. Type HELP."
-            );
+            default -> {
+                if (parts.length >= 2) {
+                    List<String> sentence = new ArrayList<>();
+                    sentence.add(verb);
+                    sentence.addAll(args);
+                    yield new DeskCommand(Action.ASK, sentence, null);
+                }
+                yield new DeskCommand(
+                        Action.INVALID,
+                        args,
+                        "Unknown command. Type HELP, or ask a question such as why did NVDA move."
+                );
+            }
         };
     }
 
@@ -159,8 +167,8 @@ public final class DeskCommand {
                 HELP
                 LOGOUT
 
-                GEO uses the provider's reported country weights. It does not guess a country.
-                A leading slash is accepted, as in /quote NVDA.
+                A question in the command line is a follow-up, for example how is Nvidia doing.
+                ASK uses the last symbol when you say it, its, or that.
                 """;
     }
 

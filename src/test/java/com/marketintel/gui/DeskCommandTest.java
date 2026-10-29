@@ -73,6 +73,15 @@ class DeskCommandTest {
     }
 
     @Test
+    void treatsASentenceAsAFollowUpQuestion() {
+        DeskCommand command = DeskCommand.parse("how is nvidia doing");
+
+        assertEquals(DeskCommand.Action.ASK, command.action());
+        assertEquals("HOW", command.argument(0));
+        assertEquals("NVIDIA", command.argument(2));
+    }
+
+    @Test
     void parsesTheProviderReportCommands() {
         assertEquals(
                 DeskCommand.Action.STATEMENTS,

@@ -11,6 +11,20 @@ class RequestPlannerTest {
     private final RequestPlanner planner = new RequestPlanner();
 
     @Test
+    void understandsACompanyNameAndEverydayWording() {
+        AgentPlan doing = planner.createPlan("how is nvidia doing today?", null);
+        AgentPlan falling = planner.createPlan("why is Apple falling?", null);
+        AgentPlan followUp = planner.createPlan("whats its exposure?", "QQQ");
+
+        assertEquals(ActionType.MARKET_QUOTE, doing.action());
+        assertEquals("NVDA", doing.symbol());
+        assertEquals(ActionType.MARKET_MOVEMENT, falling.action());
+        assertEquals("AAPL", falling.symbol());
+        assertEquals(ActionType.ETF_SECTOR_EXPOSURE, followUp.action());
+        assertEquals("QQQ", followUp.symbol());
+    }
+
+    @Test
     void plansADirectMovementQuestion() {
         AgentPlan plan = planner.createPlan("Why did NVDA move?", null);
 

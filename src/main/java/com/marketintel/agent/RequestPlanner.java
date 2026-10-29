@@ -25,7 +25,19 @@ public final class RequestPlanner {
             "HISTORY", "SENTIMENT", "PORTFOLIO", "DAILY", "RSI", "SHOW", "ME",
             "FOR", "OF", "ON", "TO", "PLEASE", "RECENT", "LAST", "STOCK", "ETF",
             "FUND", "SAME", "ONE", "THEM", "THEIR", "MY", "IS", "ARE", "WAS",
-            "TELL", "GET", "GIVE", "LOOK", "UP", "INTO", "FROM", "THAN", "BOTH"
+            "TELL", "GET", "GIVE", "LOOK", "UP", "INTO", "FROM", "THAN", "BOTH",
+            "DOING", "TODAY", "GOOD", "BAD", "NOW", "JUST", "LIKE", "VERY",
+            "MUCH", "SOME", "ANY", "CAN", "YOU", "YOUR", "WOULD", "COULD",
+            "SHOULD", "GOING", "WELL", "RIGHT", "STILL", "ALSO", "MORE", "ELSE",
+            "INFO", "DATA", "SHARES", "COMPANY", "NAME", "HIGH", "LOW", "OPEN",
+            "CLOSE", "DAY", "WEEK", "YEAR", "TIME", "WHEN", "WHERE", "WHO",
+            "WHICH", "THERE", "HERE", "BEEN", "HAVE", "HAS", "HAD", "WILL",
+            "REALLY", "PRETTY", "KIND", "SORT", "THING", "THINGS", "HAPPEN",
+            "HAPPENING", "PERFORM", "PERFORMANCE", "LOOKING", "SEEMS", "SEEM",
+            "LOOKS", "WANT", "NEED", "KNOW", "THINK", "BECAUSE", "AFTER",
+            "BEFORE", "DURING", "WHILE", "OVER", "UNDER", "ONLY", "EVEN",
+            "BACK", "OUT", "OFF", "DOWN", "FALL", "FALLING", "FELL", "DROP",
+            "DROPPED", "WHATS", "HOWS", "WHYS", "DONT", "DOESNT"
     );
 
     public AgentPlan createPlan(String input, String previousSymbol) {
@@ -36,7 +48,10 @@ public final class RequestPlanner {
         if (text.length() > 500) {
             return AgentPlan.unsupported("That question is too long. Ask about one symbol and one action.");
         }
-        String upper = text.toUpperCase(Locale.ROOT);
+        String upper = text.toUpperCase(Locale.ROOT)
+                .replace("'", "")
+                .replace("’", "");
+        upper = applyNames(upper);
         if (isInjection(upper)) {
             return AgentPlan.unsupported(
                     "That text is not run as a command. Ask a market question, such as the sector exposure of a symbol."
@@ -149,6 +164,15 @@ public final class RequestPlanner {
         if (contains(padded, "WHY") || has(upper, "MOVED") || has(upper, "MOVE") || has(upper, "MOVEMENT")) {
             return ActionType.MARKET_MOVEMENT;
         }
+        if (has(upper, "DROP") || has(upper, "DROPPED") || has(upper, "FALL")
+                || has(upper, "FALLING") || has(upper, "FELL") || has(upper, "DOWN")
+                || has(upper, "CRASH") || has(upper, "RALLY") || has(upper, "SURGE")
+                || has(upper, "EXPLAIN")) {
+            if (padded.contains("COMPANY") || padded.contains("BUSINESS") || has(upper, "DOES")) {
+                return ActionType.SECURITY_OVERVIEW;
+            }
+            return ActionType.MARKET_MOVEMENT;
+        }
         if (contains(padded, "SENTIMENT")) {
             return ActionType.NEWS_SENTIMENT;
         }
@@ -161,14 +185,47 @@ public final class RequestPlanner {
         if (contains(padded, "NEWS", "HEADLINE")) {
             return ActionType.FINANCIAL_NEWS;
         }
-        if (contains(padded, "OVERVIEW", "DESCRIBE", "PROFILE", "WHAT IS")) {
+        if (contains(padded, "OVERVIEW", "DESCRIBE", "PROFILE", "WHAT IS", "TELL ME ABOUT", "WHO IS")) {
             return ActionType.SECURITY_OVERVIEW;
         }
         if (contains(padded, "QUOTE", "PRICE", "TRADING AT")) {
             return ActionType.MARKET_QUOTE;
         }
+        if (has(upper, "HOW") || has(upper, "DOING") || padded.contains("HAPPENING")
+                || padded.contains("PERFORMANCE")) {
+            return ActionType.MARKET_QUOTE;
+        }
+        if (has(upper, "EXPOSURE")) {
+            return ActionType.ETF_SECTOR_EXPOSURE;
+        }
         return null;
     }
+
+    private static String applyNames(String upper) {
+        String named = upper;
+        for (var entry : NAMES.entrySet()) {
+            named = named.replaceAll("\\b" + entry.getKey() + "\\b", entry.getValue());
+        }
+        return named;
+    }
+
+    private static final java.util.Map<String, String> NAMES = java.util.Map.ofEntries(
+            java.util.Map.entry("NVIDIA", "NVDA"),
+            java.util.Map.entry("APPLE", "AAPL"),
+            java.util.Map.entry("MICROSOFT", "MSFT"),
+            java.util.Map.entry("GOOGLE", "GOOGL"),
+            java.util.Map.entry("ALPHABET", "GOOGL"),
+            java.util.Map.entry("AMAZON", "AMZN"),
+            java.util.Map.entry("TESLA", "TSLA"),
+            java.util.Map.entry("FACEBOOK", "META"),
+            java.util.Map.entry("NETFLIX", "NFLX"),
+            java.util.Map.entry("INTEL", "INTC"),
+            java.util.Map.entry("BROADCOM", "AVGO"),
+            java.util.Map.entry("DISNEY", "DIS"),
+            java.util.Map.entry("BOEING", "BA"),
+            java.util.Map.entry("WALMART", "WMT"),
+            java.util.Map.entry("JPMORGAN", "JPM")
+    );
 
     private static boolean has(String upper, String word) {
         return Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(upper).find();

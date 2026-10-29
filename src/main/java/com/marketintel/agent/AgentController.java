@@ -10,6 +10,7 @@ import com.marketintel.services.ConversationMemory;
 import com.marketintel.services.MarketExplanationService;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -54,6 +55,24 @@ public final class AgentController {
         };
         memory.remember(userId, "assistant", reply, symbol, actionName);
         return reply;
+    }
+
+    /**
+     * Records a symbol looked up from a button or a slash command, so a
+     * later question can say "it" and mean that symbol.
+     */
+    public void noteLookup(long userId, String symbol, ActionType action) {
+        if (symbol == null || symbol.isBlank()) {
+            return;
+        }
+        String normalized = symbol.trim().toUpperCase(Locale.ROOT);
+        memory.remember(
+                userId,
+                "user",
+                normalized,
+                normalized,
+                action == null ? null : action.name()
+        );
     }
 
     private String run(long userId, AgentPlan plan) {

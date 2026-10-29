@@ -87,9 +87,21 @@ public final class ResearchGateway {
         Map<String, String> safeArguments =
                 arguments == null ? Map.of() : arguments;
 
-        return toolManager.execute(
+        ToolResult result = toolManager.execute(
                 new ToolRequest(expectedUserId, action, safeArguments)
         );
+        if (result.isSuccess() && followUp != null) {
+            followUp.noteLookup(expectedUserId, notedSymbol(safeArguments), action);
+        }
+        return result;
+    }
+
+    private static String notedSymbol(Map<String, String> arguments) {
+        String symbol = arguments.get("symbol");
+        if (symbol == null || symbol.isBlank()) {
+            symbol = arguments.get("firstSymbol");
+        }
+        return symbol;
     }
 
     public MovementReport explainMovement(
