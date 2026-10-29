@@ -276,32 +276,7 @@ public class MarketauxNewsClient implements NewsProvider {
      * particular categorical labels.
      */
     private String labelForSentiment(BigDecimal score) {
-
-        if (score == null) {
-            return null;
-        }
-
-        if (score.compareTo(
-                new BigDecimal("0.35")) >= 0) {
-            return "Bullish";
-        }
-
-        if (score.compareTo(
-                new BigDecimal("0.15")) >= 0) {
-            return "Somewhat-Bullish";
-        }
-
-        if (score.compareTo(
-                new BigDecimal("-0.15")) > 0) {
-            return "Neutral";
-        }
-
-        if (score.compareTo(
-                new BigDecimal("-0.35")) > 0) {
-            return "Somewhat-Bearish";
-        }
-
-        return "Bearish";
+        return SentimentBands.label(score);
     }
 
     private String textOrNull(

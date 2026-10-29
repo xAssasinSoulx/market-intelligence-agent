@@ -264,6 +264,25 @@ public final class FinnhubMarketDataClient
         );
     }
 
+    /**
+     * Company news for the inclusive calendar window {@code fromDay} to
+     * {@code toDay}, both {@code yyyy-MM-dd}. The caller translates the
+     * payload.
+     */
+    JsonNode fetchCompanyNews(String symbol, String fromDay, String toDay) {
+        String normalized = normalizeSymbol(symbol);
+        if (fromDay == null || fromDay.isBlank() || toDay == null || toDay.isBlank()) {
+            throw new IllegalArgumentException("News dates cannot be blank.");
+        }
+        URI uri = URI.create(
+                BASE_URL + "/company-news?symbol="
+                        + URLEncoder.encode(normalized, StandardCharsets.UTF_8)
+                        + "&from=" + URLEncoder.encode(fromDay.trim(), StandardCharsets.UTF_8)
+                        + "&to=" + URLEncoder.encode(toDay.trim(), StandardCharsets.UTF_8)
+        );
+        return fetch(uri);
+    }
+
     private JsonNode fetch(String path, String symbol) {
         return fetch(URI.create(
                 BASE_URL + path

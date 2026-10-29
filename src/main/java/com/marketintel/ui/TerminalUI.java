@@ -24,8 +24,12 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import com.marketintel.model.FinancialStatements;
 import com.marketintel.model.MarketMovementContext;
+import com.marketintel.model.PriceHistory;
+import com.marketintel.model.SentimentReading;
 
+import com.marketintel.services.InsightReport;
 import com.marketintel.services.NewsTiming;
 import com.marketintel.services.PortfolioExposureReport;
 import com.marketintel.services.PortfolioService;
@@ -420,6 +424,21 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
+                "/statements",
+                "/statements NVDA"
+        );
+
+        TerminalComponents.row(
+                "/history",
+                "/history NVDA"
+        );
+
+        TerminalComponents.row(
+                "/sentiment",
+                "/sentiment NVDA"
+        );
+
+        TerminalComponents.row(
                 "/sector",
                 "/sector QQQ"
         );
@@ -556,6 +575,27 @@ public class TerminalUI
                 case "news" ->
                         handleNewsCommand(
                                 parsed
+                        );
+
+                case "statements", "statement" ->
+                        handleInsightCommand(
+                                parsed,
+                                "Usage: /statements SYMBOL",
+                                ActionType.FINANCIAL_STATEMENTS
+                        );
+
+                case "history" ->
+                        handleInsightCommand(
+                                parsed,
+                                "Usage: /history SYMBOL",
+                                ActionType.PRICE_HISTORY
+                        );
+
+                case "sentiment" ->
+                        handleInsightCommand(
+                                parsed,
+                                "Usage: /sentiment SYMBOL",
+                                ActionType.NEWS_SENTIMENT
                         );
 
                 case "why" ->
@@ -1115,6 +1155,58 @@ public class TerminalUI
         displayMarketQuote(
                 quote
         );
+    }
+
+    private void handleInsightCommand(
+            ParsedCommand command,
+            String usage,
+            ActionType action) {
+
+        if (command.getArguments().size() != 1) {
+            displayError(usage);
+            return;
+        }
+
+        ToolResult result = toolManager.execute(
+                new ToolRequest(
+                        sessionManager.getCurrentUserId(),
+                        action,
+                        Map.of("symbol", command.getArguments().getFirst())
+                )
+        );
+
+        if (!result.isSuccess()) {
+            displayError(result.getErrorMessage());
+            return;
+        }
+
+        String text = switch (action) {
+            case FINANCIAL_STATEMENTS -> {
+                if (result.getData() instanceof FinancialStatements statements) {
+                    yield InsightReport.statements(statements);
+                }
+                yield null;
+            }
+            case PRICE_HISTORY -> {
+                if (result.getData() instanceof PriceHistory history) {
+                    yield InsightReport.priceHistory(history);
+                }
+                yield null;
+            }
+            case NEWS_SENTIMENT -> {
+                if (result.getData() instanceof SentimentReading reading) {
+                    yield InsightReport.sentiment(reading);
+                }
+                yield null;
+            }
+            default -> null;
+        };
+
+        if (text == null) {
+            displayError("Unexpected provider response.");
+            return;
+        }
+        System.out.print(text);
     }
 
     private void displayMarketQuote(
@@ -2781,6 +2873,21 @@ public class TerminalUI
         TerminalComponents.row(
                 "/news SYMBOL",
                 "Latest financial news"
+        );
+
+        TerminalComponents.row(
+                "/statements SYMBOL",
+                "Annual financial statements"
+        );
+
+        TerminalComponents.row(
+                "/history SYMBOL",
+                "Daily prices and RSI"
+        );
+
+        TerminalComponents.row(
+                "/sentiment SYMBOL",
+                "News sentiment score"
         );
 
         TerminalComponents.endSection();

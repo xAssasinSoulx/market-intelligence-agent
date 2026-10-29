@@ -12,16 +12,25 @@ import com.marketintel.persistence.SQLiteUserRepository;
 import com.marketintel.persistence.SQLiteWatchlistRepository;
 import com.marketintel.persistence.UserRepository;
 import com.marketintel.persistence.WatchlistRepository;
+import com.marketintel.providers.AlphaVantageAdapter;
 import com.marketintel.providers.AlphaVantageClient;
+import com.marketintel.providers.DataCapability;
 import com.marketintel.providers.ETFDataApiClient;
 import com.marketintel.providers.ETFDataProvider;
+import com.marketintel.providers.FinnhubAdapter;
 import com.marketintel.providers.FinnhubMarketDataClient;
+import com.marketintel.providers.FinancialModelingPrepAdapter;
 import com.marketintel.providers.GeminiLLMClient;
 import com.marketintel.providers.LLMProvider;
 import com.marketintel.providers.MarketDataApiClient;
 import com.marketintel.providers.MarketDataProvider;
+import com.marketintel.providers.MarketauxAdapter;
 import com.marketintel.providers.MarketauxNewsClient;
+import com.marketintel.providers.NewsApiClient;
 import com.marketintel.providers.NewsProvider;
+import com.marketintel.providers.ProviderRouter;
+import com.marketintel.providers.SentiSenseAdapter;
+import com.marketintel.providers.TwelveDataAdapter;
 import com.marketintel.providers.UnconfiguredETFDataProvider;
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.MarketExplanationService;
@@ -34,6 +43,7 @@ import com.marketintel.tools.PortfolioAnalysisTool;
 import com.marketintel.tools.ComparisonTool;
 import com.marketintel.tools.ETFExposureTool;
 import com.marketintel.tools.MarketDataTool;
+import com.marketintel.tools.MarketInsightTool;
 import com.marketintel.tools.MarketMovementTool;
 import com.marketintel.tools.NewsTool;
 import com.marketintel.ui.CommandParser;
@@ -119,40 +129,83 @@ public final class ApplicationContext {
 
         ToolManager toolManager = new ToolManager();
 
-        MarketDataProvider marketDataProvider = null;
-        ETFDataProvider etfDataProvider = null;
-        NewsProvider newsProvider = null;
+        /*
+         * Registration order is the priority for that capability.
+         * A later adapter is used only when an earlier one is absent.
+         * Alpha Vantage can serve news, and that capability is left
+         * unregistered: the free plan is about 25 calls a day, and news
+         * is covered by Marketaux or Finnhub.
+         */
+        ProviderRouter router = new ProviderRouter();
 
         String finnhubApiKey = System.getenv("FINNHUB_API_KEY");
         String alphaVantageApiKey = System.getenv("ALPHA_VANTAGE_API_KEY");
+        String twelveDataApiKey = System.getenv("TWELVE_DATA_API_KEY");
+        String fmpApiKey = System.getenv("FMP_API_KEY");
+        String sentiSenseApiKey = System.getenv("SENTISENSE_API_KEY");
+        String marketauxToken = System.getenv("MARKETAUX_API_TOKEN");
 
-        AlphaVantageClient alphaVantageClient = null;
         FinnhubMarketDataClient finnhubClient = null;
-        if (alphaVantageApiKey != null && !alphaVantageApiKey.isBlank()) {
-            alphaVantageClient = new AlphaVantageClient(alphaVantageApiKey);
-            etfDataProvider = new ETFDataApiClient(alphaVantageClient);
-        }
+        FinnhubAdapter finnhubAdapter = null;
+        boolean alphaConfigured = false;
 
-        if (finnhubApiKey != null && !finnhubApiKey.isBlank()) {
+        if (configured(finnhubApiKey)) {
             finnhubClient = new FinnhubMarketDataClient(finnhubApiKey);
-            marketDataProvider = finnhubClient;
-        } else if (alphaVantageClient != null) {
-            marketDataProvider = new MarketDataApiClient(alphaVantageClient);
-            System.err.println(
-                    "Warning: FINNHUB_API_KEY is not configured. Quotes use Alpha Vantage, "
-                            + "whose company overview is a premium endpoint."
-            );
-        } else {
-            System.err.println(
-                    "Warning: Neither FINNHUB_API_KEY nor ALPHA_VANTAGE_API_KEY is configured."
-            );
+            finnhubAdapter = new FinnhubAdapter(finnhubClient);
+            router.prefer(DataCapability.QUOTE, finnhubAdapter);
+            router.prefer(DataCapability.OVERVIEW, finnhubAdapter);
         }
 
-        if (etfDataProvider == null) {
-            System.err.println(
-                    "Warning: ALPHA_VANTAGE_API_KEY is not configured. ETF holdings are unavailable."
+        if (configured(twelveDataApiKey)) {
+            TwelveDataAdapter twelveData = new TwelveDataAdapter(twelveDataApiKey);
+            router.prefer(DataCapability.QUOTE, twelveData);
+            router.prefer(DataCapability.PRICE_HISTORY, twelveData);
+        }
+
+        if (configured(alphaVantageApiKey)) {
+            alphaConfigured = true;
+            AlphaVantageClient alphaVantageClient = new AlphaVantageClient(alphaVantageApiKey);
+            AlphaVantageAdapter alphaVantage = new AlphaVantageAdapter(
+                    new MarketDataApiClient(alphaVantageClient),
+                    new ETFDataApiClient(alphaVantageClient),
+                    new NewsApiClient(alphaVantageClient)
+            );
+            router.prefer(DataCapability.QUOTE, alphaVantage);
+            router.prefer(DataCapability.OVERVIEW, alphaVantage);
+            router.prefer(DataCapability.ETF_PROFILE, alphaVantage);
+        }
+
+        if (configured(marketauxToken)) {
+            router.prefer(
+                    DataCapability.NEWS,
+                    new MarketauxAdapter(new MarketauxNewsClient(marketauxToken))
             );
         }
+        if (finnhubAdapter != null) {
+            router.prefer(DataCapability.NEWS, finnhubAdapter);
+        }
+
+        if (configured(fmpApiKey)) {
+            router.prefer(
+                    DataCapability.FINANCIAL_STATEMENTS,
+                    new FinancialModelingPrepAdapter(fmpApiKey)
+            );
+        }
+        if (configured(sentiSenseApiKey)) {
+            router.prefer(DataCapability.SENTIMENT, new SentiSenseAdapter(sentiSenseApiKey));
+        }
+
+        warnForMissingProviders(router, finnhubAdapter != null, alphaConfigured);
+
+        MarketDataProvider marketDataProvider = router.serves(DataCapability.QUOTE)
+                ? router
+                : null;
+        ETFDataProvider etfDataProvider = router.serves(DataCapability.ETF_PROFILE)
+                ? router
+                : null;
+        NewsProvider newsProvider = router.serves(DataCapability.NEWS)
+                ? router
+                : null;
 
         if (marketDataProvider != null) {
 
@@ -204,21 +257,23 @@ public final class ApplicationContext {
             );
         }
 
-        String marketauxToken =
-                System.getenv("MARKETAUX_API_TOKEN");
-
-        if (marketauxToken != null && !marketauxToken.isBlank()) {
-
-            newsProvider = new MarketauxNewsClient(marketauxToken);
-
+        if (newsProvider != null) {
             toolManager.registerTool(
                     new NewsTool(newsProvider, requestValidator)
             );
+        }
 
-        } else {
+        if (router.serves(DataCapability.FINANCIAL_STATEMENTS)
+                || router.serves(DataCapability.PRICE_HISTORY)
+                || router.serves(DataCapability.SENTIMENT)) {
 
-            System.err.println(
-                    "Warning: MARKETAUX_API_TOKEN is not configured."
+            toolManager.registerTool(
+                    new MarketInsightTool(
+                            router.serves(DataCapability.FINANCIAL_STATEMENTS) ? router : null,
+                            router.serves(DataCapability.PRICE_HISTORY) ? router : null,
+                            router.serves(DataCapability.SENTIMENT) ? router : null,
+                            requestValidator
+                    )
             );
         }
 
@@ -306,6 +361,62 @@ public final class ApplicationContext {
 
     public boolean isExplanationAvailable() {
         return marketExplanationService != null;
+    }
+
+    private static boolean configured(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private static void warnForMissingProviders(
+            ProviderRouter router,
+            boolean finnhubConfigured,
+            boolean alphaConfigured) {
+
+        if (!router.serves(DataCapability.QUOTE)) {
+            System.err.println(
+                    "Warning: No quote provider is configured. "
+                            + "Set FINNHUB_API_KEY, TWELVE_DATA_API_KEY, or ALPHA_VANTAGE_API_KEY."
+            );
+        } else if (!finnhubConfigured && alphaConfigured) {
+            System.err.println(
+                    "Warning: FINNHUB_API_KEY is not configured. "
+                            + "Quotes use the next registered adapter. "
+                            + "Alpha Vantage company overview is a premium endpoint."
+            );
+        } else if (!finnhubConfigured) {
+            System.err.println(
+                    "Warning: FINNHUB_API_KEY is not configured. "
+                            + "Company overviews need Finnhub or Alpha Vantage."
+            );
+        }
+
+        if (!router.serves(DataCapability.ETF_PROFILE)) {
+            System.err.println(
+                    "Warning: ALPHA_VANTAGE_API_KEY is not configured. ETF holdings are unavailable."
+            );
+        }
+        if (!router.serves(DataCapability.NEWS)) {
+            System.err.println(
+                    "Warning: No news provider is configured. "
+                            + "Set MARKETAUX_API_TOKEN or FINNHUB_API_KEY."
+            );
+        }
+        if (!router.serves(DataCapability.FINANCIAL_STATEMENTS)) {
+            System.err.println(
+                    "Warning: FMP_API_KEY is not configured. Financial statements are unavailable."
+            );
+        }
+        if (!router.serves(DataCapability.PRICE_HISTORY)) {
+            System.err.println(
+                    "Warning: TWELVE_DATA_API_KEY is not configured. Price history is unavailable."
+            );
+        }
+        if (!router.serves(DataCapability.SENTIMENT)) {
+            System.err.println(
+                    "Warning: SENTISENSE_API_KEY is not configured. "
+                            + "News sentiment scores are unavailable."
+            );
+        }
     }
 
     public UserInterface createTerminalInterface() {

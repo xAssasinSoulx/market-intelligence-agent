@@ -117,21 +117,30 @@ public final class ResearchGateway {
             case PORTFOLIO_EXPOSURE ->
                     "Portfolio exposure is unavailable. "
                             + "Set FINNHUB_API_KEY and restart.";
-            case MARKET_QUOTE, SECURITY_OVERVIEW ->
-                    "Quotes and security overviews are unavailable. "
-                            + "Set FINNHUB_API_KEY and restart.";
+            case MARKET_QUOTE ->
+                    "Quotes are unavailable. "
+                            + "Set FINNHUB_API_KEY, TWELVE_DATA_API_KEY, or ALPHA_VANTAGE_API_KEY and restart.";
+            case SECURITY_OVERVIEW ->
+                    "Security overviews are unavailable. "
+                            + "Set FINNHUB_API_KEY or ALPHA_VANTAGE_API_KEY and restart.";
             case SECURITY_COMPARISON ->
                     "Security comparison is unavailable. "
-                            + "Set FINNHUB_API_KEY and restart.";
+                            + "Set a quote provider key and restart.";
             case ETF_SECTOR_EXPOSURE, ETF_OVERLAP ->
                     "ETF data is unavailable. "
                             + "Set ALPHA_VANTAGE_API_KEY and restart.";
             case FINANCIAL_NEWS ->
                     "Financial news is unavailable. "
-                            + "Set MARKETAUX_API_TOKEN and restart.";
+                            + "Set MARKETAUX_API_TOKEN or FINNHUB_API_KEY and restart.";
             case MARKET_MOVEMENT ->
-                    "Movement analysis is unavailable. It requires "
-                            + "FINNHUB_API_KEY and MARKETAUX_API_TOKEN.";
+                    "Movement analysis is unavailable. It requires a quote provider "
+                            + "and MARKETAUX_API_TOKEN or FINNHUB_API_KEY.";
+            case FINANCIAL_STATEMENTS ->
+                    "Financial statements are unavailable. Set FMP_API_KEY and restart.";
+            case PRICE_HISTORY ->
+                    "Price history is unavailable. Set TWELVE_DATA_API_KEY and restart.";
+            case NEWS_SENTIMENT ->
+                    "News sentiment is unavailable. Set SENTISENSE_API_KEY and restart.";
             default -> "No tool is registered for " + action + ".";
         };
     }

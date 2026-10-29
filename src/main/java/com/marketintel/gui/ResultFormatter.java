@@ -11,6 +11,10 @@ import com.marketintel.model.PortfolioExposureResult;
 import com.marketintel.model.SecurityComparisonResult;
 import com.marketintel.model.SecurityOverview;
 import com.marketintel.model.ToolResult;
+import com.marketintel.model.FinancialStatements;
+import com.marketintel.model.PriceHistory;
+import com.marketintel.model.SentimentReading;
+import com.marketintel.services.InsightReport;
 import com.marketintel.services.NewsTiming;
 import com.marketintel.services.PortfolioExposureReport;
 
@@ -291,6 +295,36 @@ public final class ResultFormatter {
             text.append("No explanation was produced.\n");
         }
         return text.toString();
+    }
+
+    public static String statements(ToolResult result) {
+        if (!result.isSuccess()) {
+            return error(result.getErrorMessage());
+        }
+        if (!(result.getData() instanceof FinancialStatements statements)) {
+            return error("Unexpected financial-statement response.");
+        }
+        return InsightReport.statements(statements);
+    }
+
+    public static String priceHistory(ToolResult result) {
+        if (!result.isSuccess()) {
+            return error(result.getErrorMessage());
+        }
+        if (!(result.getData() instanceof PriceHistory history)) {
+            return error("Unexpected price-history response.");
+        }
+        return InsightReport.priceHistory(history);
+    }
+
+    public static String sentiment(ToolResult result) {
+        if (!result.isSuccess()) {
+            return error(result.getErrorMessage());
+        }
+        if (!(result.getData() instanceof SentimentReading reading)) {
+            return error("Unexpected sentiment response.");
+        }
+        return InsightReport.sentiment(reading);
     }
 
     public static String portfolioExposure(ToolResult result) {

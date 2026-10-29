@@ -68,6 +68,17 @@ class DeskCommandTest {
         assertEquals(DeskCommand.Action.HELP, command.action());
         assertTrue(command.message().contains("QUOTE SYMBOL"));
         assertTrue(command.message().contains("GEO ETF"));
+        assertTrue(command.message().contains("STATEMENTS SYMBOL"));
         assertTrue(command.message().contains("WHY SYMBOL"));
+    }
+
+    @Test
+    void parsesTheProviderReportCommands() {
+        assertEquals(
+                DeskCommand.Action.STATEMENTS,
+                DeskCommand.parse("/statements nvda").action()
+        );
+        assertEquals("QQQ", DeskCommand.parse("HIST qqq").argument(0));
+        assertEquals(DeskCommand.Action.SENTIMENT, DeskCommand.parse("SENT AAPL").action());
     }
 }
