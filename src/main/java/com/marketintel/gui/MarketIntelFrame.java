@@ -4,6 +4,10 @@ import com.marketintel.app.ResearchGateway;
 import com.marketintel.app.SessionWorkspace;
 import com.marketintel.bootstrap.ApplicationContext;
 import com.marketintel.model.ActionType;
+import com.marketintel.model.MarketQuote;
+import com.marketintel.model.NewsArticle;
+import com.marketintel.model.NewsResult;
+import com.marketintel.model.ToolResult;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
@@ -14,6 +18,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.WindowConstants;
 import java.awt.BorderLayout;
@@ -24,7 +29,9 @@ import java.awt.GridLayout;
 import java.awt.event.KeyEvent;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -55,8 +62,11 @@ public final class MarketIntelFrame extends JFrame {
     private final PortfolioPanel portfolioPanel;
     private final WatchlistPanel watchlistPanel;
     private final AgentPanel agentPanel;
+    private final MarketTape marketTape = new MarketTape();
     private final Map<String, JButton> navigation = new LinkedHashMap<>();
     private String activeSection = "Dashboard";
+    private int tapeGeneration;
+    private Timer tapeRefresh;
 
     private MarketIntelFrame(ApplicationContext context) {
         super("Market Intelligence");
@@ -82,6 +92,7 @@ public final class MarketIntelFrame extends JFrame {
         );
         dashboardPanel = new DashboardPanel(
                 workspace,
+                gateway,
                 context.getToolManager(),
                 explanationsAvailable,
                 openSection
@@ -98,10 +109,15 @@ public final class MarketIntelFrame extends JFrame {
         sectionPanel.add(watchlistPanel, "Watchlist");
         sectionPanel.add(agentPanel, "Explain");
 
+        JPanel desk = new JPanel(new BorderLayout());
+        desk.setBackground(Color.BLACK);
+        desk.add(marketTape, BorderLayout.NORTH);
+        desk.add(sectionPanel, BorderLayout.CENTER);
+
         JPanel application = new JPanel(new BorderLayout(0, 0));
         application.setBackground(Color.BLACK);
         application.add(functionBar(), BorderLayout.NORTH);
-        application.add(sectionPanel, BorderLayout.CENTER);
+        application.add(desk, BorderLayout.CENTER);
         application.add(commandBar(), BorderLayout.SOUTH);
 
         rootCardsPanel.setBackground(Color.BLACK);
@@ -272,6 +288,66 @@ public final class MarketIntelFrame extends JFrame {
         statusLabel.setText("SIGNED IN  " + workspace.currentUser().getUsername());
         rootCards.show(rootCardsPanel, "app");
         commandField.requestFocusInWindow();
+        marketTape.start();
+        loadTape();
+        if (tapeRefresh == null) {
+            tapeRefresh = new Timer(90_000, event -> loadTape());
+        }
+        tapeRefresh.start();
+    }
+
+    private void loadTape() {
+        if (!workspace.isAuthenticated()) {
+            return;
+        }
+        long userId = gateway.currentUserId();
+        List<String> symbols = new ArrayList<>(List.of("SPY", "QQQ", "DIA", "AAPL", "MSFT"));
+        for (var position : workspace.portfolio().getPositions()) {
+            String symbol = position.getSymbol().toUpperCase(Locale.ROOT);
+            if (!symbols.contains(symbol) && symbols.size() < 10) {
+                symbols.add(symbol);
+            }
+        }
+        int generation = ++tapeGeneration;
+        marketTape.setLine("LOADING MARKET TAPE");
+        new SwingWorker<String, Void>() {
+            @Override
+            protected String doInBackground() {
+                List<MarketQuote> quotes = new ArrayList<>();
+                for (String symbol : symbols) {
+                    ToolResult result = gateway.execute(
+                            userId,
+                            ActionType.MARKET_QUOTE,
+                            Map.of("symbol", symbol)
+                    );
+                    if (result.isSuccess() && result.getData() instanceof MarketQuote quote) {
+                        quotes.add(quote);
+                    }
+                }
+                List<NewsArticle> articles = List.of();
+                ToolResult news = gateway.execute(
+                        userId,
+                        ActionType.FINANCIAL_NEWS,
+                        Map.of("symbol", "SPY")
+                );
+                if (news.isSuccess() && news.getData() instanceof NewsResult result) {
+                    articles = result.getArticles();
+                }
+                return TapeLine.format(quotes, articles);
+            }
+
+            @Override
+            protected void done() {
+                if (generation != tapeGeneration || !workspace.isAuthenticated()) {
+                    return;
+                }
+                try {
+                    marketTape.setLine(get());
+                } catch (Exception exception) {
+                    marketTape.setLine("MARKET TAPE  ·  THE FEED COULD NOT BE LOADED");
+                }
+            }
+        }.execute();
     }
 
     private void showSection(String section) {
@@ -386,6 +462,11 @@ public final class MarketIntelFrame extends JFrame {
     }
 
     private void logout() {
+        tapeGeneration++;
+        if (tapeRefresh != null) {
+            tapeRefresh.stop();
+        }
+        marketTape.stop();
         workspace.logout();
         authenticationPanel.clear();
         researchPanel.clear();

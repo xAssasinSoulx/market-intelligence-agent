@@ -1,17 +1,28 @@
 package com.marketintel.gui;
 
 import com.marketintel.agent.ToolManager;
+import com.marketintel.app.ResearchGateway;
 import com.marketintel.app.SessionWorkspace;
 import com.marketintel.model.ActionType;
+import com.marketintel.model.MarketQuote;
+import com.marketintel.model.PortfolioPosition;
+import com.marketintel.model.ToolResult;
 import com.marketintel.model.User;
+import com.marketintel.services.PortfolioBook;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.GridLayout;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -21,20 +32,25 @@ import java.util.function.Consumer;
 public final class DashboardPanel extends JPanel {
 
     private final SessionWorkspace workspace;
+    private final ResearchGateway gateway;
     private final ToolManager toolManager;
     private final boolean explanationsAvailable;
     private final Consumer<String> openSection;
     private final JLabel identity = UiTheme.fieldLabel("SIGN ON REQUIRED");
+    private final JTextArea book = UiTheme.resultArea();
     private final JPanel board = new JPanel(new GridLayout(0, 3, 8, 8));
     private final JTextArea notes = UiTheme.resultArea();
+    private int bookGeneration;
 
     public DashboardPanel(
             SessionWorkspace workspace,
+            ResearchGateway gateway,
             ToolManager toolManager,
             boolean explanationsAvailable,
             Consumer<String> openSection) {
 
         this.workspace = workspace;
+        this.gateway = gateway;
         this.toolManager = toolManager;
         this.explanationsAvailable = explanationsAvailable;
         this.openSection = openSection;
@@ -44,12 +60,22 @@ public final class DashboardPanel extends JPanel {
         setBorder(UiTheme.padding(10));
 
         board.setBackground(Color.BLACK);
-        notes.setRows(6);
+        book.setRows(7);
+        book.setText("PORTFOLIO STATUS APPEARS AFTER SIGN-ON.\n");
+        notes.setRows(4);
         notes.setText("F1-F5 SWITCH SCREENS. COMMAND LINE: QUOTE NVDA, WHY NVDA, PORT, HELP.\n");
+
+        javax.swing.JScrollPane bookScroll = UiTheme.scroll(book);
+        bookScroll.setPreferredSize(new java.awt.Dimension(100, 148));
+
+        JPanel heading = new JPanel(new BorderLayout(0, 6));
+        heading.setBackground(Color.BLACK);
+        heading.add(identity, BorderLayout.NORTH);
+        heading.add(bookScroll, BorderLayout.CENTER);
 
         JPanel body = new JPanel(new BorderLayout(0, 8));
         body.setBackground(Color.BLACK);
-        body.add(identity, BorderLayout.NORTH);
+        body.add(heading, BorderLayout.NORTH);
         body.add(board, BorderLayout.CENTER);
 
         javax.swing.JScrollPane notesScroll = UiTheme.scroll(notes);
@@ -63,7 +89,9 @@ public final class DashboardPanel extends JPanel {
     public void refresh() {
         board.removeAll();
         if (!workspace.isAuthenticated()) {
+            bookGeneration++;
             identity.setText("SIGN ON REQUIRED");
+            book.setText("");
             notes.setText("");
             board.revalidate();
             board.repaint();
@@ -96,6 +124,108 @@ public final class DashboardPanel extends JPanel {
 
         board.revalidate();
         board.repaint();
+        loadBook();
+    }
+
+    private void loadBook() {
+        if (!workspace.isAuthenticated()) {
+            return;
+        }
+        long userId = gateway.currentUserId();
+        List<PortfolioPosition> positions = List.copyOf(workspace.portfolio().getPositions());
+        int generation = ++bookGeneration;
+        if (positions.isEmpty()) {
+            book.setText("NO OPEN POSITIONS.\nADD ONE WITH PORT ADD NVDA 10 STOCK.\n");
+            book.setCaretPosition(0);
+            return;
+        }
+        book.setText("PRICING " + positions.size() + " POSITIONS...\n");
+        new SwingWorker<PortfolioBook, Void>() {
+            @Override
+            protected PortfolioBook doInBackground() {
+                Map<String, MarketQuote> quotes = new LinkedHashMap<>();
+                for (PortfolioPosition position : positions) {
+                    ToolResult result = gateway.execute(
+                            userId,
+                            ActionType.MARKET_QUOTE,
+                            Map.of("symbol", position.getSymbol())
+                    );
+                    if (result.isSuccess() && result.getData() instanceof MarketQuote quote) {
+                        quotes.put(position.getSymbol(), quote);
+                    }
+                }
+                return PortfolioBook.value(positions, quotes);
+            }
+
+            @Override
+            protected void done() {
+                if (generation != bookGeneration || !workspace.isAuthenticated()) {
+                    return;
+                }
+                try {
+                    book.setText(formatBook(get()));
+                    book.setCaretPosition(0);
+                } catch (Exception exception) {
+                    book.setText("PORTFOLIO PRICES COULD NOT BE LOADED.\n");
+                }
+            }
+        }.execute();
+    }
+
+    private static String formatBook(PortfolioBook snapshot) {
+        StringBuilder text = new StringBuilder();
+        text.append("PORTFOLIO\n");
+        text.append(String.format(
+                "MARKET VALUE  %s     DAY  %s%n",
+                money(snapshot.marketValue()),
+                day(snapshot)
+        ));
+        text.append("\n");
+        if (snapshot.priced().isEmpty()) {
+            text.append("NO POSITION COULD BE PRICED.\n");
+        }
+        for (PortfolioBook.Row row : snapshot.priced()) {
+            text.append(String.format(
+                    "%-8s %8s  @ %10s  %8s  %12s%n",
+                    row.symbol(),
+                    plain(row.quantity()),
+                    money(row.price()),
+                    signed(row.percentChange()) + "%",
+                    money(row.marketValue())
+            ));
+        }
+        if (!snapshot.unpriced().isEmpty()) {
+            text.append("\nUNPRICED  ");
+            text.append(String.join("  ", snapshot.unpriced()));
+            text.append("\n");
+        }
+        text.append("\nValue is quantity times the latest price. Day is the move from the previous close.\n");
+        return text.toString();
+    }
+
+    private static String day(PortfolioBook snapshot) {
+        String amount = signed(snapshot.dayChange());
+        BigDecimal percent = snapshot.dayPercent();
+        if (percent == null) {
+            return amount;
+        }
+        return amount + "  (" + signed(percent) + "%)";
+    }
+
+    private static String money(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+    }
+
+    private static String plain(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
+    }
+
+    private static String signed(BigDecimal value) {
+        String text = value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        if (value.signum() > 0) {
+            return "+" + text;
+        }
+        return text;
     }
 
     public void showHelp(String help) {
