@@ -2,6 +2,7 @@ package com.marketintel;
 
 import com.marketintel.bootstrap.ApplicationContext;
 import com.marketintel.bootstrap.LaunchMode;
+import com.marketintel.gui.MarketIntelFrame;
 
 public class Main {
 
@@ -22,10 +23,7 @@ public class Main {
 
         switch (mode) {
             case CLI -> context.createTerminalInterface().start();
-            case GUI -> System.err.println(
-                    "The graphical interface is not available in this build. "
-                            + "Start the command-line interface with --cli."
-            );
+            case GUI -> MarketIntelFrame.launch(context);
         }
     }
 }
