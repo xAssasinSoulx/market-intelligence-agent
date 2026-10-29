@@ -41,6 +41,9 @@ class GeminiLLMClientTest {
 
         assertEquals(prompt, submittedPrompt);
 
+        assertEquals(400, root.path("generationConfig").path("maxOutputTokens").asInt());
+        assertEquals("LOW", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
+
         assertEquals(
                 "user",
                 root.path("contents")
@@ -77,6 +80,26 @@ class GeminiLLMClientTest {
                 "NVIDIA declined during the session.",
                 result
         );
+    }
+
+    @Test
+    void ignoresReasoningParts() {
+        String response = """
+                {
+                  "candidates": [
+                    {
+                      "content": {
+                        "parts": [
+                          {"thought": true, "text": "Let me think for a long time."},
+                          {"text": "NVDA is down 1.1%."}
+                        ]
+                      }
+                    }
+                  ]
+                }
+                """;
+
+        assertEquals("NVDA is down 1.1%.", client.parseResponse(response));
     }
 
     @Test
@@ -182,7 +205,7 @@ class GeminiLLMClientTest {
         );
 
         assertTrue(timeout.contains("exceeded"));
-        assertTrue(timeout.contains("120"));
+        assertTrue(timeout.contains("45"));
         assertTrue(reset.contains("Connection reset"));
     }
 

@@ -82,7 +82,7 @@ public final class RequestPlanner {
         }
         try {
             AgentPlan interpreted = interpret(
-                    languageModel.generate(prompts.planPrompt(input, previousSymbol)),
+                    languageModel.generateBrief(prompts.planPrompt(input, previousSymbol)),
                     previousSymbol
             );
             return interpreted == null ? keywords : interpreted;

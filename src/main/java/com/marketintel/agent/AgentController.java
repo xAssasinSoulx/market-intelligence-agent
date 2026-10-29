@@ -102,7 +102,7 @@ public final class AgentController {
             return evidence;
         }
         try {
-            String spoken = languageModel.generate(prompts.answerPrompt(question, plan, evidence));
+            String spoken = languageModel.generateBrief(prompts.answerPrompt(question, plan, evidence));
             if (spoken == null || spoken.isBlank()) {
                 return evidence;
             }
