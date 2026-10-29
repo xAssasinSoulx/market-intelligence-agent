@@ -1,0 +1,111 @@
+@startuml
+title Stage 2 - Data provider adapters
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "Target" {
+    interface DataProvider {
+        + providerName(): String
+        + supports(capability: DataCapability): boolean
+        + getQuote(symbol: String): MarketQuote
+        + getSecurityOverview(symbol: String): SecurityOverview
+        + getNews(symbol: String, limit: int): List
+        + getEtfProfile(symbol: String): ETFProfile
+        + getFinancialStatements(symbol: String): FinancialStatements
+        + getPriceHistory(symbol: String): PriceHistory
+        + getSentiment(symbol: String): SentimentReading
+    }
+
+    enum DataCapability {
+        QUOTE
+        OVERVIEW
+        NEWS
+        ETF_PROFILE
+        FINANCIAL_STATEMENTS
+        PRICE_HISTORY
+        SENTIMENT
+    }
+}
+
+package "Router" {
+    class ProviderRouter {
+        + prefer(capability: DataCapability, provider: DataProvider): void
+        + serves(capability: DataCapability): boolean
+    }
+}
+
+package "Adapters" {
+    class FinnhubAdapter
+    class FinancialModelingPrepAdapter
+    class TwelveDataAdapter
+    class SentiSenseAdapter
+    class MarketauxAdapter
+    class AlphaVantageAdapter
+}
+
+package "Existing clients" {
+    class FinnhubMarketDataClient
+    class MarketauxNewsClient
+    class AlphaVantageClient
+    class MarketDataApiClient
+    class ETFDataApiClient
+    class NewsApiClient
+}
+
+DataProvider <|.. FinnhubAdapter
+DataProvider <|.. FinancialModelingPrepAdapter
+DataProvider <|.. TwelveDataAdapter
+DataProvider <|.. SentiSenseAdapter
+DataProvider <|.. MarketauxAdapter
+DataProvider <|.. AlphaVantageAdapter
+
+ProviderRouter o--> "priority per capability" DataProvider
+
+interface MarketDataProvider
+interface NewsProvider
+interface ETFDataProvider
+interface FinancialStatementProvider
+interface PriceHistoryProvider
+interface SentimentProvider
+
+MarketDataProvider <|.. ProviderRouter
+NewsProvider <|.. ProviderRouter
+ETFDataProvider <|.. ProviderRouter
+FinancialStatementProvider <|.. ProviderRouter
+PriceHistoryProvider <|.. ProviderRouter
+SentimentProvider <|.. ProviderRouter
+
+FinnhubAdapter --> FinnhubMarketDataClient
+MarketauxAdapter --> MarketauxNewsClient
+AlphaVantageAdapter --> MarketDataApiClient
+AlphaVantageAdapter --> ETFDataApiClient
+AlphaVantageAdapter --> NewsApiClient
+MarketDataApiClient --> AlphaVantageClient
+ETFDataApiClient --> AlphaVantageClient
+NewsApiClient --> AlphaVantageClient
+
+class MarketDataTool
+class NewsTool
+class ETFExposureTool
+class MarketInsightTool
+
+MarketDataTool --> MarketDataProvider
+NewsTool --> NewsProvider
+ETFExposureTool --> ETFDataProvider
+MarketInsightTool --> FinancialStatementProvider
+MarketInsightTool --> PriceHistoryProvider
+MarketInsightTool --> SentimentProvider
+
+note as Policy
+  Registration order is the priority.
+  A later adapter runs only when an
+  earlier one was not registered.
+  Alpha Vantage news is implemented
+  and left unregistered. The free
+  plan is about 25 calls a day.
+end note
+
+Policy .. ProviderRouter
+
+@enduml

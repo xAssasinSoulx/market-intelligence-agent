@@ -33,6 +33,9 @@ public final class DeskCommand {
         WATCHLIST_REMOVE,
         GEOGRAPHY,
         EXPOSURE,
+        STATEMENTS,
+        HISTORY,
+        SENTIMENT,
         INVALID
     }
 
@@ -109,6 +112,10 @@ public final class DeskCommand {
             case "GEO", "GEOGRAPHY" -> needs(Action.GEOGRAPHY, args, 1, "Usage: GEO ETF");
             case "OVERLAP", "OVL" -> needs(Action.OVERLAP, args, 2, "Usage: OVERLAP ETF ETF");
             case "NEWS", "N" -> needs(Action.NEWS, args, 1, "Usage: NEWS SYMBOL");
+            case "STATEMENTS", "STATEMENT", "STM" ->
+                    needs(Action.STATEMENTS, args, 1, "Usage: STATEMENTS SYMBOL");
+            case "HISTORY", "HIST" -> needs(Action.HISTORY, args, 1, "Usage: HISTORY SYMBOL");
+            case "SENTIMENT", "SENT" -> needs(Action.SENTIMENT, args, 1, "Usage: SENTIMENT SYMBOL");
             case "WHY", "EXPLAIN" -> why(args);
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
@@ -137,6 +144,9 @@ public final class DeskCommand {
                 GEO ETF                        Country exposure
                 OVERLAP ETF ETF                Shared holdings
                 NEWS SYMBOL                    Recent articles
+                STATEMENTS SYMBOL              Annual financial statements
+                HISTORY SYMBOL                 Daily prices and RSI
+                SENTIMENT SYMBOL               News sentiment score
                 WHY SYMBOL                     Evidence, then Gemini
                 EXPOSURE                       Portfolio sector weights
                 PORT ADD SYMBOL QTY TYPE       TYPE is STOCK, ETF, or OTHER

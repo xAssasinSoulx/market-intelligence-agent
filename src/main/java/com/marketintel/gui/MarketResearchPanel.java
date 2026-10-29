@@ -61,11 +61,15 @@ public final class MarketResearchPanel extends JPanel {
         addButton(form, "GEO", false, this::runGeography);
         addButton(form, "OVL", false, this::runOverlap);
         addButton(form, "NEWS", false, this::runNews);
+        addButton(form, "STM", false, this::runStatements);
+        addButton(form, "HIST", false, this::runHistory);
+        addButton(form, "SENT", false, this::runSentiment);
 
         results.setText(
                 "ENTER A SYMBOL, THEN PRESS A FUNCTION.\n"
                         + "CMP AND OVL USE BOTH SYMBOLS.\n"
                         + "GEO REPORTS COUNTRY WEIGHTS. IT DOES NOT GUESS A COUNTRY.\n"
+                        + "STM, HIST, AND SENT USE THE STATEMENT, HISTORY, AND SENTIMENT ADAPTERS.\n"
                         + "OR TYPE QUOTE NVDA IN THE COMMAND LINE.\n"
         );
         JPanel header = new JPanel(new BorderLayout());
@@ -121,6 +125,21 @@ public final class MarketResearchPanel extends JPanel {
     public void loadNews(String symbol) {
         symbolField.setText(symbol);
         runNews();
+    }
+
+    public void loadStatements(String symbol) {
+        symbolField.setText(symbol);
+        runStatements();
+    }
+
+    public void loadHistory(String symbol) {
+        symbolField.setText(symbol);
+        runHistory();
+    }
+
+    public void loadSentiment(String symbol) {
+        symbolField.setText(symbol);
+        runSentiment();
     }
 
     private void addButton(
@@ -209,6 +228,39 @@ public final class MarketResearchPanel extends JPanel {
                 gateway.execute(
                         userId,
                         ActionType.FINANCIAL_NEWS,
+                        Map.of("symbol", symbol)
+                )
+        ));
+    }
+
+    private void runStatements() {
+        String symbol = symbolField.getText();
+        runForCurrentUser("Loading statements...", userId -> ResultFormatter.statements(
+                gateway.execute(
+                        userId,
+                        ActionType.FINANCIAL_STATEMENTS,
+                        Map.of("symbol", symbol)
+                )
+        ));
+    }
+
+    private void runHistory() {
+        String symbol = symbolField.getText();
+        runForCurrentUser("Loading price history...", userId -> ResultFormatter.priceHistory(
+                gateway.execute(
+                        userId,
+                        ActionType.PRICE_HISTORY,
+                        Map.of("symbol", symbol)
+                )
+        ));
+    }
+
+    private void runSentiment() {
+        String symbol = symbolField.getText();
+        runForCurrentUser("Loading sentiment...", userId -> ResultFormatter.sentiment(
+                gateway.execute(
+                        userId,
+                        ActionType.NEWS_SENTIMENT,
                         Map.of("symbol", symbol)
                 )
         ));

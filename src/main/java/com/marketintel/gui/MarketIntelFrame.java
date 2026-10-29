@@ -434,6 +434,18 @@ public final class MarketIntelFrame extends JFrame {
                 showSection("Research");
                 researchPanel.loadNews(command.argument(0));
             }
+            case STATEMENTS -> {
+                showSection("Research");
+                researchPanel.loadStatements(command.argument(0));
+            }
+            case HISTORY -> {
+                showSection("Research");
+                researchPanel.loadHistory(command.argument(0));
+            }
+            case SENTIMENT -> {
+                showSection("Research");
+                researchPanel.loadSentiment(command.argument(0));
+            }
             case WHY -> {
                 showSection("Explain");
                 agentPanel.explainSymbol(command.argument(0));
@@ -490,6 +502,12 @@ public final class MarketIntelFrame extends JFrame {
                         + flag("ETF", gateway.isAvailable(ActionType.ETF_SECTOR_EXPOSURE))
                         + "   "
                         + flag("NEWS", gateway.isAvailable(ActionType.FINANCIAL_NEWS))
+                        + "   "
+                        + flag("STM", gateway.isAvailable(ActionType.FINANCIAL_STATEMENTS))
+                        + "   "
+                        + flag("HIST", gateway.isAvailable(ActionType.PRICE_HISTORY))
+                        + "   "
+                        + flag("SENT", gateway.isAvailable(ActionType.NEWS_SENTIMENT))
                         + "   "
                         + flag("AI", explanationsAvailable)
                         + "  "

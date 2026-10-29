@@ -71,3 +71,40 @@ and the manual test workflow was adjusted to avoid unnecessary API calls.
 The application can retrieve real market quotes and security overview
 data while preserving the Stage 1 separation between external providers,
 deterministic tools, and higher-level agent logic.
+
+## Interaction 004 - Provider adapters after the Alpha Vantage refusal
+
+### Task
+
+Keep market data available without a paid Alpha Vantage plan, and make
+the provider switch a visible design choice for Stage 2.
+
+### Input / Instruction
+
+Alpha Vantage declined the educational access request and offered a
+discount on a paid plan. The instruction was to use free providers
+instead, behind one shared data-provider interface with an adapter
+class for each API.
+
+### AI Contribution
+
+The AI added `DataProvider` as the shared target and `ProviderRouter`
+as the ordered registry. Adapters cover Finnhub, Financial Modeling
+Prep, Twelve Data, SentiSense, Marketaux, and Alpha Vantage. Each
+adapter reports only the capabilities its free plan is used for.
+Registration order selects the provider. Tools keep depending on the
+narrower role interfaces.
+
+### Human Contribution
+
+The provider set, the decision not to pay for Alpha Vantage, and the
+requirement that the switch demonstrate a design pattern came from
+the project owner. Free-plan call budgets still have to be confirmed
+on each vendor site at signup.
+
+### Outcome
+
+Quotes, overviews, news, ETF holdings, statements, daily history, and
+a sentiment score can be wired by environment variable. Unset keys
+leave that capability unavailable. `./mvnw test` does not call the
+live APIs.
