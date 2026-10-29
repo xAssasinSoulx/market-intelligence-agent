@@ -86,6 +86,7 @@ data/*.sqlite3
 
 .env
 .env.*
+!.env.example
 config.properties
 application-local.properties
 
