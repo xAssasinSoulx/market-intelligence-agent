@@ -20,7 +20,7 @@ export MI_SCROLLBACK=1
 
 `MI_SCROLLBACK=1` keeps terminal history instead of clearing the screen. The application reads environment variables directly. It does not load a `.env` file.
 
-Finnhub's free plan serves quotes and company profiles at 60 requests per minute. Its profile has a currency, an exchange, and an industry label, but no company description and no separate GICS sector; the overview says so. Alpha Vantage's free plan still serves ETF profiles and holdings, but its company overview is now a premium endpoint and the plan allows 25 requests per day. If only `ALPHA_VANTAGE_API_KEY` is set, quotes fall back to Alpha Vantage and overviews return the premium error.
+Finnhub's free plan serves quotes and company profiles for US listings at 60 requests per minute. Non-US symbols such as `XEQT.TO` are refused on that plan, so a TSX position stays unpriced and the exposure report says so. Its profile has a currency, an exchange, and an industry label, but no company description and no separate GICS sector; the overview says so. ETFs have no company profile on Finnhub, so an ETF position is placed in US dollars with a note. Alpha Vantage's free plan still serves ETF profiles and holdings, but its company overview is now a premium endpoint and the plan allows 25 requests per day. If only `ALPHA_VANTAGE_API_KEY` is set, quotes fall back to Alpha Vantage and overviews return the premium error.
 
 ## Run
 

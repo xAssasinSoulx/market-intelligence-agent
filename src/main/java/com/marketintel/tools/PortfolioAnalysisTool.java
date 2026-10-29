@@ -112,7 +112,16 @@ public final class PortfolioAnalysisTool implements AgentTool {
                 sectors = Map.of(overview.getSector().trim(), BigDecimal.ONE);
             }
         } catch (MarketDataException exception) {
-            note = join(note, exception.getMessage());
+            if (position.getAssetType() == AssetType.ETF
+                    && price != null
+                    && marketDataProvider.quoteCurrency().isPresent()) {
+                currency = marketDataProvider.quoteCurrency().get();
+                note = join(note, position.getSymbol()
+                        + " has no company profile, as is usual for an ETF. Its currency is "
+                        + currency + " because the quote provider serves only that market.");
+            } else {
+                note = join(note, exception.getMessage());
+            }
         }
 
         if (position.getAssetType() == AssetType.ETF) {

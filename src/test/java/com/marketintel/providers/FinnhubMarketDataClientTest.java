@@ -92,6 +92,11 @@ class FinnhubMarketDataClientTest {
     }
 
     @Test
+    void reportsUsDollarsAsTheOnlyQuoteCurrency() {
+        assertEquals("USD", client.quoteCurrency().orElseThrow());
+    }
+
+    @Test
     void rejectsABlankKey() {
         assertThrows(
                 IllegalArgumentException.class,

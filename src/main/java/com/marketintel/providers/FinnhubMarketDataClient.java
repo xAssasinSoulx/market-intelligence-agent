@@ -16,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Finnhub adapter for quotes and security overviews.
@@ -61,6 +62,16 @@ public final class FinnhubMarketDataClient implements MarketDataProvider {
         String normalizedSymbol = normalizeSymbol(symbol);
         JsonNode root = fetch("/stock/profile2", normalizedSymbol);
         return parseOverview(normalizedSymbol, root);
+    }
+
+    /**
+     * The free plan returns quotes for US listings only. A request for a
+     * non-US symbol such as XEQT.TO is refused, so any quote that does
+     * come back is priced in US dollars.
+     */
+    @Override
+    public Optional<String> quoteCurrency() {
+        return Optional.of("USD");
     }
 
     /*
