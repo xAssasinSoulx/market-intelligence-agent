@@ -310,9 +310,9 @@ public final class MarketIntelFrame extends JFrame {
         }
         int generation = ++tapeGeneration;
         marketTape.setLine("LOADING MARKET TAPE");
-        new SwingWorker<String, Void>() {
+        new SwingWorker<List<TapeLine.Piece>, Void>() {
             @Override
-            protected String doInBackground() {
+            protected List<TapeLine.Piece> doInBackground() {
                 List<MarketQuote> quotes = new ArrayList<>();
                 for (String symbol : symbols) {
                     ToolResult result = gateway.execute(
@@ -333,7 +333,7 @@ public final class MarketIntelFrame extends JFrame {
                 if (news.isSuccess() && news.getData() instanceof NewsResult result) {
                     articles = result.getArticles();
                 }
-                return TapeLine.format(quotes, articles);
+                return TapeLine.pieces(quotes, articles);
             }
 
             @Override
@@ -342,7 +342,7 @@ public final class MarketIntelFrame extends JFrame {
                     return;
                 }
                 try {
-                    marketTape.setLine(get());
+                    marketTape.setPieces(get());
                 } catch (Exception exception) {
                     marketTape.setLine("MARKET TAPE  ·  THE FEED COULD NOT BE LOADED");
                 }

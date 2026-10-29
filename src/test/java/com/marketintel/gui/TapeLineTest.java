@@ -33,7 +33,7 @@ class TapeLineTest {
                 ))
         );
 
-        assertTrue(line.contains("SPY  500.5  +2.14%"));
+        assertTrue(line.contains("SPY  500.50  +2.14%"));
         assertTrue(line.contains("Wire  Markets open higher"));
         assertFalse(line.contains("490"));
     }
