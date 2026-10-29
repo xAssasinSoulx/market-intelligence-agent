@@ -12,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
@@ -22,6 +23,9 @@ public final class GeminiLLMClient implements LLMProvider {
 
     private static final String DEFAULT_MODEL =
             "gemini-3.8-flash";
+
+    private static final Duration REQUEST_TIMEOUT =
+            Duration.ofSeconds(120);
 
     private final String apiKey;
     private final String model;
@@ -77,7 +81,7 @@ public final class GeminiLLMClient implements LLMProvider {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(uri)
-                .timeout(Duration.ofSeconds(60))
+                .timeout(REQUEST_TIMEOUT)
                 .header("Content-Type", "application/json")
                 .header("Accept", "application/json")
                 .header("x-goog-api-key", apiKey)
@@ -123,10 +127,26 @@ public final class GeminiLLMClient implements LLMProvider {
         } catch (IOException e) {
 
             throw new LLMException(
-                    "Unable to communicate with Gemini.",
+                    describeCommunicationFailure(e),
                     e
             );
         }
+    }
+
+    static String describeCommunicationFailure(IOException exception) {
+
+        if (exception instanceof HttpTimeoutException) {
+            return "Unable to communicate with Gemini. The request exceeded "
+                    + REQUEST_TIMEOUT.toSeconds()
+                    + " seconds.";
+        }
+
+        String detail = exception.getMessage();
+        if (detail == null || detail.isBlank()) {
+            return "Unable to communicate with Gemini.";
+        }
+
+        return "Unable to communicate with Gemini. " + detail.trim();
     }
 
     /*

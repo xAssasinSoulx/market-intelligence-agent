@@ -6,6 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.http.HttpTimeoutException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GeminiLLMClientTest {
@@ -166,6 +169,21 @@ class GeminiLLMClientTest {
                 IllegalArgumentException.class,
                 () -> new GeminiLLMClient("")
         );
+    }
+
+    @Test
+    void describesATimeoutSeparatelyFromOtherConnectionFailures() {
+
+        String timeout = GeminiLLMClient.describeCommunicationFailure(
+                new HttpTimeoutException("request timed out")
+        );
+        String reset = GeminiLLMClient.describeCommunicationFailure(
+                new IOException("Connection reset")
+        );
+
+        assertTrue(timeout.contains("exceeded"));
+        assertTrue(timeout.contains("120"));
+        assertTrue(reset.contains("Connection reset"));
     }
 
     @Test
