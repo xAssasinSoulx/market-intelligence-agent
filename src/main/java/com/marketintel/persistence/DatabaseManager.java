@@ -57,12 +57,29 @@ public class DatabaseManager {
             );
             """;
 
+        String createConversationTable = """
+            CREATE TABLE IF NOT EXISTS conversation_turns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL,
+                body TEXT NOT NULL,
+                symbol TEXT,
+                action TEXT,
+                created_at TEXT NOT NULL,
+
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
+                    ON DELETE CASCADE
+            );
+            """;
+
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement()) {
 
             statement.execute(createUsersTable);
             statement.execute(createPortfolioPositionsTable);
             statement.execute(createWatchlistTable);
+            statement.execute(createConversationTable);
 
         } catch (SQLException e) {
 

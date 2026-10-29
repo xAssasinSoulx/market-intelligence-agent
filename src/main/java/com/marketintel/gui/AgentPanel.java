@@ -15,8 +15,9 @@ import java.awt.FlowLayout;
 import java.util.List;
 
 /**
- * Direct movement explanation, equivalent to the terminal /why command.
- * Follow-up questions stay disabled until conversation memory exists.
+ * Direct movement explanation and contextual follow-up.
+ * A follow-up such as "what about its sector" uses the last symbol
+ * stored for this signed-in user.
  */
 public final class AgentPanel extends JPanel {
 
@@ -25,6 +26,7 @@ public final class AgentPanel extends JPanel {
     private final JLabel statusLabel;
     private final JTextField symbolField = UiTheme.textField(12);
     private final JTextField followUpField = UiTheme.textField(28);
+    private final JButton askButton = UiTheme.button("ASK");
     private final JTextArea results = UiTheme.resultArea();
     private final JButton explainButton = UiTheme.button("WHY <GO>", true);
     private int requestGeneration;
@@ -43,10 +45,6 @@ public final class AgentPanel extends JPanel {
         setBorder(UiTheme.padding(10));
 
         UiTheme.uppercase(symbolField);
-        followUpField.setEnabled(false);
-        followUpField.setToolTipText(
-                "Contextual follow-up is not implemented. Ask with a symbol."
-        );
 
         JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
         form.setBackground(Color.BLACK);
@@ -60,7 +58,9 @@ public final class AgentPanel extends JPanel {
         followUp.setBackground(Color.BLACK);
         followUp.add(UiTheme.fieldLabel("FOLLOW-UP"));
         followUp.add(followUpField);
-        followUp.add(UiTheme.text("DISABLED UNTIL CONVERSATION MEMORY EXISTS", true));
+        followUp.add(askButton);
+        askButton.addActionListener(event -> ask(followUpField.getText()));
+        followUpField.addActionListener(event -> ask(followUpField.getText()));
 
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(Color.BLACK);
@@ -74,6 +74,7 @@ public final class AgentPanel extends JPanel {
                         + "TO EXPLAIN ONLY THAT EVIDENCE.\n"
                         + "IF GEMINI IS OFF, THE EVIDENCE IS STILL SHOWN.\n"
                         + "COMMAND LINE: WHY NVDA\n"
+                        + "FOLLOW-UP: what about its sector exposure\n"
         );
 
         add(header, BorderLayout.NORTH);
@@ -90,6 +91,34 @@ public final class AgentPanel extends JPanel {
     public void explainSymbol(String symbol) {
         symbolField.setText(symbol);
         explain();
+    }
+
+    public void ask(String question) {
+        if (!workspace.isAuthenticated()) {
+            show("Error: Sign in again before asking a follow-up.\n");
+            return;
+        }
+        followUpField.setText(question == null ? "" : question);
+        long userId = gateway.currentUserId();
+        int generation = ++requestGeneration;
+        List<JComponent> controls = List.of(followUpField, askButton, symbolField, explainButton);
+        BackgroundWork.submit(
+                statusLabel,
+                controls,
+                () -> {
+                    followUpField.setEnabled(true);
+                    askButton.setEnabled(true);
+                    symbolField.setEnabled(true);
+                    explainButton.setEnabled(true);
+                },
+                "Planning the follow-up...",
+                () -> gateway.ask(userId, question),
+                text -> {
+                    if (generation == requestGeneration) {
+                        show(text);
+                    }
+                }
+        );
     }
 
     private void explain() {
@@ -110,10 +139,8 @@ public final class AgentPanel extends JPanel {
                     symbolField.setEnabled(true);
                     explainButton.setEnabled(true);
                 },
-                "Requesting quote, news, and Gemini. This can take up to 2 minutes.",
-                () -> ResultFormatter.movement(
-                        gateway.explainMovement(userId, symbol)
-                ),
+                "Planning the movement question. Gemini can take up to 2 minutes.",
+                () -> gateway.ask(userId, "why did " + symbol + " move"),
                 text -> {
                     if (generation == requestGeneration) {
                         show(text);

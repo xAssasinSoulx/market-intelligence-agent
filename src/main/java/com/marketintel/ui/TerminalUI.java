@@ -1,5 +1,6 @@
 package com.marketintel.ui;
 
+import com.marketintel.agent.AgentController;
 import com.marketintel.agent.ToolManager;
 
 import com.marketintel.auth.AuthService;
@@ -64,6 +65,8 @@ public class TerminalUI
 
     private final MarketExplanationService marketExplanationService;
 
+    private final AgentController followUp;
+
     private final Scanner scanner;
 
     private boolean running = true;
@@ -84,6 +87,7 @@ public class TerminalUI
                 portfolioService,
                 watchlistService,
                 toolManager,
+                null,
                 null
         );
     }
@@ -96,6 +100,28 @@ public class TerminalUI
             WatchlistService watchlistService,
             ToolManager toolManager,
             MarketExplanationService marketExplanationService) {
+
+        this(
+                authService,
+                sessionManager,
+                commandParser,
+                portfolioService,
+                watchlistService,
+                toolManager,
+                marketExplanationService,
+                null
+        );
+    }
+
+    public TerminalUI(
+            AuthService authService,
+            SessionManager sessionManager,
+            CommandParser commandParser,
+            PortfolioService portfolioService,
+            WatchlistService watchlistService,
+            ToolManager toolManager,
+            MarketExplanationService marketExplanationService,
+            AgentController followUp) {
 
         this.authService = authService;
 
@@ -110,6 +136,7 @@ public class TerminalUI
         this.toolManager = toolManager;
 
         this.marketExplanationService = marketExplanationService;
+        this.followUp = followUp;
 
         this.scanner = new Scanner(System.in);
     }
@@ -512,11 +539,19 @@ public class TerminalUI
 
         System.out.println();
 
+        if (followUp == null) {
+            System.out.println(
+                    TerminalTheme.yellow(
+                            "Natural-language follow-up is not connected."
+                    )
+            );
+            return;
+        }
+
         System.out.println(
-                TerminalTheme.yellow(
-                        "Natural-language agent "
-                                + "functionality is not "
-                                + "connected yet."
+                followUp.handle(
+                        sessionManager.getCurrentUserId(),
+                        input
                 )
         );
     }
@@ -600,6 +635,9 @@ public class TerminalUI
 
                 case "why" ->
                         handleWhyCommand(parsed);
+
+                case "ask" ->
+                        handleAskCommand(parsed);
 
                 case "sector" ->
                         handleSectorCommand(
@@ -1814,6 +1852,19 @@ public class TerminalUI
     // Market Movement Evidence
     // ========================================================
 
+    private void handleAskCommand(ParsedCommand command) {
+        if (followUp == null) {
+            displayError("Follow-up is not connected.");
+            return;
+        }
+        if (command.getArguments().isEmpty()) {
+            displayError("Usage: /ask why did NVDA move");
+            return;
+        }
+        String question = String.join(" ", command.getArguments());
+        System.out.println(followUp.handle(sessionManager.getCurrentUserId(), question));
+    }
+
     private void handleWhyCommand(
             ParsedCommand command) {
 
@@ -2961,6 +3012,11 @@ public class TerminalUI
         TerminalComponents.row(
                 "/why SYMBOL",
                 "AI market movement explanation"
+        );
+
+        TerminalComponents.row(
+                "/ask ...",
+                "Follow-up using the last symbol"
         );
 
         TerminalComponents.endSection();

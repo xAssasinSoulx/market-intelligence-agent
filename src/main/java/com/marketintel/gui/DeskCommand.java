@@ -27,6 +27,7 @@ public final class DeskCommand {
         OVERLAP,
         NEWS,
         WHY,
+        ASK,
         PORTFOLIO_ADD,
         PORTFOLIO_REMOVE,
         WATCHLIST_ADD,
@@ -117,6 +118,7 @@ public final class DeskCommand {
             case "HISTORY", "HIST" -> needs(Action.HISTORY, args, 1, "Usage: HISTORY SYMBOL");
             case "SENTIMENT", "SENT" -> needs(Action.SENTIMENT, args, 1, "Usage: SENTIMENT SYMBOL");
             case "WHY", "EXPLAIN" -> why(args);
+            case "ASK", "FOLLOW" -> ask(args);
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
             case "WATCH", "MON", "WATCHLIST" -> watchlist(args);
@@ -148,6 +150,7 @@ public final class DeskCommand {
                 HISTORY SYMBOL                 Daily prices and RSI
                 SENTIMENT SYMBOL               News sentiment score
                 WHY SYMBOL                     Evidence, then Gemini
+                ASK question                   Follow-up using the last symbol
                 EXPOSURE                       Portfolio sector weights
                 PORT ADD SYMBOL QTY TYPE       TYPE is STOCK, ETF, or OTHER
                 PORT REMOVE SYMBOL
@@ -193,6 +196,13 @@ public final class DeskCommand {
             return navigate(Action.EXPLAIN);
         }
         return needs(Action.WHY, args, 1, "Usage: WHY SYMBOL");
+    }
+
+    private static DeskCommand ask(List<String> args) {
+        if (args.isEmpty()) {
+            return navigate(Action.EXPLAIN);
+        }
+        return new DeskCommand(Action.ASK, args, null);
     }
 
     private static DeskCommand portfolio(List<String> args) {
