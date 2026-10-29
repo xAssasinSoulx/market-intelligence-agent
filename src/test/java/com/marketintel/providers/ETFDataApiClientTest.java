@@ -186,4 +186,40 @@ class ETFDataApiClientTest {
                         .getWeight()
         );
     }
+
+    @Test
+    void keepsACountryWhenTheProviderSendsOne()
+            throws Exception {
+
+        String json = """
+                {
+                  "holdings": [
+                    {
+                      "symbol": "NVDA",
+                      "description": "NVIDIA",
+                      "weight": "10",
+                      "country": "United States"
+                    }
+                  ]
+                }
+                """;
+
+        ETFProfile profile =
+                new ETFDataApiClient(
+                        new AlphaVantageClient("dummy-key")
+                ).parseProfile(
+                        "QQQ",
+                        new ObjectMapper().readTree(json)
+                );
+
+        assertEquals(
+                "United States",
+                profile.getHoldings().getFirst().getCountry()
+        );
+
+        assertEquals(
+                new BigDecimal("0.10"),
+                profile.getHoldings().getFirst().getWeight()
+        );
+    }
 }

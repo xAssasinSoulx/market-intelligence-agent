@@ -136,6 +136,10 @@ public class ETFDataApiClient
                 continue;
             }
 
+            String country =
+                    node.path("country")
+                            .asText("");
+
             holdings.add(
                     new ETFHolding(
                             symbol
@@ -144,7 +148,9 @@ public class ETFDataApiClient
 
                             description,
 
-                            weight
+                            weight,
+
+                            country
                     )
             );
         }
@@ -228,7 +234,9 @@ public class ETFDataApiClient
                             holding.getDescription(),
 
                             holding.getWeight()
-                                    .movePointLeft(2)
+                                    .movePointLeft(2),
+
+                            holding.getCountry()
                     )
             );
         }

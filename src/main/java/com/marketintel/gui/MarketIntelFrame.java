@@ -313,7 +313,7 @@ public final class MarketIntelFrame extends JFrame {
         DeskCommand command = DeskCommand.parse(typed);
 
         switch (command.action()) {
-            case EMPTY, INVALID, GEOGRAPHY ->
+            case EMPTY, INVALID ->
                     statusLabel.setText(command.message());
             case HELP -> {
                 showSection("Dashboard");
@@ -345,6 +345,10 @@ public final class MarketIntelFrame extends JFrame {
             case SECTOR -> {
                 showSection("Research");
                 researchPanel.loadSector(command.argument(0));
+            }
+            case GEOGRAPHY -> {
+                showSection("Research");
+                researchPanel.loadGeography(command.argument(0));
             }
             case OVERLAP -> {
                 showSection("Research");

@@ -106,13 +106,10 @@ public final class DeskCommand {
             case "DES" -> des(args);
             case "COMPARE", "CMP" -> needs(Action.COMPARE, args, 2, "Usage: COMPARE SYMBOL SYMBOL");
             case "SECTOR", "SEC" -> needs(Action.SECTOR, args, 1, "Usage: SECTOR ETF");
+            case "GEO", "GEOGRAPHY" -> needs(Action.GEOGRAPHY, args, 1, "Usage: GEO ETF");
             case "OVERLAP", "OVL" -> needs(Action.OVERLAP, args, 2, "Usage: OVERLAP ETF ETF");
             case "NEWS", "N" -> needs(Action.NEWS, args, 1, "Usage: NEWS SYMBOL");
             case "WHY", "EXPLAIN" -> why(args);
-            case "GEO", "GEOGRAPHY" -> unavailable(
-                    Action.GEOGRAPHY,
-                    "Geographic exposure is not implemented. SECTOR ETF is available."
-            );
             case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
             case "WATCH", "MON", "WATCHLIST" -> watchlist(args);
@@ -137,6 +134,7 @@ public final class DeskCommand {
                 OVERVIEW SYMBOL                Security description
                 COMPARE SYMBOL SYMBOL          Change difference
                 SECTOR ETF                     Sector weights
+                GEO ETF                        Country exposure
                 OVERLAP ETF ETF                Shared holdings
                 NEWS SYMBOL                    Recent articles
                 WHY SYMBOL                     Evidence, then Gemini
@@ -148,7 +146,7 @@ public final class DeskCommand {
                 HELP
                 LOGOUT
 
-                GEO is recognized and reports that country exposure is not implemented.
+                GEO uses the provider's reported country weights. It does not guess a country.
                 A leading slash is accepted, as in /quote NVDA.
                 """;
     }
@@ -159,10 +157,6 @@ public final class DeskCommand {
 
     private static DeskCommand navigate(Action action) {
         return new DeskCommand(action, List.of(), null);
-    }
-
-    private static DeskCommand unavailable(Action action, String message) {
-        return new DeskCommand(action, List.of(), message);
     }
 
     private static DeskCommand needs(

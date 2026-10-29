@@ -86,7 +86,8 @@ public final class DashboardPanel extends JPanel {
         tile("05", "OVERLAP", state(available(ActionType.ETF_OVERLAP)), "Research", true);
         tile("06", "NEWS", state(available(ActionType.FINANCIAL_NEWS)), "Research", true);
         tile("07", "WHY", explanationsAvailable ? "AI LIVE" : "EVIDENCE", "Explain", true);
-        tile("08", "GEO", "N/A", null, false);
+        boolean geography = available(ActionType.ETF_GEOGRAPHIC_EXPOSURE);
+        tile("08", "GEO", state(geography), "Research", geography);
         tile("09", "PORT", positions + " POS", "Portfolio", true);
         tile("10", "MON", symbols + " SYM", "Watchlist", true);
         tile("11", "EXPOSURE", state(available(ActionType.PORTFOLIO_EXPOSURE)), "Portfolio",

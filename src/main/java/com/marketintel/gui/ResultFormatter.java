@@ -102,6 +102,18 @@ public final class ResultFormatter {
     }
 
     public static String sectorExposure(ToolResult result) {
+        return exposure(
+                result,
+                "ETF SECTOR EXPOSURE",
+                "Weights are the provider allocation, shown as percentages."
+        );
+    }
+
+    public static String geographicExposure(ToolResult result) {
+        return exposure(result, "ETF COUNTRY EXPOSURE", null);
+    }
+
+    private static String exposure(ToolResult result, String title, String fallbackNote) {
         if (!result.isSuccess()) {
             return error(result.getErrorMessage());
         }
@@ -110,11 +122,11 @@ public final class ResultFormatter {
         }
 
         StringBuilder text = new StringBuilder();
-        text.append(section("ETF SECTOR EXPOSURE"));
+        text.append(section(title));
         text.append(row("Symbol", exposure.getSymbol()));
 
         if (exposure.getCategories().isEmpty()) {
-            text.append("No sector weights were returned.\n");
+            text.append("No weights were returned.\n");
             return text.toString();
         }
 
@@ -129,7 +141,13 @@ public final class ResultFormatter {
                         bar(entry.getValue())
                 )));
 
-        text.append("\nWeights are the provider allocation, shown as percentages.\n");
+        String note = exposure.getNote();
+        if (note == null || note.isBlank()) {
+            note = fallbackNote;
+        }
+        if (note != null && !note.isBlank()) {
+            text.append("\n").append(note).append("\n");
+        }
         return text.toString();
     }
 

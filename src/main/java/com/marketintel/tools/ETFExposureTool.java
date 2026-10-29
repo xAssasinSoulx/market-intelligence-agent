@@ -6,10 +6,14 @@ import com.marketintel.model.ToolRequest;
 import com.marketintel.model.ToolResult;
 import com.marketintel.model.ValidationResult;
 
+import com.marketintel.providers.CountryExposureSource;
 import com.marketintel.providers.ETFDataProvider;
+import com.marketintel.providers.HeadquartersLookup;
 import com.marketintel.providers.MarketDataException;
+import com.marketintel.providers.ProviderText;
 
 import com.marketintel.services.ExposureCalculator;
+import com.marketintel.services.HoldingCountryResolver;
 import com.marketintel.services.RequestValidator;
 
 public class ETFExposureTool
@@ -18,11 +22,48 @@ public class ETFExposureTool
     private final ETFDataProvider provider;
     private final ExposureCalculator calculator;
     private final RequestValidator validator;
+    private final CountryExposureSource countryExposure;
+    private final boolean sectorAvailable;
+    private final HeadquartersLookup headquartersLookup;
 
     public ETFExposureTool(
             ETFDataProvider provider,
             ExposureCalculator calculator,
             RequestValidator validator) {
+
+        this(provider, calculator, validator, null, true, null);
+    }
+
+    /**
+     * @param countryExposure fund-level country weights, or null when that
+     *                        feed is not configured
+     * @param sectorAvailable true when the ETF profile provider can serve
+     *                        sector weights
+     */
+    public ETFExposureTool(
+            ETFDataProvider provider,
+            ExposureCalculator calculator,
+            RequestValidator validator,
+            CountryExposureSource countryExposure,
+            boolean sectorAvailable) {
+
+        this(
+                provider,
+                calculator,
+                validator,
+                countryExposure,
+                sectorAvailable,
+                null
+        );
+    }
+
+    public ETFExposureTool(
+            ETFDataProvider provider,
+            ExposureCalculator calculator,
+            RequestValidator validator,
+            CountryExposureSource countryExposure,
+            boolean sectorAvailable,
+            HeadquartersLookup headquartersLookup) {
 
         if (provider == null) {
             throw new IllegalArgumentException(
@@ -45,6 +86,9 @@ public class ETFExposureTool
         this.provider = provider;
         this.calculator = calculator;
         this.validator = validator;
+        this.countryExposure = countryExposure;
+        this.sectorAvailable = sectorAvailable;
+        this.headquartersLookup = headquartersLookup;
     }
 
     @Override
@@ -56,8 +100,12 @@ public class ETFExposureTool
     public boolean supports(
             ActionType action) {
 
-        return action
-                == ActionType.ETF_SECTOR_EXPOSURE;
+        if (action == ActionType.ETF_SECTOR_EXPOSURE) {
+            return sectorAvailable;
+        }
+
+        return action == ActionType.ETF_GEOGRAPHIC_EXPOSURE
+                && (countryExposure != null || sectorAvailable);
     }
 
     @Override
@@ -109,6 +157,12 @@ public class ETFExposureTool
 
         try {
 
+            if (request.getAction()
+                    == ActionType.ETF_GEOGRAPHIC_EXPOSURE) {
+
+                return geographic(normalizedSymbol);
+            }
+
             ETFProfile profile =
                     provider.getProfile(
                             normalizedSymbol
@@ -133,5 +187,44 @@ public class ETFExposureTool
                     e.getMessage()
             );
         }
+    }
+
+    private ToolResult geographic(String symbol) {
+
+        if (countryExposure != null) {
+            try {
+                return ToolResult.success(
+                        calculator.calculateReportedCountryExposure(
+                                symbol,
+                                countryExposure.getCountryExposure(symbol)
+                        )
+                );
+            } catch (MarketDataException fundReport) {
+                if (headquartersLookup == null || !sectorAvailable) {
+                    throw fundReport;
+                }
+                try {
+                    return holdingsGeography(symbol);
+                } catch (RuntimeException fallback) {
+                    return ToolResult.failure(ProviderText.redact(
+                            fundReport.getMessage() + " " + fallback.getMessage()
+                    ));
+                }
+            }
+        }
+
+        return holdingsGeography(symbol);
+    }
+
+    private ToolResult holdingsGeography(String symbol) {
+        ETFProfile profile = provider.getProfile(symbol);
+        String note = null;
+        if (headquartersLookup != null) {
+            profile = new HoldingCountryResolver().apply(profile, headquartersLookup);
+            note = HoldingCountryResolver.NOTE;
+        }
+        return ToolResult.success(
+                calculator.calculateGeographicExposure(profile, note)
+        );
     }
 }

@@ -18,8 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Quote, overview, comparison, sector exposure, overlap, and news.
- * Geographic exposure stays disabled until a real calculator is connected.
+ * Quote, overview, comparison, sector and country exposure, overlap, and news.
  */
 public final class MarketResearchPanel extends JPanel {
 
@@ -59,20 +58,14 @@ public final class MarketResearchPanel extends JPanel {
         addButton(form, "DES", false, this::runOverview);
         addButton(form, "CMP", false, this::runCompare);
         addButton(form, "SEC", false, this::runSector);
+        addButton(form, "GEO", false, this::runGeography);
         addButton(form, "OVL", false, this::runOverlap);
         addButton(form, "NEWS", false, this::runNews);
-
-        JButton geography = UiTheme.button("GEO");
-        geography.setEnabled(false);
-        geography.setToolTipText(ResearchGateway.unavailableMessage(
-                ActionType.ETF_GEOGRAPHIC_EXPOSURE
-        ));
-        form.add(geography);
 
         results.setText(
                 "ENTER A SYMBOL, THEN PRESS A FUNCTION.\n"
                         + "CMP AND OVL USE BOTH SYMBOLS.\n"
-                        + "GEO IS UNAVAILABLE UNTIL COUNTRY EXPOSURE IS IMPLEMENTED.\n"
+                        + "GEO REPORTS COUNTRY WEIGHTS. IT DOES NOT GUESS A COUNTRY.\n"
                         + "OR TYPE QUOTE NVDA IN THE COMMAND LINE.\n"
         );
         JPanel header = new JPanel(new BorderLayout());
@@ -112,6 +105,11 @@ public final class MarketResearchPanel extends JPanel {
     public void loadSector(String symbol) {
         symbolField.setText(symbol);
         runSector();
+    }
+
+    public void loadGeography(String symbol) {
+        symbolField.setText(symbol);
+        runGeography();
     }
 
     public void loadOverlap(String first, String second) {
@@ -177,6 +175,17 @@ public final class MarketResearchPanel extends JPanel {
                 gateway.execute(
                         userId,
                         ActionType.ETF_SECTOR_EXPOSURE,
+                        Map.of("symbol", symbol)
+                )
+        ));
+    }
+
+    private void runGeography() {
+        String symbol = symbolField.getText();
+        runForCurrentUser("Loading country exposure...", userId -> ResultFormatter.geographicExposure(
+                gateway.execute(
+                        userId,
+                        ActionType.ETF_GEOGRAPHIC_EXPOSURE,
                         Map.of("symbol", symbol)
                 )
         ));
