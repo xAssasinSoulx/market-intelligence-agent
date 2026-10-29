@@ -17,11 +17,15 @@ import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -37,8 +41,11 @@ public final class DashboardPanel extends JPanel {
     private final boolean explanationsAvailable;
     private final Consumer<String> openSection;
     private final JLabel identity = UiTheme.fieldLabel("SIGN ON REQUIRED");
-    private final JTextArea book = UiTheme.resultArea();
-    private final JPanel board = new JPanel(new GridLayout(0, 3, 8, 8));
+    private final JLabel valueAmount = UiTheme.heading("—");
+    private final JLabel dayAmount = UiTheme.heading("—");
+    private final JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+    private final JLabel bookNote = UiTheme.text("", true);
+    private final JPanel board = new JPanel(new GridLayout(0, 4, 8, 8));
     private final JTextArea notes = UiTheme.resultArea();
     private int bookGeneration;
 
@@ -60,18 +67,32 @@ public final class DashboardPanel extends JPanel {
         setBorder(UiTheme.padding(10));
 
         board.setBackground(Color.BLACK);
-        book.setRows(7);
-        book.setText("PORTFOLIO STATUS APPEARS AFTER SIGN-ON.\n");
-        notes.setRows(4);
-        notes.setText("F1-F5 SWITCH SCREENS. COMMAND LINE: QUOTE NVDA, WHY NVDA, PORT, HELP.\n");
+        notes.setRows(2);
+        notes.setText("F1-F5 SWITCH SCREENS.  QUOTE NVDA, WHY NVDA, PORT, HELP.\n");
 
-        javax.swing.JScrollPane bookScroll = UiTheme.scroll(book);
-        bookScroll.setPreferredSize(new java.awt.Dimension(100, 148));
+        valueAmount.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 28));
+        dayAmount.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 22));
+        chips.setBackground(Color.BLACK);
+
+        JPanel figures = new JPanel(new GridLayout(1, 2, 16, 0));
+        figures.setBackground(Color.BLACK);
+        figures.add(figure("MARKET VALUE", valueAmount));
+        figures.add(figure("DAY", dayAmount));
+
+        JPanel bookPanel = new JPanel(new BorderLayout(0, 4));
+        bookPanel.setBackground(Color.BLACK);
+        bookPanel.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, UiTheme.BORDER),
+                UiTheme.padding(4)
+        ));
+        bookPanel.add(figures, BorderLayout.NORTH);
+        bookPanel.add(chips, BorderLayout.CENTER);
+        bookPanel.add(bookNote, BorderLayout.SOUTH);
 
         JPanel heading = new JPanel(new BorderLayout(0, 6));
         heading.setBackground(Color.BLACK);
         heading.add(identity, BorderLayout.NORTH);
-        heading.add(bookScroll, BorderLayout.CENTER);
+        heading.add(bookPanel, BorderLayout.CENTER);
 
         JPanel body = new JPanel(new BorderLayout(0, 8));
         body.setBackground(Color.BLACK);
@@ -79,7 +100,7 @@ public final class DashboardPanel extends JPanel {
         body.add(board, BorderLayout.CENTER);
 
         javax.swing.JScrollPane notesScroll = UiTheme.scroll(notes);
-        notesScroll.setPreferredSize(new java.awt.Dimension(100, 150));
+        notesScroll.setPreferredSize(new Dimension(100, 52));
 
         add(new UiTheme.JPanelBar("HOME", "SESSION MONITOR"), BorderLayout.NORTH);
         add(body, BorderLayout.CENTER);
@@ -91,7 +112,7 @@ public final class DashboardPanel extends JPanel {
         if (!workspace.isAuthenticated()) {
             bookGeneration++;
             identity.setText("SIGN ON REQUIRED");
-            book.setText("");
+            showBookMessage("SIGN ON TO SEE THE PORTFOLIO.");
             notes.setText("");
             board.revalidate();
             board.repaint();
@@ -135,11 +156,10 @@ public final class DashboardPanel extends JPanel {
         List<PortfolioPosition> positions = List.copyOf(workspace.portfolio().getPositions());
         int generation = ++bookGeneration;
         if (positions.isEmpty()) {
-            book.setText("NO OPEN POSITIONS.\nADD ONE WITH PORT ADD NVDA 10 STOCK.\n");
-            book.setCaretPosition(0);
+            showBookMessage("NO OPEN POSITIONS.  PORT ADD NVDA 10 STOCK.");
             return;
         }
-        book.setText("PRICING " + positions.size() + " POSITIONS...\n");
+        showBookMessage("PRICING " + positions.size() + " POSITIONS...");
         new SwingWorker<PortfolioBook, Void>() {
             @Override
             protected PortfolioBook doInBackground() {
@@ -163,57 +183,114 @@ public final class DashboardPanel extends JPanel {
                     return;
                 }
                 try {
-                    book.setText(formatBook(get()));
-                    book.setCaretPosition(0);
+                    showBook(get());
                 } catch (Exception exception) {
-                    book.setText("PORTFOLIO PRICES COULD NOT BE LOADED.\n");
+                    showBookMessage("PORTFOLIO PRICES COULD NOT BE LOADED.");
                 }
             }
         }.execute();
     }
 
-    private static String formatBook(PortfolioBook snapshot) {
-        StringBuilder text = new StringBuilder();
-        text.append("PORTFOLIO\n");
-        text.append(String.format(
-                "MARKET VALUE  %s     DAY  %s%n",
-                money(snapshot.marketValue()),
-                day(snapshot)
-        ));
-        text.append("\n");
-        if (snapshot.priced().isEmpty()) {
-            text.append("NO POSITION COULD BE PRICED.\n");
-        }
+    private void showBookMessage(String message) {
+        valueAmount.setText("—");
+        valueAmount.setForeground(UiTheme.MUTED);
+        dayAmount.setText("—");
+        dayAmount.setForeground(UiTheme.MUTED);
+        chips.removeAll();
+        bookNote.setText(message);
+        chips.revalidate();
+        chips.repaint();
+    }
+
+    private void showBook(PortfolioBook snapshot) {
+        valueAmount.setText(money(snapshot.marketValue()));
+        valueAmount.setForeground(UiTheme.TEXT);
+        dayAmount.setText(day(snapshot));
+        dayAmount.setForeground(tone(snapshot.dayChange()));
+        chips.removeAll();
         for (PortfolioBook.Row row : snapshot.priced()) {
-            text.append(String.format(
-                    "%-8s %8s  @ %10s  %8s  %12s%n",
-                    row.symbol(),
-                    plain(row.quantity()),
-                    money(row.price()),
-                    signed(row.percentChange()) + "%",
-                    money(row.marketValue())
-            ));
+            chips.add(chip(row));
         }
-        if (!snapshot.unpriced().isEmpty()) {
-            text.append("\nUNPRICED  ");
-            text.append(String.join("  ", snapshot.unpriced()));
-            text.append("\n");
+        for (String symbol : snapshot.unpriced()) {
+            chips.add(plainChip(symbol + "  UNPRICED"));
         }
-        text.append("\nValue is quantity times the latest price. Day is the move from the previous close.\n");
-        return text.toString();
+        bookNote.setText(snapshot.priced().isEmpty()
+                ? "NO POSITION COULD BE PRICED."
+                : "Quantity times the latest price. Day is the move from the previous close.");
+        chips.revalidate();
+        chips.repaint();
+    }
+
+    private JPanel figure(String caption, JLabel amount) {
+        JPanel panel = new JPanel(new GridLayout(2, 1));
+        panel.setBackground(Color.BLACK);
+        panel.add(UiTheme.fieldLabel(caption));
+        panel.add(amount);
+        return panel;
+    }
+
+    private JPanel chip(PortfolioBook.Row row) {
+        JPanel chip = plainChip(
+                row.symbol()
+                        + "   "
+                        + plain(row.quantity())
+                        + "   "
+                        + signed(row.percentChange())
+                        + "%   "
+                        + money(row.marketValue())
+        );
+        chip.setForeground(tone(row.percentChange()));
+        for (java.awt.Component child : chip.getComponents()) {
+            if (child instanceof JLabel label) {
+                label.setForeground(tone(row.percentChange()));
+            }
+        }
+        return chip;
+    }
+
+    private JPanel plainChip(String text) {
+        JPanel chip = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        chip.setBackground(new Color(0x120E04));
+        chip.setBorder(javax.swing.BorderFactory.createLineBorder(UiTheme.BORDER));
+        JLabel label = UiTheme.text(text);
+        chip.add(label);
+        return chip;
+    }
+
+    private static Color tone(BigDecimal value) {
+        return switch (value.signum()) {
+            case 1 -> UiTheme.SUCCESS;
+            case -1 -> UiTheme.DANGER;
+            default -> UiTheme.TEXT;
+        };
     }
 
     private static String day(PortfolioBook snapshot) {
-        String amount = signed(snapshot.dayChange());
+        String amount = signedMoney(snapshot.dayChange());
         BigDecimal percent = snapshot.dayPercent();
         if (percent == null) {
             return amount;
         }
-        return amount + "  (" + signed(percent) + "%)";
+        return amount + "   (" + signed(percent) + "%)";
+    }
+
+    private static String signedMoney(BigDecimal value) {
+        String text = money(value.abs());
+        if (value.signum() < 0) {
+            return "-" + text;
+        }
+        if (value.signum() > 0) {
+            return "+" + text;
+        }
+        return text;
     }
 
     private static String money(BigDecimal value) {
-        return value.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        NumberFormat format = NumberFormat.getNumberInstance(Locale.US);
+        format.setMinimumFractionDigits(2);
+        format.setMaximumFractionDigits(2);
+        format.setGroupingUsed(true);
+        return format.format(value);
     }
 
     private static String plain(BigDecimal value) {
@@ -222,7 +299,7 @@ public final class DashboardPanel extends JPanel {
 
     private static String signed(BigDecimal value) {
         String text = value.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        if (value.signum() > 0) {
+        if (value.signum() > 0 && !text.startsWith("+")) {
             return "+" + text;
         }
         return text;
@@ -241,7 +318,7 @@ public final class DashboardPanel extends JPanel {
             boolean enabled) {
 
         JPanel cell = new JPanel(new GridLayout(3, 1));
-        cell.setBackground(enabled ? new Color(0x120E04) : Color.BLACK);
+        cell.setPreferredSize(new Dimension(180, 84));
         cell.setBorder(javax.swing.BorderFactory.createCompoundBorder(
                 javax.swing.BorderFactory.createLineBorder(enabled ? UiTheme.ACCENT : UiTheme.BORDER),
                 UiTheme.padding(8)
