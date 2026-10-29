@@ -11,6 +11,39 @@ class RequestPlannerTest {
     private final RequestPlanner planner = new RequestPlanner();
 
     @Test
+    void usesAModelPlanWhenTheReplyNamesAnAllowedAction() {
+        RequestPlanner planned = new RequestPlanner(
+                prompt -> "{\"action\":\"ETF_GEOGRAPHIC_EXPOSURE\",\"symbol\":\"ITS\",\"secondSymbol\":null}"
+        );
+
+        AgentPlan plan = planned.createPlan("and the countries?", "IVV");
+
+        assertEquals(ActionType.ETF_GEOGRAPHIC_EXPOSURE, plan.action());
+        assertEquals("IVV", plan.symbol());
+    }
+
+    @Test
+    void fallsBackToKeywordsWhenTheModelReplyIsNotAPlan() {
+        RequestPlanner planned = new RequestPlanner(prompt -> "I think you should buy it.");
+
+        AgentPlan plan = planned.createPlan("Why did NVDA move?", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+        assertEquals("NVDA", plan.symbol());
+    }
+
+    @Test
+    void ignoresAModelActionThatIsNotAllowed() {
+        RequestPlanner planned = new RequestPlanner(
+                prompt -> "{\"action\":\"PORTFOLIO_ADD\",\"symbol\":\"NVDA\"}"
+        );
+
+        AgentPlan plan = planned.createPlan("Why did NVDA move?", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+    }
+
+    @Test
     void understandsACompanyNameAndEverydayWording() {
         AgentPlan doing = planner.createPlan("how is nvidia doing today?", null);
         AgentPlan falling = planner.createPlan("why is Apple falling?", null);

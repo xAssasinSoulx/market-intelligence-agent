@@ -304,14 +304,13 @@ public final class ApplicationContext {
         }
 
         MarketExplanationService marketExplanationService = null;
+        LLMProvider llmProvider = null;
 
         String geminiApiKey = System.getenv("GEMINI_API_KEY");
 
         if (geminiApiKey != null && !geminiApiKey.isBlank()) {
 
             String geminiModel = System.getenv("GEMINI_MODEL");
-
-            LLMProvider llmProvider;
 
             if (geminiModel == null || geminiModel.isBlank()) {
                 llmProvider = new GeminiLLMClient(geminiApiKey);
@@ -337,10 +336,11 @@ public final class ApplicationContext {
                 new SQLiteConversationRepository(databaseManager);
         AgentController followUp = new AgentController(
                 new ConversationMemory(conversationRepository),
-                new RequestPlanner(),
+                new RequestPlanner(llmProvider),
                 toolManager,
                 new ResponseComposer(),
-                marketExplanationService
+                marketExplanationService,
+                llmProvider
         );
 
         return new ApplicationContext(

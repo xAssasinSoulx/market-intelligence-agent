@@ -1,6 +1,9 @@
 package com.marketintel.agent;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketintel.model.ActionType;
+import com.marketintel.providers.LLMProvider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +19,20 @@ import java.util.regex.Pattern;
 public final class RequestPlanner {
 
     private static final Pattern TICKER = Pattern.compile("^[A-Z][A-Z0-9]{0,4}(?:\\.[A-Z]{1,2})?$");
+    private static final Set<ActionType> ALLOWED = Set.of(
+            ActionType.MARKET_QUOTE,
+            ActionType.SECURITY_OVERVIEW,
+            ActionType.ETF_SECTOR_EXPOSURE,
+            ActionType.ETF_GEOGRAPHIC_EXPOSURE,
+            ActionType.SECURITY_COMPARISON,
+            ActionType.ETF_OVERLAP,
+            ActionType.FINANCIAL_NEWS,
+            ActionType.MARKET_MOVEMENT,
+            ActionType.FINANCIAL_STATEMENTS,
+            ActionType.PRICE_HISTORY,
+            ActionType.NEWS_SENTIMENT,
+            ActionType.PORTFOLIO_EXPOSURE
+    );
     private static final Set<String> STOP = Set.of(
             "A", "AN", "AND", "ABOUT", "ASK", "THE", "ITS", "IT", "THAT", "THIS",
             "WHAT", "WHY", "HOW", "DID", "DOES", "DO", "MOVE", "MOVED", "MOVEMENT",
@@ -40,7 +57,41 @@ public final class RequestPlanner {
             "DROPPED", "WHATS", "HOWS", "WHYS", "DONT", "DOESNT"
     );
 
+    private final LLMProvider languageModel;
+    private final PromptBuilder prompts;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    public RequestPlanner() {
+        this(null);
+    }
+
+    public RequestPlanner(LLMProvider languageModel) {
+        this.languageModel = languageModel;
+        this.prompts = new PromptBuilder();
+    }
+
     public AgentPlan createPlan(String input, String previousSymbol) {
+        AgentPlan keywords = keywordPlan(input, previousSymbol);
+        if (languageModel == null || input == null || input.isBlank()) {
+            return keywords;
+        }
+        if (keywords.kind() == AgentPlan.Kind.UNSUPPORTED
+                && keywords.message() != null
+                && keywords.message().contains("not run as a command")) {
+            return keywords;
+        }
+        try {
+            AgentPlan interpreted = interpret(
+                    languageModel.generate(prompts.planPrompt(input, previousSymbol)),
+                    previousSymbol
+            );
+            return interpreted == null ? keywords : interpreted;
+        } catch (RuntimeException exception) {
+            return keywords;
+        }
+    }
+
+    public AgentPlan keywordPlan(String input, String previousSymbol) {
         if (input == null || input.isBlank()) {
             return AgentPlan.clarify("Ask a question, such as why NVDA moved or what its sector exposure is.");
         }
@@ -95,6 +146,81 @@ public final class RequestPlanner {
             return AgentPlan.clarify("Which symbol? There is no earlier symbol to use.");
         }
         return AgentPlan.run(action, symbol, null);
+    }
+
+    private AgentPlan interpret(String raw, String previousSymbol) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        int start = raw.indexOf('{');
+        int end = raw.lastIndexOf('}');
+        if (start < 0 || end <= start) {
+            return null;
+        }
+        JsonNode node;
+        try {
+            node = mapper.readTree(raw.substring(start, end + 1));
+        } catch (Exception exception) {
+            return null;
+        }
+        String actionName = node.path("action").asText("").trim().toUpperCase(Locale.ROOT);
+        String message = clip(node.path("message").asText(""));
+        if ("CLARIFY".equals(actionName)) {
+            return AgentPlan.clarify(message.isBlank() ? "Which symbol should I use?" : message);
+        }
+        if ("UNSUPPORTED".equals(actionName)) {
+            return AgentPlan.unsupported(message.isBlank()
+                    ? "I can only answer market questions about a symbol."
+                    : message);
+        }
+        ActionType action;
+        try {
+            action = ActionType.valueOf(actionName);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+        if (!ALLOWED.contains(action)) {
+            return null;
+        }
+        String prior = previousSymbol == null ? null : previousSymbol.trim().toUpperCase(Locale.ROOT);
+        String symbol = resolveSymbol(node.path("symbol").asText(""), prior);
+        String second = resolveSymbol(node.path("secondSymbol").asText(""), null);
+        if (action == ActionType.PORTFOLIO_EXPOSURE) {
+            return AgentPlan.run(action, null, null);
+        }
+        if (needsTwo(action)) {
+            if (symbol == null || second == null) {
+                return AgentPlan.clarify("Name two symbols to " + label(action) + ".");
+            }
+            return AgentPlan.run(action, symbol, second);
+        }
+        if (symbol == null) {
+            return AgentPlan.clarify("Which symbol? There is no earlier symbol to use.");
+        }
+        return AgentPlan.run(action, symbol, null);
+    }
+
+    private static String resolveSymbol(String raw, String previous) {
+        if (raw == null || raw.isBlank() || raw.equalsIgnoreCase("null")) {
+            return previous;
+        }
+        String token = raw.trim().toUpperCase(Locale.ROOT);
+        if (token.equals("IT") || token.equals("ITS") || token.equals("THAT")
+                || token.equals("THIS") || token.equals("PREVIOUS") || token.equals("SAME")) {
+            return previous;
+        }
+        if (!TICKER.matcher(token).matches()) {
+            return null;
+        }
+        return token;
+    }
+
+    private static String clip(String text) {
+        if (text == null) {
+            return "";
+        }
+        String trimmed = text.trim();
+        return trimmed.length() <= 300 ? trimmed : trimmed.substring(0, 300);
     }
 
     private static AgentPlan twoSymbols(

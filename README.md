@@ -141,7 +141,7 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | `/history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
 | `/sentiment` | Latest SentiSense score. The label is this desk's band for that score |
 | `/why` | Quote, news, and a Gemini explanation grounded in that evidence |
-| `/ask` | Follow-up. A pronoun such as "its" uses the last symbol stored for this user |
+| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini chooses an allowed action and writes the reply from the tool result. Without it, a keyword reading is used. A pronoun such as "its" uses the last symbol stored for this user |
 | `/portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 
 ## Window

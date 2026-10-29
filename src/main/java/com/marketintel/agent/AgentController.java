@@ -6,6 +6,7 @@ import com.marketintel.model.MarketMovementContext;
 import com.marketintel.model.ToolRequest;
 import com.marketintel.model.ToolResult;
 import com.marketintel.providers.LLMException;
+import com.marketintel.providers.LLMProvider;
 import com.marketintel.services.ConversationMemory;
 import com.marketintel.services.MarketExplanationService;
 
@@ -24,6 +25,8 @@ public final class AgentController {
     private final ToolManager tools;
     private final ResponseComposer composer;
     private final MarketExplanationService explanations;
+    private final LLMProvider languageModel;
+    private final PromptBuilder prompts = new PromptBuilder();
 
     public AgentController(
             ConversationMemory memory,
@@ -31,6 +34,17 @@ public final class AgentController {
             ToolManager tools,
             ResponseComposer composer,
             MarketExplanationService explanations) {
+
+        this(memory, planner, tools, composer, explanations, null);
+    }
+
+    public AgentController(
+            ConversationMemory memory,
+            RequestPlanner planner,
+            ToolManager tools,
+            ResponseComposer composer,
+            MarketExplanationService explanations,
+            LLMProvider languageModel) {
 
         if (memory == null || planner == null || tools == null || composer == null) {
             throw new IllegalArgumentException("Follow-up dependencies cannot be null.");
@@ -40,6 +54,7 @@ public final class AgentController {
         this.tools = tools;
         this.composer = composer;
         this.explanations = explanations;
+        this.languageModel = languageModel;
     }
 
     public String handle(long userId, String input) {
@@ -51,7 +66,7 @@ public final class AgentController {
 
         String reply = switch (plan.kind()) {
             case CLARIFY, UNSUPPORTED -> composer.composeMessage(plan.message());
-            case RUN -> run(userId, plan);
+            case RUN -> run(userId, input, plan);
         };
         memory.remember(userId, "assistant", reply, symbol, actionName);
         return reply;
@@ -75,12 +90,26 @@ public final class AgentController {
         );
     }
 
-    private String run(long userId, AgentPlan plan) {
+    private String run(long userId, String question, AgentPlan plan) {
         if (plan.action() == ActionType.MARKET_MOVEMENT) {
             return movement(userId, plan);
         }
         ToolResult result = tools.execute(new ToolRequest(userId, plan.action(), arguments(plan)));
-        return composer.compose(plan, result);
+        String evidence = composer.compose(plan, result);
+        if (!result.isSuccess()
+                || languageModel == null
+                || plan.action() == ActionType.PORTFOLIO_EXPOSURE) {
+            return evidence;
+        }
+        try {
+            String spoken = languageModel.generate(prompts.answerPrompt(question, plan, evidence));
+            if (spoken == null || spoken.isBlank()) {
+                return evidence;
+            }
+            return spoken.trim() + "\n\n" + evidence;
+        } catch (RuntimeException exception) {
+            return evidence;
+        }
     }
 
     private String movement(long userId, AgentPlan plan) {
