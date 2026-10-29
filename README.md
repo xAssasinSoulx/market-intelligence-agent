@@ -85,14 +85,14 @@ HELP
 LOGOUT
 ```
 
-`GEO` and `EXPOSURE` are recognized and report that those calculations are not implemented. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
+`GEO` is recognized and reports that country exposure is not implemented. `EXPOSURE` values the signed-in portfolio at quantity times the latest price. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
 
 ## Current limits
 
 - ETF geographic exposure is not implemented.
-- Portfolio exposure is not implemented. A position quantity is a share count, not a market value.
+- Portfolio exposure uses the latest quote, keeps currencies in separate books, and reports ETF holdings as look-through. A position with no price is excluded and named. Non-US listings are not priced on Finnhub's free plan.
 - Contextual follow-up questions are not implemented. `AgentController`, `RequestPlanner`, `PromptBuilder`, and `ResponseComposer` are still empty.
-- Provider data can be delayed, incomplete, or rate-limited. News matches are filtered, but a ticker mention is not proof that an article caused a price move. The quote does not include a trading-session timestamp.
+- Provider data can be delayed, incomplete, or rate-limited. News matches are filtered, but a ticker mention is not proof that an article caused a price move. Finnhub quotes carry a last-trade time, and articles published after it are marked. Alpha Vantage quotes carry no trade time, and the screens then say so.
 - Explanations are not investment advice.
 
 ## Layout

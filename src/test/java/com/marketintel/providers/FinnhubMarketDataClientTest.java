@@ -8,6 +8,7 @@ import com.marketintel.model.SecurityOverview;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -32,6 +33,21 @@ class FinnhubMarketDataClientTest {
         assertDecimal("343.83", quote.getPrice());
         assertDecimal("347.1", quote.getPreviousClose());
         assertDecimal("-0.9421", quote.getPercentChange());
+        assertEquals(
+                Instant.parse("2025-10-28T20:00:00Z"),
+                quote.getLastTradeAt().orElseThrow()
+        );
+    }
+
+    @Test
+    void leavesTheLastTradeTimeEmptyWhenFinnhubSendsZero() throws Exception {
+        JsonNode root = mapper.readTree("""
+                {"c": 110, "pc": 100, "t": 0}
+                """);
+
+        MarketQuote quote = client.parseQuote("TEST", root);
+
+        assertTrue(quote.getLastTradeAt().isEmpty());
     }
 
     @Test

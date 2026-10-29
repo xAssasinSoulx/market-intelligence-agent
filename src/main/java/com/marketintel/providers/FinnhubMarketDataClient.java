@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -101,11 +102,18 @@ public final class FinnhubMarketDataClient implements MarketDataProvider {
             percentChange = calculatePercentChange(price, previousClose);
         }
 
+        Instant lastTradeAt = null;
+        JsonNode timestamp = root.path("t");
+        if (timestamp.isNumber() && timestamp.asLong() > 0) {
+            lastTradeAt = Instant.ofEpochSecond(timestamp.asLong());
+        }
+
         return new MarketQuote(
                 symbol,
                 price,
                 previousClose,
-                percentChange.setScale(4, RoundingMode.HALF_UP)
+                percentChange.setScale(4, RoundingMode.HALF_UP),
+                lastTradeAt
         );
     }
 

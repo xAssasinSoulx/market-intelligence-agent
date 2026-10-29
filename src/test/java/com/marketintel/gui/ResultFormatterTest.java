@@ -74,11 +74,54 @@ class ResultFormatterTest {
                 MovementReport.explanationFailed(context, "model unavailable")
         );
 
-        assertTrue(text.contains("Trading session: unknown"));
+        assertTrue(text.contains("Last trade (UTC): unknown"));
         assertTrue(text.contains("https://example.com/story"));
         assertTrue(text.contains("model unavailable"));
         assertTrue(text.contains("not investment advice"));
         assertFalse(text.contains("Error:"));
+    }
+
+    @Test
+    void showsTheLastTradeTimeAndMarksLaterArticles() {
+        MarketMovementContext context = new MarketMovementContext(
+                new MarketQuote(
+                        "AAPL",
+                        new BigDecimal("343.83"),
+                        new BigDecimal("347.10"),
+                        new BigDecimal("-0.9421"),
+                        Instant.parse("2026-10-28T20:00:00Z")
+                ),
+                List.of(
+                        new NewsArticle(
+                                "Before the close",
+                                "https://example.com/before",
+                                "Wire",
+                                "2026-10-28T18:37:53.000000Z",
+                                null,
+                                null,
+                                null
+                        ),
+                        new NewsArticle(
+                                "After the close",
+                                "https://example.com/after",
+                                "Wire",
+                                "2026-10-28T21:30:00.000000Z",
+                                null,
+                                null,
+                                null
+                        )
+                ),
+                Instant.parse("2026-10-29T02:19:53Z"),
+                null
+        );
+
+        String text = ResultFormatter.movement(
+                MovementReport.explained(context, "Evidence is limited. [1]")
+        );
+
+        assertTrue(text.contains("Last trade (UTC): 2026-10-28 20:00 UTC"));
+        assertTrue(text.contains("2026-10-28T21:30:00.000000Z  (after the last trade)"));
+        assertFalse(text.contains("2026-10-28T18:37:53.000000Z  (after the last trade)"));
     }
 
     @Test

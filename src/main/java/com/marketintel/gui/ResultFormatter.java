@@ -11,6 +11,7 @@ import com.marketintel.model.PortfolioExposureResult;
 import com.marketintel.model.SecurityComparisonResult;
 import com.marketintel.model.SecurityOverview;
 import com.marketintel.model.ToolResult;
+import com.marketintel.services.NewsTiming;
 import com.marketintel.services.PortfolioExposureReport;
 
 import java.math.BigDecimal;
@@ -38,7 +39,11 @@ public final class ResultFormatter {
                 + row("Symbol", quote.getSymbol())
                 + row("Price", plain(quote.getPrice()))
                 + row("Previous close", plain(quote.getPreviousClose()))
-                + row("Change", change(quote.getPercentChange()));
+                + row("Change", change(quote.getPercentChange()))
+                + row(
+                "Last trade (UTC)",
+                quote.getLastTradeAt().map(NewsTiming::formatUtc).orElse("not reported")
+        );
     }
 
     public static String overview(ToolResult result) {
@@ -217,10 +222,18 @@ public final class ResultFormatter {
         text.append(row("Previous close", plain(quote.getPreviousClose())));
         text.append(row("Change", change(quote.getPercentChange())));
         text.append(row("Retrieved (UTC)", context.getRetrievedAt().toString()));
-        text.append(row("Trading session", "unknown"));
+        text.append(row(
+                "Last trade (UTC)",
+                quote.getLastTradeAt().map(NewsTiming::formatUtc).orElse("unknown")
+        ));
         text.append("\n");
-        text.append("The retrieval time is not the trading-session time. ");
-        text.append("News may have been published after the price movement. ");
+        text.append("The retrieval time is not the trading time. ");
+        if (quote.getLastTradeAt().isPresent()) {
+            text.append("The last-trade time comes from the quote provider. ");
+            text.append("Articles marked below came out after it and cannot have caused this move. ");
+        } else {
+            text.append("This provider did not report a last-trade time, so news may have been published after the price movement. ");
+        }
         text.append("This view does not establish causation and is not investment advice.\n");
 
         if (context.getNewsWarning() != null && !context.getNewsWarning().isBlank()) {
@@ -236,7 +249,13 @@ public final class ResultFormatter {
                 text.append("[").append(index).append("] ")
                         .append(article.getTitle()).append("\n");
                 text.append(row("Source", article.getSource()));
-                text.append(row("Published", article.getPublishedAt()));
+                text.append(row(
+                        "Published",
+                        article.getPublishedAt()
+                                + (NewsTiming.publishedAfterLastTrade(article, quote)
+                                ? "  (after the last trade)"
+                                : "")
+                ));
                 text.append(row("URL", article.getUrl()));
                 index++;
             }

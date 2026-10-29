@@ -26,6 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import com.marketintel.model.MarketMovementContext;
 
+import com.marketintel.services.NewsTiming;
 import com.marketintel.services.PortfolioExposureReport;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
@@ -1796,15 +1797,35 @@ public class TerminalUI
                 context.getRetrievedAt().toString()
         );
 
+        TerminalComponents.row(
+                "LAST TRADE UTC",
+                quote.getLastTradeAt()
+                        .map(NewsTiming::formatUtc)
+                        .orElse("Not reported by provider")
+        );
+
         TerminalComponents.separator();
 
-        TerminalComponents.wrappedRow(
-                "IMPORTANT",
-                "The quote does not include its trading-session "
-                        + "timestamp. News may have been published "
-                        + "after the price movement. A causal "
-                        + "relationship has not been established."
-        );
+        if (quote.getLastTradeAt().isPresent()) {
+
+            TerminalComponents.wrappedRow(
+                    "IMPORTANT",
+                    "The last-trade time comes from the quote provider. "
+                            + "Articles marked AFTER TRADE came out later "
+                            + "and cannot have caused this move. A causal "
+                            + "relationship has not been established."
+            );
+
+        } else {
+
+            TerminalComponents.wrappedRow(
+                    "IMPORTANT",
+                    "The quote does not include its trading-session "
+                            + "timestamp. News may have been published "
+                            + "after the price movement. A causal "
+                            + "relationship has not been established."
+            );
+        }
 
         TerminalComponents.endSection();
 
@@ -1847,6 +1868,9 @@ public class TerminalUI
                         formatNewsTimestamp(
                                 article.getPublishedAt()
                         )
+                                + (NewsTiming.publishedAfterLastTrade(article, quote)
+                                ? "  AFTER TRADE"
+                                : "")
                 );
 
                 index++;
