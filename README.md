@@ -1,54 +1,50 @@
 # Market Intelligence Agent
 
-A Java 21 terminal application for multi-user financial research, developed for EECS3311 Software Design. It combines deterministic tools, Alpha Vantage data, and SQLite persistence. Natural-language and LLM integration remain future work.
+A Java 21 application for multi-user market research, built for EECS 3311. The same SQLite accounts, portfolios, watchlists, and tool services back both a terminal interface and a Swing window. Quotes, ETF data, news, and Gemini explanations come from live providers when the matching environment variables are set.
 
-## Current status
+## Requirements
 
-Source reviewed at [`f7a1dae`](https://github.com/xAssasinSoulx/market-intelligence-agent/commit/f7a1dae55ba8b80c8eb222587b424c70b173456e) (October 2, 2026 UTC). Recent commits add ETF tools, terminal layout improvements, security comparison, financial news, and ticker relevance filtering.
-
-**Build blocker:** `Main.java` imports `com.marketintel.services.PortfolioService`, but the class declares `com.marketintel.persistence`. `PortfolioServiceTest` also references the services package without importing the persistence class. Resolve these references before building.
-
-“Implemented” means the source contains the feature and terminal integration; it does not certify a passing build or successful live API calls.
-
-| Capability | Status | Current scope |
-| --- | --- | --- |
-| Multi-user registration and authentication | Implemented | SQLite users, BCrypt passwords, login/logout sessions. |
-| Persistent portfolios and watchlists | Implemented | Per-user view, add, and remove operations stored in SQLite. |
-| Market quote retrieval | Implemented | `/quote`; Alpha Vantage quotes and price changes. |
-| Security information retrieval | Implemented | `/overview`; provider-supplied security information. |
-| ETF sector and geographic exposure | Partial | `/sector` displays sector weights; geographic exposure is missing. |
-| ETF holding overlap | Implemented | `/overlap`; shared holdings and sum of the smaller weight for each shared symbol. |
-| Security comparison | Implemented | `/compare`; two quotes and difference in percentage change. |
-| Financial news retrieval | Implemented | `/news`; article metadata, summaries, and ticker sentiment, filtered for an explicit matching ticker in provider metadata. |
-| Market-movement explanations | Missing | Quotes and news exist, but no explanation workflow. |
-| Portfolio exposure analysis | Missing | Positions persist, but no portfolio-wide exposure calculation or command. |
-| Persistent conversation history | Missing | No conversation repository or database table. |
-| Context-aware follow-up questions | Missing | Agent orchestration classes are empty; natural-language input is not connected. |
-| Bloomberg-inspired terminal interface | Implemented | Styled headers, tables, sections, authentication screens, and command views. |
-
-## Setup
-
-Requires JDK 21, Maven, and an Alpha Vantage API key for external-data commands. After resolving the build blocker:
+- JDK 21
+- The included Maven wrapper (`./mvnw`)
+- Optional API keys, exported in the shell. See `.env.example` for names only. Do not commit real keys.
 
 ```bash
-export ALPHA_VANTAGE_API_KEY="your-key"
-mvn test
-mvn compile exec:java
+export ALPHA_VANTAGE_API_KEY="your-alpha-vantage-key"
+export MARKETAUX_API_TOKEN="your-marketaux-token"
+export GEMINI_API_KEY="your-gemini-key"
+# optional
+export GEMINI_MODEL="gemini-2.0-flash"
+export MI_SCROLLBACK=1
 ```
 
-The application creates `data/market-intelligence.db`. Without an API key, local account, portfolio, and watchlist functionality remains available, but external-data tools are not registered. Provider limits, endpoint access, and data availability apply; quotes are not guaranteed to be real-time. ETF overlap reflects only returned holdings. News filtering checks ticker metadata, not semantic relevance.
+`MI_SCROLLBACK=1` keeps terminal history instead of clearing the screen. The application reads environment variables directly. It does not load a `.env` file.
 
-## Commands
+## Run
+
+Tests do not call live APIs. The Gemini smoke test runs only when `RUN_GEMINI_LIVE_TEST=1` and `GEMINI_API_KEY` are both set.
+
+```bash
+./mvnw clean test
+./mvnw compile exec:java -Dexec.args="--cli"
+./mvnw compile exec:java -Dexec.args="--gui"
+```
+
+With no arguments, the process starts the command-line interface. The window does not need an interactive terminal after launch. Both interfaces use `data/market-intelligence.db`.
+
+Without `ALPHA_VANTAGE_API_KEY`, quote, overview, comparison, sector, and overlap actions are unavailable. Without `MARKETAUX_API_TOKEN`, news is unavailable. Movement analysis needs both. Without `GEMINI_API_KEY`, movement analysis can still show the quote and news, and it says that the explanation is unavailable.
+
+## Command-line actions
 
 ```text
 /help
 /whoami
 /quote NVDA
 /overview NVDA
+/compare NVDA MSFT
 /sector QQQ
 /overlap QQQ SPY
-/compare NVDA MSFT
 /news NVDA
+/why NVDA
 /portfolio
 /portfolio add NVDA 10 STOCK
 /portfolio remove NVDA
@@ -59,16 +55,28 @@ The application creates `data/market-intelligence.db`. Without an API key, local
 /exit
 ```
 
-Portfolio asset types: `STOCK`, `ETF`, `OTHER`.
+Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 
-## Remaining work
+## Graphical window
 
-- Resolve the package references and verify the build and tests on Java 21.
-- Connect natural-language planning, prompt building, response composition, and an LLM provider.
-- Add persistent conversation history and context-aware follow-ups.
-- Implement geographic ETF exposure, portfolio-wide exposure, and market-movement explanations.
-- Reconcile Stage 1 design documents with implemented workflows.
+After login the window has five sections:
 
-## Technology and design
+- **Dashboard** shows the signed-in user, position and watchlist counts, and which providers are configured.
+- **Research** runs quote, overview, compare, sector exposure, overlap, and news through the existing tools. Geography is disabled because that calculation is not implemented.
+- **Portfolio** adds, removes, and lists positions stored for the signed-in user. Exposure analysis is disabled.
+- **Watchlist** adds, removes, and lists symbols for the signed-in user.
+- **Explain** runs the same evidence-then-Gemini flow as `/why SYMBOL`. Follow-up questions are disabled until conversation memory exists.
 
-Java 21, Maven, SQLite JDBC, BCrypt, Jackson, JUnit 5, and Alpha Vantage. Tests cover authentication, local data services, parsing, tool dispatch, providers, and calculations. Design materials are in [`docs/Stage1-Design.pdf`](docs/Stage1-Design.pdf), [`docs/uml`](docs/uml), and [`docs/Stage1-pdfs`](docs/Stage1-pdfs).
+Network and model calls run off the Swing event thread. Log out before another person uses the same window. Logging out clears the on-screen research text.
+
+## Current limits
+
+- ETF geographic exposure is not implemented.
+- Portfolio exposure is not implemented. A position quantity is a share count, not a market value.
+- Contextual follow-up questions are not implemented. `AgentController`, `RequestPlanner`, `PromptBuilder`, and `ResponseComposer` are still empty.
+- Provider data can be delayed, incomplete, or rate-limited. News matches are filtered, but a ticker mention is not proof that an article caused a price move. The quote does not include a trading-session timestamp.
+- Explanations are not investment advice.
+
+## Layout
+
+Java 21, Maven, SQLite JDBC, BCrypt, Jackson, and JUnit 5. Stage 1 diagrams are in `docs/uml` and `docs/Stage1-pdfs`. Stage 2 progress is tracked in `docs/stage2-progress.md` and `docs/stage2-feature-matrix.md`.

@@ -29,6 +29,9 @@ import com.marketintel.services.PortfolioService;
 import com.marketintel.services.WatchlistService;
 import com.marketintel.model.SecurityComparisonResult;
 
+import com.marketintel.providers.LLMException;
+import com.marketintel.services.MarketExplanationService;
+
 import java.io.Console;
 
 import java.math.BigDecimal;
@@ -52,9 +55,12 @@ public class TerminalUI
 
     private final ToolManager toolManager;
 
+    private final MarketExplanationService marketExplanationService;
+
     private final Scanner scanner;
 
     private boolean running = true;
+
 
     public TerminalUI(
             AuthService authService,
@@ -64,26 +70,43 @@ public class TerminalUI
             WatchlistService watchlistService,
             ToolManager toolManager) {
 
+        this(
+                authService,
+                sessionManager,
+                commandParser,
+                portfolioService,
+                watchlistService,
+                toolManager,
+                null
+        );
+    }
+
+    public TerminalUI(
+            AuthService authService,
+            SessionManager sessionManager,
+            CommandParser commandParser,
+            PortfolioService portfolioService,
+            WatchlistService watchlistService,
+            ToolManager toolManager,
+            MarketExplanationService marketExplanationService) {
+
         this.authService = authService;
 
-        this.sessionManager =
-                sessionManager;
+        this.sessionManager = sessionManager;
 
-        this.commandParser =
-                commandParser;
+        this.commandParser = commandParser;
 
-        this.portfolioService =
-                portfolioService;
+        this.portfolioService = portfolioService;
 
-        this.watchlistService =
-                watchlistService;
+        this.watchlistService = watchlistService;
 
-        this.toolManager =
-                toolManager;
+        this.toolManager = toolManager;
 
-        this.scanner =
-                new Scanner(System.in);
+        this.marketExplanationService = marketExplanationService;
+
+        this.scanner = new Scanner(System.in);
     }
+
 
     @Override
     public void start() {
@@ -1696,6 +1719,8 @@ public class TerminalUI
         }
 
         displayMarketMovementContext(context);
+
+        displayGeneratedExplanation(context);
     }
 
 
@@ -1794,17 +1819,12 @@ public class TerminalUI
         TerminalComponents.endSection();
 
         TerminalComponents.section(
-                "ANALYSIS STATUS"
+                "EVIDENCE STATUS"
         );
 
         TerminalComponents.row(
                 "STAGE",
                 "Evidence gathering complete"
-        );
-
-        TerminalComponents.row(
-                "EXPLANATION",
-                "LLM integration pending"
         );
 
         if (context.getNewsWarning() != null) {
@@ -1817,6 +1837,146 @@ public class TerminalUI
 
         TerminalComponents.endSection();
     }
+
+
+// ========================================================
+// AI-Generated Market Explanation
+// ========================================================
+
+    private void displayGeneratedExplanation(
+            MarketMovementContext context) {
+
+        TerminalComponents.section(
+                "AI EXPLANATION • " + context.getSymbol()
+        );
+
+        if (marketExplanationService == null) {
+
+            TerminalComponents.wrappedRow(
+                    "STATUS",
+                    "Gemini is not configured. "
+                            + "The quote and news evidence "
+                            + "remain available above."
+            );
+
+            TerminalComponents.endSection();
+
+            displaySourceReferences(context);
+
+            return;
+        }
+
+        TerminalComponents.row(
+                "STATUS",
+                "Generating Gemini analysis..."
+        );
+
+        TerminalComponents.separator();
+
+        try {
+
+            String explanation =
+                    marketExplanationService.explain(context);
+
+            /*
+             * Keep the model's paragraph boundaries.
+             * The existing wrappedRow() method handles
+             * long sentences inside the terminal box.
+             */
+            String[] lines =
+                    explanation.split("\\R", -1);
+
+            for (String line : lines) {
+
+                if (line.isBlank()) {
+
+                    TerminalComponents.emptyRow();
+
+                } else {
+
+                    TerminalComponents.wrappedRow(
+                            "",
+                            line
+                    );
+                }
+            }
+
+        } catch (LLMException e) {
+
+            TerminalComponents.wrappedRow(
+                    "ERROR",
+                    "AI explanation unavailable: "
+                            + e.getMessage()
+            );
+
+            TerminalComponents.wrappedRow(
+                    "FALLBACK",
+                    "The market quote and news evidence "
+                            + "above are still available."
+            );
+
+        } finally {
+
+            TerminalComponents.endSection();
+        }
+
+        displaySourceReferences(context);
+    }
+
+
+// ========================================================
+// Verified Source References
+// ========================================================
+
+    private void displaySourceReferences(
+            MarketMovementContext context) {
+
+        if (context.getArticles().isEmpty()) {
+            return;
+        }
+
+        TerminalComponents.section(
+                "SOURCE REFERENCES"
+        );
+
+        int index = 1;
+
+        for (NewsArticle article : context.getArticles()) {
+
+            TerminalComponents.wrappedRow(
+                    "[" + index + "]",
+                    article.getTitle()
+            );
+
+            index++;
+        }
+
+        TerminalComponents.endSection();
+
+        /*
+         * Print complete URLs outside the narrow terminal
+         * box so users can copy or open them.
+         */
+        System.out.println();
+
+        System.out.println(
+                TerminalTheme.dim("Full source URLs:")
+        );
+
+        for (int i = 0;
+             i < context.getArticles().size();
+             i++) {
+
+            NewsArticle article =
+                    context.getArticles().get(i);
+
+            System.out.println(
+                    "[" + (i + 1) + "] "
+                            + article.getUrl()
+            );
+        }
+    }
+
 
 
     // ========================================================
@@ -2464,7 +2624,7 @@ public class TerminalUI
 
         TerminalComponents.row(
                 "/why SYMBOL",
-                "Gather movement evidence"
+                "AI market movement explanation"
         );
 
         TerminalComponents.endSection();
