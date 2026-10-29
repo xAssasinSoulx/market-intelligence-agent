@@ -58,6 +58,15 @@ class RequestPlannerTest {
     }
 
     @Test
+    void readsWhyDidMicrosoftFallAsAMoveInMicrosoft() {
+        AgentPlan plan = planner.createPlan("why did microsoft fall", null);
+
+        assertEquals(AgentPlan.Kind.RUN, plan.kind());
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+        assertEquals("MSFT", plan.symbol());
+    }
+
+    @Test
     void plansADirectMovementQuestion() {
         AgentPlan plan = planner.createPlan("Why did NVDA move?", null);
 
