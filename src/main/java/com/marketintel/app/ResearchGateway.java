@@ -113,8 +113,8 @@ public final class ResearchGateway {
                     "Geographic ETF exposure is not implemented. "
                             + "Sector exposure is available for one ETF.";
             case PORTFOLIO_EXPOSURE ->
-                    "Portfolio exposure analysis is not implemented. "
-                            + "Stored positions can still be viewed and edited.";
+                    "Portfolio exposure is unavailable. "
+                            + "Set ALPHA_VANTAGE_API_KEY and restart.";
             case MARKET_QUOTE, SECURITY_OVERVIEW ->
                     "Quotes and security overviews are unavailable. "
                             + "Set ALPHA_VANTAGE_API_KEY and restart.";

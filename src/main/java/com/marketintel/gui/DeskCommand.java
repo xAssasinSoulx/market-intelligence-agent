@@ -113,10 +113,7 @@ public final class DeskCommand {
                     Action.GEOGRAPHY,
                     "Geographic exposure is not implemented. SECTOR ETF is available."
             );
-            case "EXPOSURE" -> unavailable(
-                    Action.EXPOSURE,
-                    "Portfolio exposure is not implemented. PORT still lists positions."
-            );
+            case "EXPOSURE" -> navigate(Action.EXPOSURE);
             case "PORT", "PORTFOLIO" -> portfolio(args);
             case "WATCH", "MON", "WATCHLIST" -> watchlist(args);
             default -> new DeskCommand(
@@ -143,6 +140,7 @@ public final class DeskCommand {
                 OVERLAP ETF ETF                Shared holdings
                 NEWS SYMBOL                    Recent articles
                 WHY SYMBOL                     Evidence, then Gemini
+                EXPOSURE                       Portfolio sector weights
                 PORT ADD SYMBOL QTY TYPE       TYPE is STOCK, ETF, or OTHER
                 PORT REMOVE SYMBOL
                 WATCH ADD SYMBOL
@@ -150,7 +148,7 @@ public final class DeskCommand {
                 HELP
                 LOGOUT
 
-                GEO and EXPOSURE are recognized and report that they are not implemented.
+                GEO is recognized and reports that country exposure is not implemented.
                 A leading slash is accepted, as in /quote NVDA.
                 """;
     }
@@ -212,6 +210,7 @@ public final class DeskCommand {
                     1,
                     "Usage: PORT REMOVE SYMBOL"
             );
+            case "EXPOSURE" -> navigate(Action.EXPOSURE);
             default -> new DeskCommand(
                     Action.INVALID,
                     args,

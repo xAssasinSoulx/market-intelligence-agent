@@ -48,6 +48,7 @@ Without `ALPHA_VANTAGE_API_KEY`, quote, overview, comparison, sector, and overla
 /portfolio
 /portfolio add NVDA 10 STOCK
 /portfolio remove NVDA
+/portfolio exposure
 /watchlist
 /watchlist add NVDA
 /watchlist remove NVDA

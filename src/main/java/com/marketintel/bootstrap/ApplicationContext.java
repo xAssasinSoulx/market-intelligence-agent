@@ -23,10 +23,12 @@ import com.marketintel.providers.MarketauxNewsClient;
 import com.marketintel.providers.NewsProvider;
 import com.marketintel.services.ExposureCalculator;
 import com.marketintel.services.MarketExplanationService;
+import com.marketintel.services.PortfolioExposureCalculator;
 import com.marketintel.services.PortfolioService;
 import com.marketintel.services.RequestValidator;
 import com.marketintel.services.SecurityComparisonCalculator;
 import com.marketintel.services.WatchlistService;
+import com.marketintel.tools.PortfolioAnalysisTool;
 import com.marketintel.tools.ComparisonTool;
 import com.marketintel.tools.ETFExposureTool;
 import com.marketintel.tools.MarketDataTool;
@@ -154,6 +156,16 @@ public final class ApplicationContext {
                             marketDataProvider,
                             exposureCalculator,
                             securityComparisonCalculator,
+                            requestValidator
+                    )
+            );
+
+            toolManager.registerTool(
+                    new PortfolioAnalysisTool(
+                            portfolioService,
+                            marketDataProvider,
+                            etfDataProvider,
+                            new PortfolioExposureCalculator(),
                             requestValidator
                     )
             );
