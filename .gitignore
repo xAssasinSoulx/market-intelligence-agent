@@ -91,6 +91,7 @@ config.properties
 application-local.properties
 
 # Agent working notes stay outside this repository.
+EECS3311_Stage2_Cursor_Agent_Instructions.md
 docs/stage2-status.md
 docs/stage2-progress.md
 docs/stage2-commit-summary.md
