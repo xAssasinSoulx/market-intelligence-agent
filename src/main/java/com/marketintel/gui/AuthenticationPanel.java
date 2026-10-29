@@ -9,6 +9,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -28,8 +29,8 @@ public final class AuthenticationPanel extends JPanel {
     private final JTextField usernameField = UiTheme.textField(24);
     private final JPasswordField passwordField = UiTheme.passwordField(24);
     private final JPasswordField confirmField = UiTheme.passwordField(24);
-    private final JButton loginButton = UiTheme.button("Log in", true);
-    private final JButton registerButton = UiTheme.button("Create account");
+    private final JButton loginButton = UiTheme.button("LOGIN <GO>", true);
+    private final JButton registerButton = UiTheme.button("CREATE");
 
     public AuthenticationPanel(
             SessionWorkspace workspace,
@@ -41,30 +42,32 @@ public final class AuthenticationPanel extends JPanel {
         this.statusLabel = statusLabel;
 
         setLayout(new GridBagLayout());
-        setBackground(UiTheme.BACKGROUND);
-        setBorder(UiTheme.padding(32));
+        setBackground(Color.BLACK);
+        setBorder(UiTheme.padding(24));
 
         JPanel card = new JPanel(new GridBagLayout());
-        card.setBackground(UiTheme.CARD);
-        card.setBorder(UiTheme.padding(28));
+        card.setBackground(Color.BLACK);
+        card.setBorder(UiTheme.amberBox(22));
 
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.gridx = 0;
         constraints.gridy = 0;
         constraints.gridwidth = 2;
         constraints.anchor = GridBagConstraints.LINE_START;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.weightx = 1;
         constraints.insets = new Insets(0, 0, 8, 0);
-        card.add(UiTheme.heading("Market Intelligence"), constraints);
+        card.add(new UiTheme.JPanelBar("SIGN", "SECURE SIGN-ON"), constraints);
 
         constraints.gridy++;
         card.add(UiTheme.text(
-                "Sign in to the account stored in the local database.",
+                "LOCAL ACCOUNT  ·  PASSWORD IS MASKED",
                 true
         ), constraints);
 
         constraints.gridy++;
         constraints.insets = new Insets(18, 0, 4, 0);
-        card.add(UiTheme.text("Username"), constraints);
+        card.add(UiTheme.fieldLabel("USER"), constraints);
 
         constraints.gridy++;
         constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -73,7 +76,7 @@ public final class AuthenticationPanel extends JPanel {
 
         constraints.gridy++;
         constraints.fill = GridBagConstraints.NONE;
-        card.add(UiTheme.text("Password"), constraints);
+        card.add(UiTheme.fieldLabel("PASSWORD"), constraints);
 
         constraints.gridy++;
         constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -81,7 +84,7 @@ public final class AuthenticationPanel extends JPanel {
 
         constraints.gridy++;
         constraints.fill = GridBagConstraints.NONE;
-        card.add(UiTheme.text("Confirm password (create account only)", true), constraints);
+        card.add(UiTheme.fieldLabel("CONFIRM  ·  CREATE ONLY"), constraints);
 
         constraints.gridy++;
         constraints.fill = GridBagConstraints.HORIZONTAL;
@@ -102,8 +105,7 @@ public final class AuthenticationPanel extends JPanel {
         constraints.gridwidth = 2;
         constraints.insets = new Insets(16, 0, 0, 0);
         card.add(UiTheme.text(
-                "Usernames are 3–30 letters, digits, dots, underscores, or hyphens. "
-                        + "Passwords need at least 8 characters.",
+                "USER  3-30  LETTERS, DIGITS, . _ -     PASSWORD  8+ CHARACTERS",
                 true
         ), constraints);
 

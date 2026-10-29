@@ -59,15 +59,29 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 
 ## Graphical window
 
-After login the window has five sections:
+`./mvnw compile exec:java -Dexec.args="--gui"` opens an amber-on-black desk. It does not need an interactive terminal after launch. Sign on, then use the function keys or the command line at the bottom.
 
-- **Dashboard** shows the signed-in user, position and watchlist counts, and which providers are configured.
-- **Research** runs quote, overview, compare, sector exposure, overlap, and news through the existing tools. Geography is disabled because that calculation is not implemented.
-- **Portfolio** adds, removes, and lists positions stored for the signed-in user. Exposure analysis is disabled.
-- **Watchlist** adds, removes, and lists symbols for the signed-in user.
-- **Explain** runs the same evidence-then-Gemini flow as `/why SYMBOL`. Follow-up questions are disabled until conversation memory exists.
+Function keys: `F1` home, `F2` research, `F3` portfolio, `F4` watchlist, `F5` movement explanation. The same screens are labeled `1 HOME` through `5 WHY`.
 
-Network and model calls run off the Swing event thread. Log out before another person uses the same window. Logging out clears the on-screen research text.
+The command line accepts the same verbs as the terminal, with or without a leading slash:
+
+```text
+QUOTE NVDA
+OVERVIEW NVDA
+COMPARE NVDA MSFT
+SECTOR QQQ
+OVERLAP QQQ SPY
+NEWS NVDA
+WHY NVDA
+PORT
+PORT ADD NVDA 10 STOCK
+PORT REMOVE NVDA
+WATCH ADD NVDA
+HELP
+LOGOUT
+```
+
+`GEO` and `EXPOSURE` are recognized and report that those calculations are not implemented. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
 
 ## Current limits
 

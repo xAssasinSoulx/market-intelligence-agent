@@ -6,7 +6,10 @@ No video is attached. Record only after a person has seen each step succeed, and
 
 ## Launch
 
-- [ ] The window opens without typing in a terminal after the process starts.
+- [ ] The window opens in the amber-on-black desk without typing in a terminal after the process starts.
+- [ ] `F1` through `F5`, or the `1 HOME` through `5 WHY` keys, switch screens.
+- [ ] The command line runs `QUOTE NVDA`, `WHY NVDA`, `PORT ADD NVDA 2 STOCK`, and `HELP`.
+- [ ] `GEO` and `EXPOSURE` report that they are not implemented.
 - [ ] `./mvnw compile exec:java -Dexec.args="--cli"` still opens the terminal interface.
 - [ ] `./mvnw clean test` passes with no live keys.
 

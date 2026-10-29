@@ -11,6 +11,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,37 +41,45 @@ public final class MarketResearchPanel extends JPanel {
         this.gateway = gateway;
         this.statusLabel = statusLabel;
 
-        setLayout(new BorderLayout(0, 12));
-        setBackground(UiTheme.BACKGROUND);
-        setBorder(UiTheme.padding(20));
+        UiTheme.uppercase(symbolField);
+        UiTheme.uppercase(secondSymbolField);
+
+        setLayout(new BorderLayout(0, 8));
+        setBackground(Color.BLACK);
+        setBorder(UiTheme.padding(10));
 
         JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        form.setBackground(UiTheme.BACKGROUND);
-        form.add(UiTheme.text("Symbol"));
+        form.setBackground(Color.BLACK);
+        form.add(UiTheme.fieldLabel("SYMBOL"));
         form.add(symbolField);
-        form.add(UiTheme.text("Second symbol"));
+        form.add(UiTheme.fieldLabel("SYMBOL 2"));
         form.add(secondSymbolField);
 
-        addButton(form, "Quote", true, () -> runQuote());
-        addButton(form, "Overview", false, this::runOverview);
-        addButton(form, "Compare", false, this::runCompare);
-        addButton(form, "Sector", false, this::runSector);
-        addButton(form, "Overlap", false, this::runOverlap);
-        addButton(form, "News", false, this::runNews);
+        addButton(form, "QUOTE", true, this::runQuote);
+        addButton(form, "DES", false, this::runOverview);
+        addButton(form, "CMP", false, this::runCompare);
+        addButton(form, "SEC", false, this::runSector);
+        addButton(form, "OVL", false, this::runOverlap);
+        addButton(form, "NEWS", false, this::runNews);
 
-        JButton geography = UiTheme.button("Geography");
+        JButton geography = UiTheme.button("GEO");
         geography.setEnabled(false);
         geography.setToolTipText(ResearchGateway.unavailableMessage(
                 ActionType.ETF_GEOGRAPHIC_EXPOSURE
         ));
         form.add(geography);
 
-        add(form, BorderLayout.NORTH);
         results.setText(
-                "Enter a symbol, then choose an action.\n"
-                        + "Compare and overlap use both symbols.\n"
-                        + "Geography is unavailable until ETF country exposure is implemented.\n"
+                "ENTER A SYMBOL, THEN PRESS A FUNCTION.\n"
+                        + "CMP AND OVL USE BOTH SYMBOLS.\n"
+                        + "GEO IS UNAVAILABLE UNTIL COUNTRY EXPOSURE IS IMPLEMENTED.\n"
+                        + "OR TYPE QUOTE NVDA IN THE COMMAND LINE.\n"
         );
+        JPanel header = new JPanel(new BorderLayout());
+        header.setBackground(Color.BLACK);
+        header.add(new UiTheme.JPanelBar("DES", "MARKET RESEARCH"), BorderLayout.NORTH);
+        header.add(form, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
         add(UiTheme.scroll(results), BorderLayout.CENTER);
 
         controls.add(symbolField);
@@ -82,6 +91,38 @@ public final class MarketResearchPanel extends JPanel {
         symbolField.setText("");
         secondSymbolField.setText("");
         results.setText("");
+    }
+
+    public void loadQuote(String symbol) {
+        symbolField.setText(symbol);
+        runQuote();
+    }
+
+    public void loadOverview(String symbol) {
+        symbolField.setText(symbol);
+        runOverview();
+    }
+
+    public void loadComparison(String first, String second) {
+        symbolField.setText(first);
+        secondSymbolField.setText(second);
+        runCompare();
+    }
+
+    public void loadSector(String symbol) {
+        symbolField.setText(symbol);
+        runSector();
+    }
+
+    public void loadOverlap(String first, String second) {
+        symbolField.setText(first);
+        secondSymbolField.setText(second);
+        runOverlap();
+    }
+
+    public void loadNews(String symbol) {
+        symbolField.setText(symbol);
+        runNews();
     }
 
     private void addButton(

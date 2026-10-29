@@ -45,17 +45,17 @@ public final class BackgroundWork {
 
                 try {
                     String text = get();
-                    statusLabel.setText("Ready");
+                statusLabel.setText("READY");
                     onText.accept(text);
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
-                    statusLabel.setText("Interrupted");
+                    statusLabel.setText("INTERRUPTED");
                     onText.accept("The request was interrupted.");
                 } catch (ExecutionException execution) {
                     Throwable cause = execution.getCause() == null
                             ? execution
                             : execution.getCause();
-                    statusLabel.setText("Request failed");
+                    statusLabel.setText("REQUEST FAILED");
                     onText.accept("Error: " + safeMessage(cause));
                 }
             }
