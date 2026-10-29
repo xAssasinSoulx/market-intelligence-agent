@@ -15,6 +15,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.math.BigDecimal;
 
@@ -41,32 +42,33 @@ public final class PortfolioPanel extends JPanel {
     };
     private final JTable table = new JTable(tableModel);
     private final JLabel emptyLabel = UiTheme.text(
-            "No positions yet. Add a symbol, a quantity greater than zero, and an asset type.",
+            "NO POSITIONS. ADD A SYMBOL, A QUANTITY ABOVE ZERO, AND A TYPE.",
             true
     );
 
     public PortfolioPanel(SessionWorkspace workspace, JLabel statusLabel) {
         this.workspace = workspace;
         this.statusLabel = statusLabel;
+        UiTheme.uppercase(symbolField);
 
-        setLayout(new BorderLayout(0, 12));
-        setBackground(UiTheme.BACKGROUND);
-        setBorder(UiTheme.padding(20));
+        setLayout(new BorderLayout(0, 8));
+        setBackground(Color.BLACK);
+        setBorder(UiTheme.padding(10));
 
         JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        form.setBackground(UiTheme.BACKGROUND);
-        form.add(UiTheme.text("Symbol"));
+        form.setBackground(Color.BLACK);
+        form.add(UiTheme.fieldLabel("SYMBOL"));
         form.add(symbolField);
-        form.add(UiTheme.text("Quantity"));
+        form.add(UiTheme.fieldLabel("QTY"));
         form.add(quantityField);
-        form.add(UiTheme.text("Type"));
-        styleCombo();
+        form.add(UiTheme.fieldLabel("TYPE"));
+        UiTheme.styleCombo(assetTypeField);
         form.add(assetTypeField);
 
-        JButton add = UiTheme.button("Add position", true);
-        JButton remove = UiTheme.button("Remove");
-        JButton refresh = UiTheme.button("Refresh");
-        JButton exposure = UiTheme.button("Analyze exposure");
+        JButton add = UiTheme.button("ADD", true);
+        JButton remove = UiTheme.button("DEL");
+        JButton refresh = UiTheme.button("RFRSH");
+        JButton exposure = UiTheme.button("EXPOS");
         exposure.setEnabled(false);
         exposure.setToolTipText(ResearchGateway.unavailableMessage(
                 ActionType.PORTFOLIO_EXPOSURE
@@ -80,15 +82,7 @@ public final class PortfolioPanel extends JPanel {
         form.add(refresh);
         form.add(exposure);
 
-        table.setBackground(UiTheme.FIELD);
-        table.setForeground(UiTheme.TEXT);
-        table.setGridColor(UiTheme.BORDER);
-        table.setSelectionBackground(UiTheme.BUTTON);
-        table.setSelectionForeground(UiTheme.TEXT);
-        table.setFont(UiTheme.MONO);
-        table.setRowHeight(24);
-        table.getTableHeader().setBackground(UiTheme.CARD);
-        table.getTableHeader().setForeground(UiTheme.TEXT);
+        UiTheme.styleTable(table);
         table.getSelectionModel().addListSelectionListener(event -> {
             int row = table.getSelectedRow();
             if (row >= 0) {
@@ -99,27 +93,27 @@ public final class PortfolioPanel extends JPanel {
         JScrollPane tableScroll = UiTheme.scroll(table);
 
         JPanel center = new JPanel(new BorderLayout(0, 8));
-        center.setBackground(UiTheme.BACKGROUND);
+        center.setBackground(Color.BLACK);
         center.add(emptyLabel, BorderLayout.NORTH);
         center.add(tableScroll, BorderLayout.CENTER);
         center.add(UiTheme.text(
-                "Exposure analysis is not implemented. Quantity is a share count, not market value.",
+                "EXPOSURE IS NOT IMPLEMENTED. QUANTITY IS A SHARE COUNT, NOT MARKET VALUE.",
                 true
         ), BorderLayout.SOUTH);
 
-        JPanel body = new JPanel(new BorderLayout(0, 12));
-        body.setBackground(UiTheme.BACKGROUND);
+        JPanel body = new JPanel(new BorderLayout(0, 8));
+        body.setBackground(Color.BLACK);
         body.add(form, BorderLayout.NORTH);
         body.add(center, BorderLayout.CENTER);
 
-        add(UiTheme.heading("Portfolio"), BorderLayout.NORTH);
+        add(new UiTheme.JPanelBar("PORT", "PORTFOLIO HOLDINGS"), BorderLayout.NORTH);
         add(body, BorderLayout.CENTER);
     }
 
     public void refresh() {
         tableModel.setRowCount(0);
         if (!workspace.isAuthenticated()) {
-            emptyLabel.setText("Sign in to view a portfolio.");
+            emptyLabel.setText("SIGN ON TO VIEW A PORTFOLIO");
             return;
         }
 
@@ -132,7 +126,7 @@ public final class PortfolioPanel extends JPanel {
         }
 
         emptyLabel.setText(tableModel.getRowCount() == 0
-                ? "No positions yet. Add a symbol, a quantity greater than zero, and an asset type."
+                ? "NO POSITIONS. ADD A SYMBOL, A QUANTITY ABOVE ZERO, AND A TYPE."
                 : " ");
     }
 
@@ -141,6 +135,23 @@ public final class PortfolioPanel extends JPanel {
         quantityField.setText("");
         assetTypeField.setSelectedItem(AssetType.STOCK);
         tableModel.setRowCount(0);
+    }
+
+    public void addFromDesk(String symbol, String quantity, String type) {
+        symbolField.setText(symbol);
+        quantityField.setText(quantity);
+        try {
+            assetTypeField.setSelectedItem(AssetType.valueOf(type));
+        } catch (IllegalArgumentException exception) {
+            statusLabel.setText("Asset type must be STOCK, ETF, or OTHER.");
+            return;
+        }
+        addPosition();
+    }
+
+    public void removeFromDesk(String symbol) {
+        symbolField.setText(symbol);
+        removePosition();
     }
 
     private void addPosition() {
@@ -157,13 +168,13 @@ public final class PortfolioPanel extends JPanel {
                     (AssetType) assetTypeField.getSelectedItem()
             );
             refresh();
-            statusLabel.setText("Position saved.");
+            statusLabel.setText("POSITION SAVED");
         } catch (NumberFormatException exception) {
-            statusLabel.setText("Quantity must be a number greater than zero.");
+            statusLabel.setText("QUANTITY MUST BE A NUMBER GREATER THAN ZERO");
         } catch (IllegalArgumentException exception) {
             statusLabel.setText(exception.getMessage());
         } catch (RuntimeException exception) {
-            statusLabel.setText("Unable to save the position.");
+            statusLabel.setText("UNABLE TO SAVE THE POSITION");
         }
     }
 
@@ -177,18 +188,12 @@ public final class PortfolioPanel extends JPanel {
             boolean removed = workspace.removePosition(symbolField.getText());
             refresh();
             statusLabel.setText(removed
-                    ? "Position removed."
-                    : "That symbol is not in the portfolio.");
+                    ? "POSITION REMOVED"
+                    : "THAT SYMBOL IS NOT IN THE PORTFOLIO");
         } catch (IllegalArgumentException exception) {
             statusLabel.setText(exception.getMessage());
         } catch (RuntimeException exception) {
-            statusLabel.setText("Unable to remove the position.");
+            statusLabel.setText("UNABLE TO REMOVE THE POSITION");
         }
-    }
-
-    private void styleCombo() {
-        assetTypeField.setBackground(UiTheme.FIELD);
-        assetTypeField.setForeground(UiTheme.TEXT);
-        assetTypeField.setFont(UiTheme.UI_FONT);
     }
 }
