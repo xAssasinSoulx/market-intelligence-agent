@@ -33,8 +33,7 @@ public final class MarketExplanationService {
 
         String prompt = buildPrompt(context);
 
-        String explanation =
-                llmProvider.generate(prompt);
+        String explanation = llmProvider.generateBrief(prompt);
 
         if (explanation == null
                 || explanation.isBlank()) {

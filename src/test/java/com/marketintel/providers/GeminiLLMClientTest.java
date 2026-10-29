@@ -42,7 +42,7 @@ class GeminiLLMClientTest {
         assertEquals(prompt, submittedPrompt);
 
         assertEquals(400, root.path("generationConfig").path("maxOutputTokens").asInt());
-        assertEquals("LOW", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
+        assertEquals(0, root.path("generationConfig").path("thinkingConfig").path("thinkingBudget").asInt());
 
         assertEquals(
                 "user",
@@ -205,7 +205,7 @@ class GeminiLLMClientTest {
         );
 
         assertTrue(timeout.contains("exceeded"));
-        assertTrue(timeout.contains("45"));
+        assertTrue(timeout.contains("25"));
         assertTrue(reset.contains("Connection reset"));
     }
 

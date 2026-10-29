@@ -36,7 +36,7 @@ class GeminiLiveSmokeTest {
                 System.getenv("GEMINI_MODEL");
 
         if (model == null || model.isBlank()) {
-            model = "gemini-3.8-flash";
+            model = "gemini-2.5-flash";
         }
 
         LLMProvider provider =

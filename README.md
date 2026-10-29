@@ -37,7 +37,7 @@ export FMP_API_KEY="your-fmp-key"
 export TWELVE_DATA_API_KEY="your-twelve-data-key"
 export SENTISENSE_API_KEY="your-sentisense-key"
 export GEMINI_API_KEY="your-gemini-key"
-export GEMINI_MODEL="gemini-2.0-flash"   # optional
+export GEMINI_MODEL="gemini-2.5-flash"   # optional; this is also the default
 export MI_SCROLLBACK=1                    # optional
 ```
 
