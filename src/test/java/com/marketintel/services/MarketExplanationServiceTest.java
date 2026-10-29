@@ -73,7 +73,7 @@ class MarketExplanationServiceTest {
 
         assertTrue(
                 prompt.contains(
-                        "trading-session timestamp is UNKNOWN"
+                        "Quote last-trade time (UTC): UNKNOWN"
                 )
         );
 
@@ -82,6 +82,51 @@ class MarketExplanationServiceTest {
                         "Do not invent prices"
                 )
         );
+    }
+
+    @Test
+    void includesTheLastTradeTimeAndFlagsLaterArticles() {
+
+        MarketQuote timedQuote = new MarketQuote(
+                "NVDA",
+                new BigDecimal("214.13"),
+                new BigDecimal("217.23"),
+                new BigDecimal("-1.4271"),
+                Instant.parse("2026-10-18T20:00:00Z")
+        );
+
+        NewsArticle later = new NewsArticle(
+                "After-hours commentary",
+                "https://example.com/later",
+                "Example Financial News",
+                "2026-10-18T21:15:00Z",
+                "Published after the close.",
+                null,
+                null
+        );
+
+        MarketMovementContext context =
+                new MarketMovementContext(
+                        timedQuote,
+                        List.of(sampleArticle(), later),
+                        Instant.parse("2026-10-18T22:00:00Z"),
+                        null
+                );
+
+        MarketExplanationService service =
+                new MarketExplanationService(prompt -> "ok");
+
+        String prompt = service.buildPrompt(context);
+
+        assertTrue(prompt.contains(
+                "Quote last-trade time (UTC): 2026-10-18T20:00:00Z"
+        ));
+        assertTrue(prompt.contains(
+                "2026-10-18T21:15:00Z (published AFTER the last trade)"
+        ));
+        assertFalse(prompt.contains(
+                "2026-10-18T14:00:00Z (published AFTER the last trade)"
+        ));
     }
 
     @Test

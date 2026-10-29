@@ -10,6 +10,7 @@ import com.marketintel.providers.LLMProvider;
 
 import java.util.List;
 import java.util.Objects;
+import java.time.Instant;
 
 public final class MarketExplanationService {
 
@@ -76,10 +77,12 @@ public final class MarketExplanationService {
                 3. Distinguish verified facts from possibilities.
                 4. Do not claim a headline caused a price movement
                    unless the supplied evidence establishes that.
-                5. The quote's trading-session timestamp is UNKNOWN.
-                   Its retrieval time is NOT its trading time.
-                6. News may have been published after the price
-                   movement being examined.
+                5. The retrieval time is NOT the trading time.
+                   If a last-trade time is supplied, treat it as the
+                   latest moment the price could reflect. If it is
+                   UNKNOWN, say that timing cannot be established.
+                6. An article marked as published after the last
+                   trade cannot have caused the reported move.
                 7. Sentiment scores are estimates, not evidence
                    of price causation.
                 8. Refer to articles using [1], [2], [3] as
@@ -118,9 +121,11 @@ public final class MarketExplanationService {
                 .append(context.getRetrievedAt())
                 .append("\n");
 
-        prompt.append(
-                "Quote trading-session timestamp: UNKNOWN\n"
-        );
+        prompt.append("Quote last-trade time (UTC): ")
+                .append(quote.getLastTradeAt()
+                        .map(Instant::toString)
+                        .orElse("UNKNOWN"))
+                .append("\n");
 
         prompt.append("\nRECENT RELATED NEWS:\n");
 
@@ -156,8 +161,13 @@ public final class MarketExplanationService {
                         .append("\n");
 
                 prompt.append("Published: ")
-                        .append(clean(article.getPublishedAt(), 80))
-                        .append("\n");
+                        .append(clean(article.getPublishedAt(), 80));
+
+                if (NewsTiming.publishedAfterLastTrade(article, quote)) {
+                    prompt.append(" (published AFTER the last trade)");
+                }
+
+                prompt.append("\n");
 
                 prompt.append("Summary: ")
                         .append(clean(
