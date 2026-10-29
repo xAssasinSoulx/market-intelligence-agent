@@ -22,7 +22,7 @@ public final class GeminiLLMClient implements LLMProvider {
             "https://generativelanguage.googleapis.com/v1beta/models/";
 
     private static final String DEFAULT_MODEL =
-            "gemini-2.5-flash";
+            "gemini-3.5-flash-lite";
 
     private static final Duration BRIEF_TIMEOUT = Duration.ofSeconds(25);
     private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(60);

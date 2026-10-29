@@ -42,7 +42,7 @@ class GeminiLLMClientTest {
         assertEquals(prompt, submittedPrompt);
 
         assertEquals(400, root.path("generationConfig").path("maxOutputTokens").asInt());
-        assertEquals(0, root.path("generationConfig").path("thinkingConfig").path("thinkingBudget").asInt());
+        assertEquals("LOW", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
 
         assertEquals(
                 "user",
