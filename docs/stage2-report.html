@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stage 2 Implementation Report</title>
+<style>
+  @page { margin: 18mm 16mm; }
+  body { font-family: "Iowan Old Style", Palatino, Georgia, serif; font-size: 11.5pt; line-height: 1.45; color: #1a1a1a; max-width: 920px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22pt; line-height: 1.2; margin-bottom: 0.2em; }
+  h2 { font-size: 15pt; margin-top: 1.6em; border-bottom: 1px solid #ccc; padding-bottom: 0.15em; page-break-after: avoid; }
+  h3 { font-size: 12.5pt; margin-top: 1.2em; page-break-after: avoid; }
+  p, li { orphans: 3; widows: 3; }
+  table { border-collapse: collapse; width: 100%; margin: 0.8em 0 1.2em; font-size: 10pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #bbb; padding: 5px 7px; vertical-align: top; text-align: left; }
+  th { background: #f3f1ea; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; }
+  .meta { color: #333; margin-top: 0; }
+  .note { background: #f7f4ea; border-left: 3px solid #8a6d3b; padding: 8px 12px; }
+  figure { margin: 1em 0 1.4em; page-break-inside: avoid; }
+  figure img { width: 100%; height: auto; }
+  figcaption { font-size: 10pt; color: #333; margin-top: 0.3em; }
+  a { color: #1a365d; }
+</style>
+</head>
+<body>
+
+<h1>Stage 2 Implementation Report</h1>
+<p class="meta">Market Intelligence Agent<br>
+EECS 3311<br>
+Erdem Calikoglu<br>
+29 October 2026<br>
+Repository: <a href="https://github.com/xAssasinSoulx/market-intelligence-agent">github.com/xAssasinSoulx/market-intelligence-agent</a></p>
+
+<p>This report describes the application that is in the repository. It does not describe a design that has not been built. Demonstration videos are not recorded yet. That gap is stated in Section 7.</p>
+
+<h2>1. Project overview and implementation status</h2>
+
+<p>The Market Intelligence Agent is a research desk for a signed-in user. The same person can use a Swing window or a terminal. Both call one <code>ResearchGateway</code>. Accounts, portfolios, watchlists, and conversation turns are stored in <code>data/market-intelligence.db</code> (SQLite). The desk does not give investment advice. Every movement note and follow-up reply says so.</p>
+
+<p>Market data comes from free provider plans. <code>ProviderRouter</code> picks the first adapter registered for a capability. A later adapter is used only when an earlier one was not registered. A failed call does not try the next adapter. Keys are environment variables. The process does not read a <code>.env</code> file by itself. <code>.env.example</code> has placeholders only.</p>
+
+<p>Gemini participates in two places. <code>MarketExplanationService</code> writes a short note from a quote and up to three headlines. <code>RequestPlanner</code> may ask Gemini to name one allowlisted action for a sentence, and <code>AgentController</code> may ask it for a short reply from the tool result. A direct command such as <code>QUOTE NVDA</code> does not call the model. Portfolio weights are calculated in Java and are not sent to Gemini. If the model returns bad JSON, a disallowed action, or a word that is not a ticker, the keyword plan is used.</p>
+
+<p>The default model is <code>gemini-3.5-flash-lite</code>. <code>GEMINI_MODEL</code> overrides it. Older names that were tried during development, <code>gemini-3.8-flash</code> and <code>gemini-2.5-flash</code>, either thought too long or returned HTTP 404 for a new key. Those names should stay unset.</p>
+
+<h3>Working now</h3>
+<ul>
+  <li>Register, sign in, and sign out, on separate GUI screens and in the terminal.</li>
+  <li>Quotes, company overviews, security comparison, news, ETF sector weights, ETF overlap, portfolio view, portfolio edits, and watchlists.</li>
+  <li>Country exposure: the published Finnhub report when the plan allows it, otherwise headquarters countries of at most 25 holdings.</li>
+  <li>Portfolio exposure as price times quantity, with currencies kept apart.</li>
+  <li>Movement explanation from quote plus news, with a Gemini note when the key is set.</li>
+  <li>Follow-up questions that remember the last symbol for that user only.</li>
+  <li>Annual statements, daily bars with RSI, and one sentiment score, when those keys are set.</li>
+  <li>A home screen with portfolio value, day move, position chips, and a quote and news tape.</li>
+</ul>
+
+<h3>Limitations, stated as they are</h3>
+<ul>
+  <li>Period 1 (20–26 October 2026) has no commits in this repository. Period 3 (3–9 November 2026) has not started. See Section 6.</li>
+  <li>Feature videos are not recorded. See Section 7.</li>
+  <li>Country weights on the free plan are headquarters of reported holdings. They are not the fund’s published country report and they are not revenue exposure. Unknown and unassigned weight is named. It is not filled in.</li>
+  <li>Finnhub’s free plan prices US listings. A symbol such as <code>XEQT.TO</code> stays unpriced and is named.</li>
+  <li>Alpha Vantage company overview is a premium endpoint. This desk uses Alpha Vantage for ETF profile and holdings.</li>
+  <li>The router does not fail over when a live call fails.</li>
+  <li>The model cannot add or remove a position. Those commands stay on <code>SessionWorkspace</code>.</li>
+  <li>A sentence that tries to override the instructions is rejected and does not run a tool.</li>
+</ul>
+
+<h2>2. Feature to implementation mapping</h2>
+
+<p>Login, logout, and registration work, and they are listed because Stage 1 included them. They are not counted toward the ten meaningful features. The meaningful features are UC-04 through UC-20 except UC-01, UC-02, and UC-03.</p>
+
+<table>
+  <thead>
+    <tr><th>ID</th><th>Name</th><th>Stage 1</th><th>Status</th><th>Kind</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>UC-01</td><td>Register account</td><td>UC-01</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-02</td><td>Log in</td><td>UC-02</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-03</td><td>Log out</td><td>UC-03</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-04</td><td>Get market quote</td><td>UC-04</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-05</td><td>Get security overview</td><td>UC-05</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-06</td><td>Analyze ETF exposure</td><td>UC-06</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-07</td><td>Compare securities</td><td>UC-07</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-08</td><td>Analyze ETF overlap</td><td>UC-08</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-09</td><td>Retrieve financial news</td><td>UC-09</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-10</td><td>Explain market movement</td><td>UC-10</td><td>Modified</td><td>Hybrid</td></tr>
+    <tr><td>UC-11</td><td>Add portfolio position</td><td>UC-11</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-12</td><td>Remove portfolio position</td><td>UC-12</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-13</td><td>View portfolio</td><td>UC-13</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-14</td><td>Manage watchlist</td><td>UC-14</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-15</td><td>Analyze portfolio exposure</td><td>UC-15</td><td>Modified</td><td>Deterministic</td></tr>
+    <tr><td>UC-16</td><td>Ask a contextual follow-up</td><td>UC-16</td><td>Modified</td><td>Hybrid</td></tr>
+    <tr><td>UC-17</td><td>Read financial statements</td><td>New</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-18</td><td>Read price history</td><td>New</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-19</td><td>Read sentiment</td><td>New</td><td>Implemented</td><td>Deterministic</td></tr>
+    <tr><td>UC-20</td><td>View home desk</td><td>New</td><td>Implemented</td><td>Deterministic</td></tr>
+  </tbody>
+</table>
+
+<p>Video links are not available yet. Section 7 is the index to fill when the recordings are public.</p>
+
+<h3>UC-01 Register account</h3>
+<p><strong>Classes.</strong> <code>AuthenticationPanel</code> and <code>TerminalUI</code> collect the username and password. <code>SessionWorkspace.register</code> calls <code>AuthService.register</code>. <code>BCryptPasswordHasher</code> hashes the password. <code>SQLiteUserRepository.save</code> stores the user. The password is not copied into the status line.</p>
+<p><strong>Methods.</strong> <code>AuthService.register</code>, <code>PasswordHasher.hash</code>, <code>UserRepository.save</code>.</p>
+<p><strong>Patterns.</strong> Strategy (<code>PasswordHasher</code>), Repository, Factory (<code>ApplicationContext</code> wires them).</p>
+<p><strong>Path.</strong> The user submits the create-account form or the terminal register command. Validation rejects a short password or a taken username. A successful registration returns to the sign-on screen. The user still has to log in. Deterministic.</p>
+
+<h3>UC-02 Log in</h3>
+<p><strong>Classes.</strong> <code>AuthenticationPanel</code> or <code>TerminalUI</code>, <code>AuthService.authenticate</code>, <code>SessionManager.startSession</code>.</p>
+<p><strong>Methods.</strong> <code>PasswordHasher.verify</code>, <code>UserRepository.findByUsername</code>, <code>SessionManager.startSession</code>.</p>
+<p><strong>Patterns.</strong> Strategy, Repository.</p>
+<p><strong>Path.</strong> The sign-on screen has no confirm-password field. A match starts a session for that user id. A mismatch stays on the sign-on screen. Deterministic.</p>
+
+<h3>UC-03 Log out</h3>
+<p><strong>Classes.</strong> <code>SessionWorkspace.logout</code>, <code>SessionManager.endSession</code>.</p>
+<p><strong>Methods.</strong> <code>endSession</code>.</p>
+<p><strong>Patterns.</strong> Facade (<code>SessionWorkspace</code>).</p>
+<p><strong>Path.</strong> Logout clears the in-memory session. The next person must sign in. Conversation rows stay in SQLite under the previous user id. Deterministic.</p>
+
+<h3>UC-04 Get market quote</h3>
+<p><strong>Classes.</strong> <code>DeskCommand</code> or <code>CommandParser</code>, <code>ResearchGateway</code>, <code>ToolManager</code>, <code>MarketDataTool</code>, <code>RequestValidator</code>, <code>ProviderRouter</code>, <code>FinnhubAdapter</code> (then Twelve Data, then Alpha Vantage, only if an earlier adapter was not registered).</p>
+<p><strong>Methods.</strong> <code>ResearchGateway.execute</code>, <code>MarketDataTool.execute</code>, <code>ProviderRouter.getQuote</code>.</p>
+<p><strong>Patterns.</strong> Command, Facade, Composite, Adapter.</p>
+<p><strong>Path.</strong> <code>QUOTE NVDA</code> checks the session, validates the symbol, and asks the first quote adapter. The window or terminal shows last price, previous close, and percent change. A success stores NVDA as the last symbol for this user. Gemini is not called. Stage 1 sent this use case through the model. That was removed so a quote stays a lookup. See <code>docs/uml/sequence-market-quote.puml</code>.</p>
+
+<h3>UC-05 Get security overview</h3>
+<p><strong>Classes.</strong> Same gateway and <code>MarketDataTool</code>, using <code>getSecurityOverview</code>. Finnhub’s free profile supplies name, exchange, currency, and an industry label. It does not supply a company description. The screen says so.</p>
+<p><strong>Methods.</strong> <code>MarketDataTool.execute</code>, <code>ProviderRouter.getSecurityOverview</code>.</p>
+<p><strong>Patterns.</strong> Command, Facade, Composite, Adapter.</p>
+<p><strong>Path.</strong> <code>OVERVIEW NVDA</code> follows the quote path with a different action. Deterministic. An ETF often has no company profile. Portfolio exposure then values it from the quote currency and names that fact.</p>
+
+<h3>UC-06 Analyze ETF exposure</h3>
+<p><strong>Classes.</strong> <code>ETFExposureTool</code>, <code>ExposureCalculator</code>, <code>AlphaVantageAdapter</code> for sector weights and holdings, <code>FinnhubMarketDataClient</code> as <code>CountryExposureSource</code>, <code>HoldingCountryResolver</code>, <code>HeadquartersLookup</code>.</p>
+<p><strong>Methods.</strong> <code>ETFExposureTool.execute</code>, <code>calculateSectorExposure</code>, <code>calculateReportedCountryExposure</code>, <code>HoldingCountryResolver.apply</code>, <code>calculateGeographicExposure</code>.</p>
+<p><strong>Patterns.</strong> Command, Adapter, Composite.</p>
+<p><strong>Path.</strong> <code>SECTOR QQQ</code> reads the ETF profile and sums the provider’s sector weights. <code>GEO QQQ</code> tries Finnhub’s published country report. On HTTP 403 it reads holdings and the headquarters country of at most 25 names. A holding with no profile is Unknown. Weight the provider left blank stays unassigned. A stock such as NVDA has no holdings list, so it has no country breakdown. Provider errors pass through <code>ProviderText.redact</code>. Deterministic. Stage 1 had the model explain the exposure. The implementation shows the calculated weights instead. See <code>sequence-etf-analysis.puml</code> and <code>sequence-country-exposure.puml</code>.</p>
+
+<h3>UC-07 Compare securities</h3>
+<p><strong>Classes.</strong> <code>ComparisonTool</code>, <code>SecurityComparisonCalculator</code>, <code>ProviderRouter</code>.</p>
+<p><strong>Methods.</strong> <code>ComparisonTool.execute</code>, <code>SecurityComparisonCalculator</code> difference of the two percent changes.</p>
+<p><strong>Patterns.</strong> Command, Composite, Adapter.</p>
+<p><strong>Path.</strong> <code>COMPARE NVDA MSFT</code> loads two quotes and reports the difference. It needs two symbols. A follow-up that names only one symbol asks for the second. Deterministic.</p>
+
+<h3>UC-08 Analyze ETF overlap</h3>
+<p><strong>Classes.</strong> <code>ComparisonTool</code>, <code>ExposureCalculator</code>, <code>AlphaVantageAdapter</code> through the router.</p>
+<p><strong>Methods.</strong> <code>ComparisonTool.execute</code>, <code>ExposureCalculator.calculateOverlap</code>.</p>
+<p><strong>Patterns.</strong> Command, Adapter.</p>
+<p><strong>Path.</strong> <code>OVERLAP QQQ SPY</code> loads both holding lists and reports the shared names. Deterministic. Both symbols are required.</p>
+
+<h3>UC-09 Retrieve financial news</h3>
+<p><strong>Classes.</strong> <code>NewsTool</code>, <code>ProviderRouter</code>, <code>MarketauxAdapter</code> when <code>MARKETAUX_API_TOKEN</code> is set, otherwise <code>FinnhubAdapter</code> company news. Alpha Vantage news exists and is not registered, because that free plan is about 25 calls a day.</p>
+<p><strong>Methods.</strong> <code>NewsTool.execute</code>, <code>ProviderRouter.getNews</code>.</p>
+<p><strong>Patterns.</strong> Command, Composite, Adapter.</p>
+<p><strong>Path.</strong> <code>NEWS NVDA</code> returns recent articles associated with the ticker. Association is not evidence that the article caused a price move. Deterministic.</p>
+
+<h3>UC-10 Explain market movement</h3>
+<p><strong>Classes.</strong> <code>MarketMovementTool</code> gathers the quote and the news. <code>NewsTiming</code> marks articles published after the last trade when the quote has a trade time. <code>MarketExplanationService.explain</code> calls <code>GeminiLLMClient.generateBrief</code>. <code>ResponseComposer.composeMovement</code> and <code>ResultFormatter</code> present the evidence and the note. <code>ResearchGateway.explainMovement</code> is the direct command. <code>AgentController.movement</code> is the same evidence path when a sentence plans <code>MARKET_MOVEMENT</code>.</p>
+<p><strong>Methods.</strong> <code>MarketMovementTool.execute</code>, <code>MarketExplanationService.explain</code>, <code>LLMProvider.generateBrief</code>.</p>
+<p><strong>Patterns.</strong> Command, Adapter, Strategy (<code>LLMProvider</code>).</p>
+<p><strong>Path.</strong> <code>WHY MSFT</code> requires a quote provider and a news provider. The prompt contains the quote and short article text. It does not ask for a buy or sell decision. If Gemini is unset, times out, or returns an error, the quote and the news still appear with the failure note. Hybrid. See <code>sequence-market-movement.puml</code>.</p>
+
+<h3>UC-11 Add a portfolio position</h3>
+<p><strong>Classes.</strong> <code>PortfolioPanel</code> or <code>DeskCommand</code> or <code>TerminalUI</code>, <code>SessionWorkspace.addPosition</code>, <code>PortfolioService</code>, <code>SQLitePortfolioRepository</code>.</p>
+<p><strong>Methods.</strong> <code>PortfolioService.addPosition</code>, <code>PortfolioRepository.saveForUser</code>.</p>
+<p><strong>Patterns.</strong> Command (<code>DeskCommand</code>), Repository, Facade.</p>
+<p><strong>Path.</strong> <code>PORT ADD NVDA 10 STOCK</code> checks the session and stores symbol, quantity, and <code>STOCK</code>, <code>ETF</code>, or <code>OTHER</code> for this user. Stage 1 exposed this as an agent tool the planner could call. The implementation keeps it off the allowlist so a sentence cannot change the portfolio. Deterministic.</p>
+
+<h3>UC-12 Remove a portfolio position</h3>
+<p><strong>Classes.</strong> <code>SessionWorkspace.removePosition</code>, <code>PortfolioService</code>, <code>SQLitePortfolioRepository</code>.</p>
+<p><strong>Methods.</strong> <code>PortfolioService.removePosition</code>, <code>Portfolio.removePosition</code>.</p>
+<p><strong>Patterns.</strong> Command, Repository.</p>
+<p><strong>Path.</strong> <code>PORT REMOVE NVDA</code> deletes that symbol for the signed-in user and reports whether it was present. Not allowlisted for the model. Deterministic.</p>
+
+<h3>UC-13 View portfolio</h3>
+<p><strong>Classes.</strong> <code>PortfolioPanel</code>, <code>TerminalUI</code>, <code>SessionWorkspace.portfolio</code>, <code>PortfolioService.getPortfolio</code>.</p>
+<p><strong>Methods.</strong> <code>PortfolioRepository.loadForUser</code>.</p>
+<p><strong>Patterns.</strong> Repository, Facade.</p>
+<p><strong>Path.</strong> <code>/portfolio</code> or the Portfolio screen lists the stored positions. No network call is required to list them. Prices appear when another feature quotes them. Deterministic.</p>
+
+<h3>UC-14 Manage watchlist</h3>
+<p><strong>Classes.</strong> <code>WatchlistPanel</code>, <code>WatchlistService</code>, <code>SQLiteWatchlistRepository</code>.</p>
+<p><strong>Methods.</strong> <code>WatchlistService.addSymbol</code>, <code>removeSymbol</code>, <code>getWatchlist</code>.</p>
+<p><strong>Patterns.</strong> Repository, Command.</p>
+<p><strong>Path.</strong> <code>WATCH ADD NVDA</code> stores a symbol for this user. Remove deletes it. The watchlist is not a portfolio and has no quantity. Stage 1 had a <code>WatchlistTool</code> on the agent. The implementation uses the session workspace, same as portfolio edits. Deterministic.</p>
+
+<h3>UC-15 Analyze portfolio exposure</h3>
+<p><strong>Classes.</strong> <code>PortfolioAnalysisTool</code>, <code>PortfolioExposureCalculator</code>, <code>PortfolioBook</code> for the home summary, <code>ProviderRouter</code> for quotes and ETF profiles.</p>
+<p><strong>Methods.</strong> <code>PortfolioAnalysisTool.execute</code>, <code>PortfolioExposureCalculator.calculate</code>, <code>PortfolioBook</code> value and day move.</p>
+<p><strong>Patterns.</strong> Command, Composite, Adapter.</p>
+<p><strong>Path.</strong> <code>EXPOSURE</code> loads the signed-in positions, quotes each one, and sets market value to price times quantity. Day move is (price − previous close) times quantity. Currencies stay in separate books. A position with no price is excluded and named. ETF sector weights are look-through when the holding list exists. <code>AgentController</code> skips Gemini for this action even when a sentence selects it. Deterministic. See <code>sequence-portfolio-analysis.puml</code>.</p>
+
+<h3>UC-16 Ask a contextual follow-up</h3>
+<p><strong>Classes.</strong> <code>AgentPanel</code> and <code>TerminalUI</code> send the sentence to <code>ResearchGateway.ask</code>. <code>AgentController.handle</code> reads <code>ConversationMemory.lastSymbol</code>, which reads <code>SQLiteConversationRepository.recent</code> for that user only. <code>RequestPlanner.createPlan</code> builds a keyword plan and, when Gemini is configured, may replace it with one allowlisted JSON action. <code>ToolManager</code> runs the action. <code>ResponseComposer</code> formats the tool result. A second <code>generateBrief</code> may prepend a short answer. Both turns are stored.</p>
+<p><strong>Methods.</strong> <code>AgentController.handle</code>, <code>RequestPlanner.createPlan</code>, <code>ConversationMemory.remember</code>, <code>PromptBuilder.planPrompt</code>, <code>PromptBuilder.answerPrompt</code>.</p>
+<p><strong>Patterns.</strong> Command, Strategy, Facade, Repository.</p>
+<p><strong>Path.</strong> <code>why did microsoft fall</code> stays a sentence. The keyword plan maps Microsoft to MSFT and “fall” to <code>MARKET_MOVEMENT</code>. The word “did” is a stop word, so it cannot become the ticker. Pronouns use the stored symbol. Compare and overlap still need two symbols. Injection-shaped text is rejected. Portfolio exposure is not narrated. Hybrid when Gemini is set. Keyword-only when it is not. See <code>sequence-context-followup.puml</code>.</p>
+
+<h3>UC-17 Read financial statements</h3>
+<p><strong>Classes.</strong> <code>MarketInsightTool</code>, <code>FinancialModelingPrepAdapter</code>, <code>ProviderRouter</code>.</p>
+<p><strong>Methods.</strong> <code>MarketInsightTool.execute</code>, <code>ProviderRouter.getFinancialStatements</code>.</p>
+<p><strong>Patterns.</strong> Command, Adapter, Composite.</p>
+<p><strong>Path.</strong> <code>STATEMENTS NVDA</code> requests annual income, balance sheet, and cash flow. A line the filing omitted stays blank. Without <code>FMP_API_KEY</code> the action is unavailable. New in Stage 2. Deterministic. See <code>sequence-market-insight.puml</code>.</p>
+
+<h3>UC-18 Read price history</h3>
+<p><strong>Classes.</strong> <code>MarketInsightTool</code>, <code>TwelveDataAdapter</code>.</p>
+<p><strong>Methods.</strong> <code>ProviderRouter.getPriceHistory</code>.</p>
+<p><strong>Patterns.</strong> Command, Adapter.</p>
+<p><strong>Path.</strong> <code>HISTORY NVDA</code> shows the newest daily bars and the latest 14-day RSI. Without <code>TWELVE_DATA_API_KEY</code> the action is unavailable. Quotes still work through Finnhub. New in Stage 2. Deterministic.</p>
+
+<h3>UC-19 Read sentiment</h3>
+<p><strong>Classes.</strong> <code>MarketInsightTool</code>, <code>SentiSenseAdapter</code>, <code>SentimentBands</code>.</p>
+<p><strong>Methods.</strong> <code>ProviderRouter.getSentiment</code>, <code>SentiSenseAdapter</code> GET of the latest sentiment point.</p>
+<p><strong>Patterns.</strong> Command, Adapter.</p>
+<p><strong>Path.</strong> <code>SENTIMENT NVDA</code> shows the latest score from −1 to 1, the change from the previous point, and a local band label. The label is this desk’s wording for the score. It is not a recommendation. Marketaux article sentiment, when present, is separate and stays on the article. The paid SentiSense plan was not used. New in Stage 2. Deterministic.</p>
+
+<h3>UC-20 View home desk</h3>
+<p><strong>Classes.</strong> <code>DashboardPanel</code>, <code>PortfolioBook</code>, <code>TapeLine</code>, <code>BackgroundWork</code>. The tape quotes a fixed set of index and large-cap symbols plus portfolio symbols, and it shows a few headlines.</p>
+<p><strong>Methods.</strong> <code>DashboardPanel</code> load of the book, <code>TapeLine.format</code>.</p>
+<p><strong>Patterns.</strong> Facade (the panel calls <code>ResearchGateway</code> rather than providers), Command (the home tiles).</p>
+<p><strong>Path.</strong> After sign-on, F1 shows market value, day move, one chip per position, and the tape. Quotes are loaded off the Swing thread. The terminal has no sliding tape. The same positions are visible with <code>/portfolio</code>. New in Stage 2. Deterministic.</p>
+
+<h2>3. Implemented design patterns</h2>
+
+<p>Five patterns are required. The five below are the ones this report relies on. Repository and Strategy are also present and are named where they carry a feature. Naming a class after a pattern is not the claim. Each pattern below is the reason a change in one place does not rewrite the desk.</p>
+
+<h3>Adapter</h3>
+<p><strong>Problem.</strong> Finnhub, Alpha Vantage, Marketaux, Financial Modeling Prep, Twelve Data, and SentiSense do not share a response shape.</p>
+<p><strong>Roles.</strong> <code>DataProvider</code> is the target. <code>FinnhubAdapter</code>, <code>AlphaVantageAdapter</code>, <code>MarketauxAdapter</code>, <code>FinancialModelingPrepAdapter</code>, <code>TwelveDataAdapter</code>, and <code>SentiSenseAdapter</code> are the adapters. Existing clients such as <code>FinnhubMarketDataClient</code> and <code>AlphaVantageClient</code> are the adaptees.</p>
+<p><strong>Files.</strong> <code>src/main/java/com/marketintel/providers/</code>. Methods: <code>supports</code>, <code>getQuote</code>, <code>getEtfProfile</code>, <code>getNews</code>, <code>getFinancialStatements</code>, <code>getPriceHistory</code>, <code>getSentiment</code>.</p>
+<p><strong>Why it fits.</strong> A tool asks for a quote. It does not build a vendor URL. Stage 1 showed one client class per provider interface. Stage 2 kept those clients and put an adapter in front of each so several vendors can sit behind one target. That change was required once Alpha Vantage was no longer the only source.</p>
+
+<h3>Composite</h3>
+<p><strong>Problem.</strong> The desk needs one object the tools can call, while each capability may be served by a different vendor.</p>
+<p><strong>Roles.</strong> <code>ProviderRouter</code> is the composite. It implements <code>MarketDataProvider</code>, <code>NewsProvider</code>, <code>ETFDataProvider</code>, <code>FinancialStatementProvider</code>, <code>PriceHistoryProvider</code>, and <code>SentimentProvider</code>. The children are the adapters registered with <code>prefer</code>.</p>
+<p><strong>Files.</strong> <code>ProviderRouter.java</code>. Methods: <code>prefer</code>, <code>serves</code>, <code>getQuote</code>, and the other capability methods, each of which calls <code>first</code>.</p>
+<p><strong>Why it fits.</strong> Registration order is the priority. The first adapter registered for quotes handles quotes. This is not a failover chain. Stage 1 did not have a router. One client was the provider. The composite is what lets the free-plan mix exist without a switch statement in each tool.</p>
+
+<h3>Command</h3>
+<p><strong>Problem.</strong> The window, the terminal, and the follow-up planner all need to run the same research actions without owning provider code.</p>
+<p><strong>Roles.</strong> <code>ActionType</code> names the command. <code>AgentTool</code> is the command interface (<code>supports</code>, <code>execute</code>). <code>ToolManager</code> is the invoker. <code>DeskCommand</code> and <code>CommandParser</code> are the parsers that turn text into a command. <code>ToolRequest</code> carries the arguments.</p>
+<p><strong>Files.</strong> <code>tools/AgentTool.java</code>, <code>agent/ToolManager.java</code>, <code>gui/DeskCommand.java</code>, <code>ui/CommandParser.java</code>.</p>
+<p><strong>Why it fits.</strong> Adding statements, history, and sentiment added one tool, <code>MarketInsightTool</code>, that supports three actions. The frame and the terminal did not gain provider code. Stage 1 already used <code>AgentTool</code>. Stage 2 kept that and stopped portfolio edits from being commands the model can issue.</p>
+
+<h3>Facade</h3>
+<p><strong>Problem.</strong> The Swing window and the terminal must share session checks, tool execution, movement explanation, and follow-up, or the two interfaces drift apart.</p>
+<p><strong>Roles.</strong> <code>ResearchGateway</code> is the facade. Behind it are <code>ToolManager</code>, <code>SessionManager</code>, <code>MarketExplanationService</code>, and <code>AgentController</code>. <code>SessionWorkspace</code> is the facade for account and portfolio edits.</p>
+<p><strong>Files.</strong> <code>app/ResearchGateway.java</code>, <code>app/SessionWorkspace.java</code>. Methods: <code>execute</code>, <code>explainMovement</code>, <code>ask</code>, <code>login</code>, <code>addPosition</code>.</p>
+<p><strong>Why it fits.</strong> A panel calls <code>execute</code>. It does not decide which adapter is registered. A successful lookup calls <code>noteLookup</code>, so a later “its” has a symbol. Stage 1’s <code>TerminalUI</code> talked to <code>AgentController</code> directly and there was no window. The facade is the Stage 2 seam between two interfaces and one service graph.</p>
+
+<h3>Factory</h3>
+<p><strong>Problem.</strong> Which adapters, tools, and the Gemini client exist depends on environment variables. That decision has to happen in one place.</p>
+<p><strong>Roles.</strong> <code>ApplicationContext</code> is the factory. <code>createDefault</code> and <code>create</code> build the database, repositories, router, tools, explanation service, and follow-up controller. Callers receive the finished context.</p>
+<p><strong>Files.</strong> <code>bootstrap/ApplicationContext.java</code>. Methods: <code>createDefault</code>, <code>create</code>, <code>getFollowUp</code>.</p>
+<p><strong>Why it fits.</strong> An unset key means that adapter is not constructed and that tool is not registered. Tests build their own objects and do not use this factory to call the network. Stage 1 diagrams showed the objects but not a single composition root. The factory is what makes “leave the key unset and the rest of the desk still starts” true.</p>
+
+<h3>Also present</h3>
+<p><strong>Strategy.</strong> <code>PasswordHasher</code> with <code>BCryptPasswordHasher</code>, and <code>LLMProvider</code> with <code>GeminiLLMClient</code>. The planner’s keyword path is the behavior used when the model strategy is absent or rejected.</p>
+<p><strong>Repository.</strong> <code>UserRepository</code>, <code>PortfolioRepository</code>, <code>WatchlistRepository</code>, and <code>ConversationRepository</code>, each with one SQLite class. Services do not write SQL.</p>
+
+<h3>Updated class diagram</h3>
+<figure>
+  <img src="uml/rendered/class-diagram-agent.png" alt="Implemented agent and interface class diagram">
+  <figcaption>Figure 1. Implemented agent and interfaces. Source: <code>docs/uml/class-diagram-agent.puml</code>.</figcaption>
+</figure>
+<figure>
+  <img src="uml/rendered/class-diagram-providers.png" alt="Provider adapter class diagram">
+  <figcaption>Figure 2. Provider adapters and the router. Source: <code>docs/uml/class-diagram-providers.puml</code>.</figcaption>
+</figure>
+<figure>
+  <img src="uml/rendered/class-diagram-persistence.png" alt="Persistence class diagram">
+  <figcaption>Figure 3. Authentication and SQLite repositories. Source: <code>docs/uml/class-diagram-persistence.puml</code>.</figcaption>
+</figure>
+<figure>
+  <img src="uml/rendered/class-diagram-domain.png" alt="Domain class diagram">
+  <figcaption>Figure 4. Domain types that exist in the source. Source: <code>docs/uml/class-diagram-domain.puml</code>.</figcaption>
+</figure>
+<figure>
+  <img src="uml/rendered/use-case-diagram.png" alt="Use case diagram">
+  <figcaption>Figure 5. Use cases. Gemini is associated only with movement explanation and follow-up. Source: <code>docs/uml/use-case-diagram.puml</code>.</figcaption>
+</figure>
+
+<p>Sequence diagrams that replace the Stage 1 versions:</p>
+<ul>
+  <li><code>docs/uml/sequence-market-quote.puml</code> — quote, no model.</li>
+  <li><code>docs/uml/sequence-etf-analysis.puml</code> — sector weights.</li>
+  <li><code>docs/uml/sequence-country-exposure.puml</code> — published countries, then headquarters fallback.</li>
+  <li><code>docs/uml/sequence-market-movement.puml</code> — evidence, then a short Gemini note.</li>
+  <li><code>docs/uml/sequence-portfolio-analysis.puml</code> — price times quantity, no model narration.</li>
+  <li><code>docs/uml/sequence-context-followup.puml</code> — sentence, allowlist, tool, optional short answer.</li>
+  <li><code>docs/uml/sequence-market-insight.puml</code> — statements, history, and sentiment.</li>
+</ul>
+<p>Rendered copies are in <code>docs/uml/rendered/</code>. The Stage 1 PDF renders remain in <code>docs/Stage1-pdfs/</code> so the difference can be checked. Those older PDFs show an LLM call on a quote and classes that were not built (<code>UserPreferences</code>, <code>ConversationSession</code>, <code>AgentRequest</code>).</p>
+
+<h2>4. Changes and rationale</h2>
+
+<table>
+  <thead>
+    <tr><th>Original design</th><th>Implemented change</th><th>Reason</th><th>Impact</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>One API client per provider interface, with Alpha Vantage as the market source.</td>
+      <td>Six adapters behind <code>ProviderRouter</code>. Finnhub is first for quotes and profiles. Alpha Vantage is first for ETF holdings.</td>
+      <td>The free Alpha Vantage plan does not cover the overview the desk needs, and its daily budget is small. A paid plan was declined.</td>
+      <td>Tools still depend on role interfaces. Unset keys drop that adapter. UC-04, UC-05, UC-09.</td>
+    </tr>
+    <tr>
+      <td>UC-06 geographic exposure is the fund’s published country weights, then an LLM explanation.</td>
+      <td>Try Finnhub <code>/etf/country</code>. On HTTP 403, map at most 25 holdings to headquarters countries. Show the weights. Do not call the model.</td>
+      <td>The free plan returns 403 for the published report. Guessing the rest would present invented exposure.</td>
+      <td>The user need is still “where is this ETF allocated.” The answer is labeled as headquarters, not as the fund factsheet. <code>HoldingCountryResolver</code>.</td>
+    </tr>
+    <tr>
+      <td>Every research use case is planned and narrated by the LLM.</td>
+      <td>A slash command or function key runs one tool. Gemini is on UC-10 and, optionally, UC-16.</td>
+      <td>A quote does not need a model, and a model on that path was slow and could invent a sentence around a number the tool already had.</td>
+      <td>UC-04, UC-05, UC-06, UC-07, UC-08, UC-09, and UC-15 are deterministic. The use-case diagram matches that.</td>
+    </tr>
+    <tr>
+      <td>UC-16: the model may plan any tool, including portfolio edits, using conversation sessions.</td>
+      <td>Allowlisted actions only. Keyword plan first. Gemini JSON is accepted only when the action is allowed and the symbol is a ticker. Portfolio add and remove are not allowed. Memory is <code>conversation_turns</code> for that user.</td>
+      <td>An open planner can be talked into a tool the user did not want. Portfolio edits are a different kind of action from a question.</td>
+      <td><code>RequestPlanner</code>, <code>ConversationMemory</code>. <code>UserPreferences</code> and <code>ConversationSession</code> were not implemented.</td>
+    </tr>
+    <tr>
+      <td>UC-10: <code>ResponseComposer</code> asks the model to explain, including when evidence is missing.</td>
+      <td><code>MarketMovementTool</code> gathers evidence. <code>MarketExplanationService</code> calls <code>generateBrief</code>. A failure still shows the evidence.</td>
+      <td>The earlier model thought past the timeout. A short call with a token cap returns in time, and the evidence remains if it does not.</td>
+      <td><code>GeminiLLMClient</code> default <code>gemini-3.5-flash-lite</code>. <code>LLMProvider.generateBrief</code>.</td>
+    </tr>
+    <tr>
+      <td>UC-15: the model explains portfolio exposure.</td>
+      <td>Java multiplies price by quantity. Currencies are not mixed. The follow-up path does not send those numbers to Gemini.</td>
+      <td>Exposure is an arithmetic fact. Narrating it invited a recommendation.</td>
+      <td><code>PortfolioExposureCalculator</code>, <code>PortfolioBook</code>.</td>
+    </tr>
+    <tr>
+      <td>Portfolio and watchlist tools sit on <code>ToolManager</code>.</td>
+      <td><code>SessionWorkspace</code> owns add, remove, view, and the watchlist.</td>
+      <td>Same reason as the allowlist. The session, not the planner, changes stored positions.</td>
+      <td>UC-11, UC-12, UC-13, UC-14. No <code>PortfolioTool</code> class.</td>
+    </tr>
+    <tr>
+      <td>Terminal only.</td>
+      <td>Swing desk: separate sign-on and registration, home summary, tape, and the same commands.</td>
+      <td>Stage 2 requires a GUI and a CLI over the same behavior.</td>
+      <td>UC-20 is new. <code>MarketIntelFrame</code>, <code>DashboardPanel</code>.</td>
+    </tr>
+    <tr>
+      <td>No statements, history, or sentiment feature in the Stage 1 use-case set.</td>
+      <td>UC-17, UC-18, UC-19 through <code>MarketInsightTool</code>.</td>
+      <td>The free adapters were already required for the provider pattern. The three commands are the user-visible result.</td>
+      <td>Each is unavailable when its key is unset. They do not replace a Stage 1 feature.</td>
+    </tr>
+    <tr>
+      <td>Provider error text shown as returned.</td>
+      <td><code>ProviderText.redact</code> removes keys and replaces a daily-limit notice with a fixed sentence.</td>
+      <td>A live Alpha Vantage key appeared in the window inside a rate-limit message.</td>
+      <td>The exposed key was rotated. The repository does not contain it.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>5. AI tools and collaboration log</h2>
+
+<p>Exact token counts were not exported from Cursor or from the Gemini console into this repository. No paid Gemini invoice was recorded for this project. The figures below are therefore “not recorded,” not a claim that the cost was zero in every billing system the student might have elsewhere. Cursor was used on the student’s IDE subscription.</p>
+
+<table>
+  <thead>
+    <tr><th>Tool</th><th>Model</th><th>What it was used for</th><th>Token cost</th><th>Money cost</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Cursor IDE agent</td>
+      <td>Grok 4.7 in the Stage 2 implementation sessions that produced the provider adapters, the desk, follow-up, and this report. Earlier sessions in the same IDE were not labeled with a model name in the repository.</td>
+      <td>Java implementation, tests, UML, README, and this report. The project owner reviewed the running window and rejected behavior that was wrong.</td>
+      <td>Not exported</td>
+      <td>Included in the Cursor subscription. No separate invoice is stored here.</td>
+    </tr>
+    <tr>
+      <td>ChatGPT</td>
+      <td>Not named in <code>docs/ai-collaboration-log.md</code> for Interactions 001 and 003.</td>
+      <td>Stage 1 architecture and the first market-data tool sketch: <code>AgentTool</code>, provider interfaces, repositories.</td>
+      <td>Not recorded</td>
+      <td>Not recorded</td>
+    </tr>
+    <tr>
+      <td>Google Gemini API, inside the running desk</td>
+      <td><code>gemini-3.5-flash-lite</code> is the client default. <code>gemini-3.8-flash</code> and <code>gemini-2.5-flash</code> were tried and then dropped.</td>
+      <td>Movement notes and optional follow-up planning and short replies. Not used for quotes, exposure arithmetic, or portfolio edits.</td>
+      <td>Not exported from the API console</td>
+      <td>No paid invoice recorded. The calls used during development were on the free tier.</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>The longer log is <code>docs/ai-collaboration-log.md</code>. The interactions that changed the implementation are:</p>
+<ul>
+  <li><strong>001 and 003.</strong> ChatGPT proposed the tool and provider split. The project owner added accounts, portfolios, SQLite, and <code>BigDecimal</code>. That split is still the package layout.</li>
+  <li><strong>004.</strong> After Alpha Vantage declined a free educational plan, the owner required one adapter per vendor. Cursor added <code>DataProvider</code> and <code>ProviderRouter</code>.</li>
+  <li><strong>005.</strong> The owner saw HTTP 403 on country exposure and then saw an API key in an Alpha Vantage error. The agent added the headquarters fallback and <code>ProviderText.redact</code>. The owner rotated the key.</li>
+  <li><strong>006.</strong> The owner reported that ordinary questions were missed, that Gemini timed out, that a new key received HTTP 404 from <code>gemini-2.5-flash</code>, and that “why did microsoft fall” was read as the ticker DID. The agent added memory, the allowlist, <code>generateBrief</code>, Flash-Lite, and the sentence parser. The owner confirmed the Microsoft question in the window.</li>
+  <li><strong>007.</strong> This report and the updated diagrams. Videos and Period 3 commits remain the owner’s work.</li>
+</ul>
+
+<p>Representative instruction, in the owner’s words: the model should interpret a question, and the answer should come from the tool result. The implementation does that only for an allowlisted action. A sentence that says to ignore previous instructions does not run a tool. That boundary was a human decision, kept after the model was wired in.</p>
+
+<h2>6. Development and verification summary</h2>
+
+<h3>Weekly commits</h3>
+<p>Dates are Toronto local dates of the commits on the public repository. A merge commit is not counted as the meaningful change. The meaningful change is the commit it merged. Links use the commit that changed implementation or tests.</p>
+
+<p><strong>Period 1, 20–26 October 2026.</strong> No commits. This period does not meet the minimum of five meaningful code commits. The course applies one 5-point deduction when any period misses the minimum. Extra commits in Period 2 do not repair Period 1. Those commits were not backdated.</p>
+
+<p><strong>Period 2, 27 October–2 November 2026.</strong> More than five meaningful code commits. The five below are enough to meet the minimum. Further implementation commits from the same days are listed after them.</p>
+<ol>
+  <li><a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/3770181a71225ac9e9eda009c9513fde0026fbe9">3770181</a> — 28 October. Share service wiring for the terminal and the window.</li>
+  <li><a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/f1034052dedb7e04a8fbc2f5e3812880d99d6e91">f103405</a> — 28 October. Swing window over the existing services.</li>
+  <li><a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/fcd3877976f4c873dd4e3c91e2056d3fbe8bb585">fcd3877</a> — 29 October. Portfolio exposure from price times quantity.</li>
+  <li><a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/4da99b3b67d5395e7de4d11336206fa409d15825">4da99b3</a> — 29 October. Route free APIs through adapters.</li>
+  <li><a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/c75e138a55b511dfe801579d0429c3fe0558c82c">c75e138</a> — 29 October. Follow-up from the last stored symbol.</li>
+</ol>
+<p>Also in Period 2, among others: <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/6843eeddf8d761373005d5efe88d4980e1c2edf1">6843eed</a> Finnhub quotes, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/9716283f516c42340b2d8628e21c5b807c7c9646">9716283</a> country exposure without echoing keys, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/cc386c76eb3c750de0d5445faffba4b37ddccedd">cc386c7</a> last-trade time, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/1f4db1cf57ff7215c89de4e98ba137ce12ffa160">1f4db1c</a> home summary and tape, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/04de078b48188df5b3c539a673b3bcef899f6918">04de078</a> Gemini interpretation of questions, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/4f52ca04d4961c1949ff67ae7db160b1aab9fb24">4f52ca0</a> Flash-Lite, <a href="https://github.com/xAssasinSoulx/market-intelligence-agent/commit/931ec3892881c0935e698cf4249c4ecf97605fe9">931ec38</a> “why did microsoft fall” kept as a question.</p>
+
+<p><strong>Period 3, 3–9 November 2026.</strong> This period has not started. Today in this report is 29 October 2026. There are no Period 3 commits yet. Five meaningful code commits are still required during that week. This report does not count Period 2 commits toward that week.</p>
+
+<h3>Checks</h3>
+<p>On 29 October 2026, <code>./mvnw test</code> completed with 207 tests, 0 failures, 0 errors, and 1 skipped. The skipped test is <code>GeminiLiveSmokeTest</code>. It runs only when <code>RUN_GEMINI_LIVE_TEST=1</code> and <code>GEMINI_API_KEY</code> are set. The suite uses fake providers and does not call Finnhub, Alpha Vantage, Marketaux, Financial Modeling Prep, Twelve Data, SentiSense, or Gemini.</p>
+<p>The owner also ran the Swing desk against live keys. Those sessions found the defects below. They are not a substitute for the automated suite, and the automated suite is not a substitute for a live key.</p>
+
+<h3>Defects found and corrected</h3>
+<ul>
+  <li>The country request used a URL that returned HTTP 302. It now calls <code>https://api.finnhub.io/api/v1/etf/country</code>.</li>
+  <li>HTTP 403 on that report was described as a rejected key. The free plan does not include the report. Quotes still work. The message says so.</li>
+  <li>An Alpha Vantage notice included the live key. <code>ProviderText.redact</code> replaces that notice. The key was rotated and is not in this report.</li>
+  <li><code>gemini-3.8-flash</code> exceeded the explanation timeout. <code>gemini-2.5-flash</code> returned HTTP 404 for a new key. The default is <code>gemini-3.5-flash-lite</code>, with a short token cap and low thinking.</li>
+  <li><code>why did microsoft fall</code> was parsed as <code>WHY DID</code>. A multi-word why sentence is now a follow-up. <code>WHY MSFT</code> is still the symbol command.</li>
+  <li>A movement failure was labeled “that action has no follow-up view.” The failure text from the tool is shown instead.</li>
+  <li>Conversation tests failed the foreign key until they inserted the user first.</li>
+  <li>The home screen packed the tiles under a tall empty pane. The summary and the tape were given the room, and the note area was shortened.</li>
+</ul>
+
+<h3>Still open</h3>
+<ul>
+  <li>Period 1 cannot be repaired without rewriting history. It is reported as missed.</li>
+  <li>Period 3 commits are still to be made in that week.</li>
+  <li>Demonstration videos are not recorded.</li>
+  <li>Published country exposure is unavailable on the free Finnhub plan. The headquarters fallback is the behavior, not a temporary stub.</li>
+  <li>Full deterministic testing and KUMA validation remain Stage 3 work, as the Stage 2 instructions say.</li>
+</ul>
+
+<h2>7. Demonstration index</h2>
+
+<p class="note">No video is linked in this version of the report. Slides and this document are not a demonstration. Before the 10 November 2026 submission, each row needs a public link and a timestamp. Record the running application. Show the GUI and the terminal across the set. Do not show API keys, <code>.env</code>, or a shell line that prints a key. If a provider error appears, confirm the key is not on screen.</p>
+
+<p>Suggested capture: one GUI recording and one terminal recording, with a spoken feature id at the start of each segment. The timestamp column is empty on purpose.</p>
+
+<table>
+  <thead>
+    <tr><th>Feature</th><th>What to show</th><th>Link and timestamp</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>UC-01 Register</td><td>GUI create-account screen, confirm password present, then return to sign-on. Terminal register of a second user.</td><td>Not recorded</td></tr>
+    <tr><td>UC-02 Log in</td><td>Sign-on screen with no confirm field. Wrong password, then a successful sign-on.</td><td>Not recorded</td></tr>
+    <tr><td>UC-03 Log out</td><td>Log out and show that the next command requires sign-on.</td><td>Not recorded</td></tr>
+    <tr><td>UC-04 Quote</td><td><code>QUOTE NVDA</code> in the window and <code>/quote NVDA</code> in the terminal. Price, previous close, percent change.</td><td>Not recorded</td></tr>
+    <tr><td>UC-05 Overview</td><td><code>OVERVIEW NVDA</code>. Name, exchange, currency, industry. Mention that a description is not on the free profile.</td><td>Not recorded</td></tr>
+    <tr><td>UC-06 Sector</td><td><code>SECTOR QQQ</code>. Sector weights from the ETF profile.</td><td>Not recorded</td></tr>
+    <tr><td>UC-06 Country</td><td><code>GEO QQQ</code>. Headquarters note, Unknown if any, and a stock such as NVDA producing no country list.</td><td>Not recorded</td></tr>
+    <tr><td>UC-07 Compare</td><td><code>COMPARE NVDA MSFT</code>. Difference of percent changes.</td><td>Not recorded</td></tr>
+    <tr><td>UC-08 Overlap</td><td><code>OVERLAP QQQ SPY</code>. Shared holdings.</td><td>Not recorded</td></tr>
+    <tr><td>UC-09 News</td><td><code>NEWS NVDA</code>. Headlines. Say that a match is not a cause.</td><td>Not recorded</td></tr>
+    <tr><td>UC-10 Movement</td><td><code>WHY MSFT</code>. Quote, news, Gemini note, and the not-advice line. If the key is missing, show the evidence and the unavailable note.</td><td>Not recorded</td></tr>
+    <tr><td>UC-11 Add position</td><td><code>PORT ADD NVDA 10 STOCK</code> or the Portfolio screen.</td><td>Not recorded</td></tr>
+    <tr><td>UC-12 Remove position</td><td><code>PORT REMOVE</code> of a symbol that exists, then one that does not.</td><td>Not recorded</td></tr>
+    <tr><td>UC-13 View portfolio</td><td><code>/portfolio</code> and the Portfolio screen for the same user.</td><td>Not recorded</td></tr>
+    <tr><td>UC-14 Watchlist</td><td><code>WATCH ADD</code> and <code>WATCH REMOVE</code>.</td><td>Not recorded</td></tr>
+    <tr><td>UC-15 Exposure</td><td><code>EXPOSURE</code>. Value as price times quantity. Name an unpriced position if one exists.</td><td>Not recorded</td></tr>
+    <tr><td>UC-16 Follow-up</td><td>After a QQQ lookup, ask “what about its sector exposure.” Then ask “why did microsoft fall” and show MSFT, not DID. Then a sentence that says to ignore previous instructions, and show that no tool runs.</td><td>Not recorded</td></tr>
+    <tr><td>UC-17 Statements</td><td><code>STATEMENTS NVDA</code> with <code>FMP_API_KEY</code> set. Or the unavailable message with the key unset.</td><td>Not recorded</td></tr>
+    <tr><td>UC-18 History</td><td><code>HISTORY NVDA</code>. Bars and RSI.</td><td>Not recorded</td></tr>
+    <tr><td>UC-19 Sentiment</td><td><code>SENTIMENT NVDA</code>. Score and band. Say the band is not advice.</td><td>Not recorded</td></tr>
+    <tr><td>UC-20 Home desk</td><td>F1 after sign-on. Portfolio value, day move, chips, and the moving tape. GUI only.</td><td>Not recorded</td></tr>
+  </tbody>
+</table>
+
+<p>The terminal segment should include <code>/quote</code>, <code>/why</code> or <code>/ask</code>, and <code>/portfolio exposure</code>. The window segment should include sign-on, home, and at least one research command. Together they show both interfaces.</p>
+
+</body>
+</html>
