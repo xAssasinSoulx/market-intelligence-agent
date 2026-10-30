@@ -1,73 +1,44 @@
 @startuml
-title UC-10 - Explain Recent Market Movement
+title UC-10 - Explain a recent move
 
 autonumber
 
 actor User
+participant "UI or AgentController" as Entry
+participant ResearchGateway
+participant MarketMovementTool
+participant ProviderRouter
+participant MarketExplanationService
+participant GeminiLLMClient
 
-participant TerminalUI <<boundary>>
-participant AgentController <<control>>
-participant SessionManager <<control>>
-participant RequestPlanner <<control>>
-participant LLMClient
-participant ToolManager <<control>>
-participant MarketDataTool
-participant MarketDataProvider
-participant NewsTool
-participant NewsProvider
-participant ResponseComposer <<control>>
-
-User -> TerminalUI : "Why has NVDA been moving recently?"
-TerminalUI -> AgentController : handleRequest(input)
-
-AgentController -> SessionManager : getCurrentUserId()
-SessionManager --> AgentController : userId
-
-AgentController -> RequestPlanner : createPlan(request, context)
-RequestPlanner -> LLMClient : generate(planningPrompt)
-LLMClient --> RequestPlanner : Plan requires market data and financial news
-RequestPlanner --> AgentController : AgentPlan
-
-AgentController -> ToolManager : execute(marketDataRequest)
-ToolManager -> MarketDataTool : execute(request)
-MarketDataTool -> MarketDataProvider : getQuote(NVDA)
-
-alt Market data retrieval succeeds
-    MarketDataProvider --> MarketDataTool : MarketQuote
-    MarketDataTool --> ToolManager : ToolResult(success)
-else Market data retrieval fails
-    MarketDataProvider --> MarketDataTool : provider error
-    MarketDataTool --> ToolManager : ToolResult(failure)
+User -> Entry : WHY MSFT
+alt Direct command
+    Entry -> ResearchGateway : explainMovement(userId, MSFT)
+    ResearchGateway -> MarketMovementTool : execute(MARKET_MOVEMENT)
+else Follow-up sentence
+    Entry -> MarketMovementTool : execute(MARKET_MOVEMENT)
 end
 
-ToolManager --> AgentController : marketDataResult
+MarketMovementTool -> ProviderRouter : getQuote(MSFT)
+ProviderRouter --> MarketMovementTool : MarketQuote
+MarketMovementTool -> ProviderRouter : getNews(MSFT)
+ProviderRouter --> MarketMovementTool : articles
+MarketMovementTool --> Entry : MarketMovementContext
 
-AgentController -> ToolManager : execute(newsRequest)
-ToolManager -> NewsTool : execute(request)
-NewsTool -> NewsProvider : getNews(NVDA)
-
-alt News retrieval succeeds
-    NewsProvider --> NewsTool : News articles
-    NewsTool --> ToolManager : ToolResult(success)
-else News retrieval fails
-    NewsProvider --> NewsTool : provider error
-    NewsTool --> ToolManager : ToolResult(failure)
+alt Gemini is configured and evidence exists
+    Entry -> MarketExplanationService : explain(context)
+    MarketExplanationService -> GeminiLLMClient : generateBrief(prompt)
+    GeminiLLMClient --> Entry : short note grounded in the quote and news
+else Gemini is missing or the call fails
+    Entry --> User : quote and news, plus the failure note
 end
 
-ToolManager --> AgentController : newsResult
-
-AgentController -> ResponseComposer : compose(request, results, context)
-
-alt Market data and news are available
-    ResponseComposer -> LLMClient : explain movement using retrieved data
-    LLMClient --> ResponseComposer : evidence-based explanation
-else Information is incomplete
-    ResponseComposer -> LLMClient : explain available data and missing evidence
-    LLMClient --> ResponseComposer : limited response
-end
-
-ResponseComposer --> AgentController : AgentResponse
-AgentController --> TerminalUI : AgentResponse
-TerminalUI --> User : Display market-movement analysis
+note right of MarketExplanationService
+  The prompt contains the quote and up to
+  three article summaries. It does not ask
+  for a buy or sell recommendation.
+  Articles after the last trade are flagged
+  before they reach this prompt.
+end note
 
 @enduml

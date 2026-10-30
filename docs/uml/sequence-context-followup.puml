@@ -1,45 +1,61 @@
 @startuml
-title UC-16 - Ask a Contextual Follow-Up Question
+title UC-16 - Contextual follow-up
 
 autonumber
 
 actor User
-
-participant TerminalUI <<boundary>>
-participant AgentController <<control>>
-participant ConversationMemory <<control>>
+participant "TerminalUI or\nAgentPanel" as UI
+participant ResearchGateway
+participant AgentController
+participant ConversationMemory
 participant SQLiteConversationRepository
-participant RequestPlanner <<control>>
-participant ToolManager <<control>>
-participant AgentTool
-participant ResponseComposer <<control>>
+participant RequestPlanner
+participant GeminiLLMClient
+participant ToolManager
+participant MarketExplanationService
+participant ResponseComposer
 
-User -> TerminalUI : "What about its sector exposure?"
-TerminalUI -> AgentController : handle(userId, input)
-
+User -> UI : why did microsoft fall
+UI -> ResearchGateway : ask(userId, sentence)
+ResearchGateway -> AgentController : handle(userId, sentence)
 AgentController -> ConversationMemory : lastSymbol(userId)
 ConversationMemory -> SQLiteConversationRepository : recent(userId)
-SQLiteConversationRepository --> ConversationMemory : earlier turns
-ConversationMemory --> AgentController : QQQ
+SQLiteConversationRepository --> ConversationMemory : earlier turns for this user
+ConversationMemory --> AgentController : previous symbol
 
-AgentController -> RequestPlanner : createPlan(input, QQQ)
+AgentController -> RequestPlanner : createPlan(sentence, previous)
+RequestPlanner -> RequestPlanner : keyword plan\nMICROSOFT -> MSFT\nFALL -> MARKET_MOVEMENT
+
+opt Gemini is configured and the sentence is not rejected
+    RequestPlanner -> GeminiLLMClient : generateBrief(plan prompt)
+    alt JSON names an allowlisted action and a real symbol
+        GeminiLLMClient --> RequestPlanner : MARKET_MOVEMENT, MSFT
+    else JSON is invalid, disallowed, or the symbol is a stop word
+        RequestPlanner -> RequestPlanner : keep the keyword plan
+    end
+end
+
+RequestPlanner --> AgentController : RUN MARKET_MOVEMENT MSFT
+AgentController -> ConversationMemory : remember(user, sentence, MSFT)
+AgentController -> ToolManager : execute(MARKET_MOVEMENT, MSFT)
+ToolManager --> AgentController : quote and news
+AgentController -> MarketExplanationService : explain(context)
+MarketExplanationService -> GeminiLLMClient : generateBrief(evidence prompt)
+GeminiLLMClient --> MarketExplanationService : short answer
+MarketExplanationService --> AgentController : short answer
+AgentController -> ResponseComposer : composeMovement
+ResponseComposer --> AgentController : answer, evidence, not-investment-advice line
+AgentController -> ConversationMemory : remember(assistant, reply, MSFT)
+AgentController --> ResearchGateway : reply
+ResearchGateway --> UI : reply
+UI --> User : answer and evidence
+
 note right of RequestPlanner
-  Deterministic allowlist.
-  Pronouns use the stored symbol.
-  Hidden instructions are rejected.
+  Hidden instructions such as "ignore previous"
+  or SQL are rejected and do not run a tool.
+  "its" uses the stored symbol for this user only.
+  Compare and overlap need two symbols.
+  Portfolio exposure is not narrated by the model.
 end note
-RequestPlanner --> AgentController : ETF_SECTOR_EXPOSURE(QQQ)
-
-AgentController -> ConversationMemory : remember(user question, QQQ)
-AgentController -> ToolManager : execute(toolRequest)
-ToolManager -> AgentTool : execute(request)
-AgentTool --> ToolManager : ToolResult
-ToolManager --> AgentController : ToolResult
-
-AgentController -> ResponseComposer : compose(plan, result)
-ResponseComposer --> AgentController : text
-AgentController -> ConversationMemory : remember(reply, QQQ)
-AgentController --> TerminalUI : text
-TerminalUI --> User : sector weights for QQQ
 
 @enduml
