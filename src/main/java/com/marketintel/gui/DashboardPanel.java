@@ -10,28 +10,31 @@ import com.marketintel.model.ToolResult;
 import com.marketintel.model.User;
 import com.marketintel.services.PortfolioBook;
 
+import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.text.NumberFormat;
+import java.awt.Insets;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * Launch screen. Each tile opens the screen that owns that function.
- * Missing functions stay marked N/A and do not navigate.
+ * Home screen. The book owns the center: value, day move, allocation,
+ * and one row per position. The twelve tiles stay on one row and open
+ * the screen that owns that function.
  */
 public final class DashboardPanel extends JPanel {
 
@@ -40,12 +43,16 @@ public final class DashboardPanel extends JPanel {
     private final ToolManager toolManager;
     private final boolean explanationsAvailable;
     private final Consumer<String> openSection;
+    private final HoldingsRefresh refreshState = new HoldingsRefresh();
     private final JLabel identity = UiTheme.fieldLabel("SIGN ON REQUIRED");
     private final JLabel valueAmount = UiTheme.heading("—");
     private final JLabel dayAmount = UiTheme.heading("—");
-    private final JPanel chips = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-    private final JLabel bookNote = UiTheme.text("", true);
-    private final JPanel board = new JPanel(new GridLayout(0, 4, 8, 8));
+    private final JLabel coverage = UiTheme.fieldLabel("");
+    private final JTextArea bookNote = noteArea();
+    private final AllocationBar allocationBar = new AllocationBar();
+    private final JPanel rowStack = new JPanel(new GridLayout(0, 1, 0, 0));
+    private final JScrollPane holdingsScroll;
+    private final JPanel board = new JPanel(new GridLayout(1, 12, 4, 0));
     private final JTextArea notes = UiTheme.resultArea();
     private int bookGeneration;
 
@@ -67,44 +74,66 @@ public final class DashboardPanel extends JPanel {
         setBorder(UiTheme.padding(10));
 
         board.setBackground(Color.BLACK);
+        rowStack.setBackground(Color.BLACK);
         notes.setRows(2);
         notes.setText("F1-F5 SWITCH SCREENS.  QUOTE NVDA, WHY NVDA, PORT, HELP.\n");
 
-        valueAmount.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 28));
-        dayAmount.setFont(new java.awt.Font(java.awt.Font.MONOSPACED, java.awt.Font.BOLD, 22));
-        chips.setBackground(Color.BLACK);
+        valueAmount.setFont(new Font(Font.MONOSPACED, Font.BOLD, 28));
+        dayAmount.setFont(new Font(Font.MONOSPACED, Font.BOLD, 22));
+        valueAmount.setForeground(UiTheme.MUTED);
+        dayAmount.setForeground(UiTheme.MUTED);
+        coverage.setVisible(false);
 
-        JPanel figures = new JPanel(new GridLayout(1, 2, 16, 0));
+        JPanel figures = new JPanel(new GridBagLayout());
         figures.setBackground(Color.BLACK);
-        figures.add(figure("MARKET VALUE", valueAmount));
-        figures.add(figure("DAY", dayAmount));
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.anchor = GridBagConstraints.NORTHWEST;
+        constraints.gridx = 0;
+        constraints.gridy = 0;
+        figures.add(figure("MARKET VALUE", valueAmount, coverage), constraints);
+        constraints.gridx = 1;
+        constraints.insets = new Insets(0, 28, 0, 0);
+        figures.add(figure("DAY", dayAmount, null), constraints);
+        constraints.gridx = 2;
+        constraints.weightx = 1;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.insets = new Insets(0, 0, 0, 0);
+        JPanel glue = new JPanel();
+        glue.setOpaque(false);
+        figures.add(glue, constraints);
 
-        JPanel bookPanel = new JPanel(new BorderLayout(0, 4));
-        bookPanel.setBackground(Color.BLACK);
-        bookPanel.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, UiTheme.BORDER),
-                UiTheme.padding(4)
-        ));
-        bookPanel.add(figures, BorderLayout.NORTH);
-        bookPanel.add(chips, BorderLayout.CENTER);
-        bookPanel.add(bookNote, BorderLayout.SOUTH);
+        JPanel summary = new JPanel(new BorderLayout(0, 2));
+        summary.setBackground(Color.BLACK);
+        summary.add(figures, BorderLayout.NORTH);
+        summary.add(bookNote, BorderLayout.SOUTH);
 
-        JPanel heading = new JPanel(new BorderLayout(0, 6));
-        heading.setBackground(Color.BLACK);
-        heading.add(identity, BorderLayout.NORTH);
-        heading.add(bookPanel, BorderLayout.CENTER);
+        JPanel summaryBlock = new JPanel(new BorderLayout(0, 6));
+        summaryBlock.setBackground(Color.BLACK);
+        summaryBlock.add(identity, BorderLayout.NORTH);
+        summaryBlock.add(summary, BorderLayout.CENTER);
+        summaryBlock.add(allocationBar, BorderLayout.SOUTH);
+
+        JPanel scroller = new JPanel(new BorderLayout());
+        scroller.setBackground(Color.BLACK);
+        scroller.add(rowStack, BorderLayout.NORTH);
+        holdingsScroll = UiTheme.scroll(scroller);
+        holdingsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        holdingsScroll.getVerticalScrollBar().setUnitIncrement(24);
+        holdingsScroll.setMinimumSize(new Dimension(0, 72));
 
         JPanel body = new JPanel(new BorderLayout(0, 8));
         body.setBackground(Color.BLACK);
-        body.add(heading, BorderLayout.NORTH);
-        body.add(board, BorderLayout.CENTER);
+        body.add(summaryBlock, BorderLayout.NORTH);
+        body.add(holdingsScroll, BorderLayout.CENTER);
+        body.add(board, BorderLayout.SOUTH);
 
-        javax.swing.JScrollPane notesScroll = UiTheme.scroll(notes);
+        JScrollPane notesScroll = UiTheme.scroll(notes);
         notesScroll.setPreferredSize(new Dimension(100, 52));
 
         add(new UiTheme.JPanelBar("HOME", "SESSION MONITOR"), BorderLayout.NORTH);
         add(body, BorderLayout.CENTER);
         add(notesScroll, BorderLayout.SOUTH);
+        allocationBar.setVisible(false);
     }
 
     public void refresh() {
@@ -148,6 +177,17 @@ public final class DashboardPanel extends JPanel {
         loadBook();
     }
 
+    /**
+     * Prices the book again on the tape cadence.
+     * A book already on screen stays up until the new quotes return.
+     */
+    public void reloadHoldings() {
+        if (!workspace.isAuthenticated()) {
+            return;
+        }
+        loadBook();
+    }
+
     private void loadBook() {
         if (!workspace.isAuthenticated()) {
             return;
@@ -159,7 +199,12 @@ public final class DashboardPanel extends JPanel {
             showBookMessage("NO OPEN POSITIONS.  PORT ADD NVDA 10 STOCK.");
             return;
         }
-        showBookMessage("PRICING " + positions.size() + " POSITIONS...");
+        String pricing = HomeDeskView.pricingNote(positions.size());
+        if (refreshState.retainWhileLoading()) {
+            bookNote.setText(pricing);
+        } else {
+            showBookMessage(pricing);
+        }
         new SwingWorker<PortfolioBook, Void>() {
             @Override
             protected PortfolioBook doInBackground() {
@@ -185,124 +230,127 @@ public final class DashboardPanel extends JPanel {
                 try {
                     showBook(get());
                 } catch (Exception exception) {
-                    showBookMessage("PORTFOLIO PRICES COULD NOT BE LOADED.");
+                    if (refreshState.retainWhileLoading()) {
+                        bookNote.setText("PORTFOLIO PRICES COULD NOT BE LOADED.");
+                    } else {
+                        showBookMessage("PORTFOLIO PRICES COULD NOT BE LOADED.");
+                    }
                 }
             }
         }.execute();
     }
 
     private void showBookMessage(String message) {
+        refreshState.clear();
         valueAmount.setText("—");
         valueAmount.setForeground(UiTheme.MUTED);
         dayAmount.setText("—");
         dayAmount.setForeground(UiTheme.MUTED);
-        chips.removeAll();
+        coverage.setText("");
+        coverage.setVisible(false);
         bookNote.setText(message);
-        chips.revalidate();
-        chips.repaint();
+        allocationBar.setSegments(List.of());
+        allocationBar.setVisible(false);
+        showRows(List.of());
     }
 
     private void showBook(PortfolioBook snapshot) {
-        valueAmount.setText(money(snapshot.marketValue()));
-        valueAmount.setForeground(UiTheme.TEXT);
-        dayAmount.setText(day(snapshot));
-        dayAmount.setForeground(tone(snapshot.dayChange()));
-        chips.removeAll();
-        for (PortfolioBook.Row row : snapshot.priced()) {
-            chips.add(chip(row));
-        }
-        for (String symbol : snapshot.unpriced()) {
-            chips.add(plainChip(symbol + "  UNPRICED"));
-        }
-        bookNote.setText(snapshot.priced().isEmpty()
-                ? "NO POSITION COULD BE PRICED."
-                : "Quantity times the latest price. Day is the move from the previous close.");
-        chips.revalidate();
-        chips.repaint();
+        HomeDeskView.Model model = HomeDeskView.present(snapshot);
+        refreshState.showedBook();
+        valueAmount.setText(model.marketValue());
+        valueAmount.setForeground(model.totalsBlank() ? UiTheme.MUTED : UiTheme.TEXT);
+        dayAmount.setText(model.day());
+        dayAmount.setForeground(model.totalsBlank() ? UiTheme.MUTED : toneColor(model.dayTone()));
+        coverage.setText(model.coverage() == null ? "" : model.coverage());
+        coverage.setVisible(model.coverage() != null);
+        bookNote.setText(model.note());
+        allocationBar.setSegments(model.segments());
+        allocationBar.setVisible(!model.rows().isEmpty());
+        showRows(model.rows());
     }
 
-    private JPanel figure(String caption, JLabel amount) {
-        JPanel panel = new JPanel(new GridLayout(2, 1));
+    private void showRows(List<HomeDeskView.Row> rows) {
+        rowStack.removeAll();
+        if (!rows.isEmpty()) {
+            rowStack.add(columnHeader());
+            for (HomeDeskView.Row row : rows) {
+                rowStack.add(holdingRow(row));
+            }
+        }
+        holdingsScroll.setVisible(!rows.isEmpty());
+        rowStack.revalidate();
+        rowStack.repaint();
+    }
+
+    private JPanel figure(String caption, JLabel amount, JLabel footer) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBackground(Color.BLACK);
-        panel.add(UiTheme.fieldLabel(caption));
+        JLabel captionLabel = UiTheme.fieldLabel(caption);
+        captionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        amount.setAlignmentX(Component.LEFT_ALIGNMENT);
+        panel.add(captionLabel);
         panel.add(amount);
+        if (footer != null) {
+            footer.setAlignmentX(Component.LEFT_ALIGNMENT);
+            panel.add(footer);
+        }
         return panel;
     }
 
-    private JPanel chip(PortfolioBook.Row row) {
-        JPanel chip = plainChip(
-                row.symbol()
-                        + "   "
-                        + plain(row.quantity())
-                        + "   "
-                        + signed(row.percentChange())
-                        + "%   "
-                        + money(row.marketValue())
-        );
-        chip.setForeground(tone(row.percentChange()));
-        for (java.awt.Component child : chip.getComponents()) {
-            if (child instanceof JLabel label) {
-                label.setForeground(tone(row.percentChange()));
-            }
+    private JPanel columnHeader() {
+        JPanel line = new JPanel(new GridLayout(1, 5, 12, 0));
+        line.setBackground(Color.BLACK);
+        line.setBorder(UiTheme.padding(4));
+        for (String name : List.of("SYMBOL", "WEIGHT", "VALUE", "DAY", "QUOTE")) {
+            line.add(UiTheme.fieldLabel(name));
         }
-        return chip;
+        return line;
     }
 
-    private JPanel plainChip(String text) {
-        JPanel chip = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
-        chip.setBackground(new Color(0x120E04));
-        chip.setBorder(javax.swing.BorderFactory.createLineBorder(UiTheme.BORDER));
+    private JPanel holdingRow(HomeDeskView.Row row) {
+        JPanel line = new JPanel(new GridLayout(1, 5, 12, 0));
+        line.setBackground(Color.BLACK);
+        line.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createMatteBorder(0, 0, 1, 0, UiTheme.BORDER),
+                UiTheme.padding(4)
+        ));
+        Color symbolColor = row.unpriced() ? UiTheme.MUTED : UiTheme.TEXT;
+        Color plain = row.unpriced() ? UiTheme.MUTED : UiTheme.TEXT;
+        line.add(colored(row.symbol(), symbolColor));
+        line.add(colored(row.weight(), plain));
+        line.add(colored(row.value(), plain));
+        line.add(colored(row.dayDollars(), row.unpriced() ? plain : toneColor(row.dayTone())));
+        line.add(colored(row.quotePercent(), row.unpriced() ? plain : toneColor(row.quoteTone())));
+        return line;
+    }
+
+    private static JTextArea noteArea() {
+        JTextArea area = new JTextArea();
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setRows(2);
+        area.setFont(UiTheme.UI_FONT);
+        area.setBackground(Color.BLACK);
+        area.setForeground(UiTheme.MUTED);
+        area.setBorder(null);
+        return area;
+    }
+
+    private static JLabel colored(String text, Color color) {
         JLabel label = UiTheme.text(text);
-        chip.add(label);
-        return chip;
+        label.setForeground(color);
+        return label;
     }
 
-    private static Color tone(BigDecimal value) {
-        return switch (value.signum()) {
-            case 1 -> UiTheme.SUCCESS;
-            case -1 -> UiTheme.DANGER;
-            default -> UiTheme.TEXT;
+    private static Color toneColor(HomeDeskView.Tone tone) {
+        return switch (tone) {
+            case UP -> UiTheme.SUCCESS;
+            case DOWN -> UiTheme.DANGER;
+            case FLAT -> UiTheme.TEXT;
         };
-    }
-
-    private static String day(PortfolioBook snapshot) {
-        String amount = signedMoney(snapshot.dayChange());
-        BigDecimal percent = snapshot.dayPercent();
-        if (percent == null) {
-            return amount;
-        }
-        return amount + "   (" + signed(percent) + "%)";
-    }
-
-    private static String signedMoney(BigDecimal value) {
-        String text = money(value.abs());
-        if (value.signum() < 0) {
-            return "-" + text;
-        }
-        if (value.signum() > 0) {
-            return "+" + text;
-        }
-        return text;
-    }
-
-    private static String money(BigDecimal value) {
-        NumberFormat format = NumberFormat.getNumberInstance(Locale.US);
-        format.setMinimumFractionDigits(2);
-        format.setMaximumFractionDigits(2);
-        format.setGroupingUsed(true);
-        return format.format(value);
-    }
-
-    private static String plain(BigDecimal value) {
-        return value.stripTrailingZeros().toPlainString();
-    }
-
-    private static String signed(BigDecimal value) {
-        String text = value.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        if (value.signum() > 0 && !text.startsWith("+")) {
-            return "+" + text;
-        }
-        return text;
     }
 
     public void showHelp(String help) {
@@ -318,15 +366,20 @@ public final class DashboardPanel extends JPanel {
             boolean enabled) {
 
         JPanel cell = new JPanel(new GridLayout(3, 1));
-        cell.setPreferredSize(new Dimension(180, 84));
+        cell.setPreferredSize(new Dimension(64, 46));
         cell.setBorder(javax.swing.BorderFactory.createCompoundBorder(
                 javax.swing.BorderFactory.createLineBorder(enabled ? UiTheme.ACCENT : UiTheme.BORDER),
-                UiTheme.padding(8)
+                UiTheme.padding(3)
         ));
 
         JLabel codeLabel = UiTheme.fieldLabel(code);
-        JLabel nameLabel = UiTheme.heading(name);
+        JLabel nameLabel = UiTheme.text(name);
         JLabel stateLabel = UiTheme.text(state, !enabled && "N/A".equals(state));
+        Font codeFont = new Font(Font.MONOSPACED, Font.PLAIN, 10);
+        Font nameFont = new Font(Font.MONOSPACED, Font.BOLD, 11);
+        codeLabel.setFont(codeFont);
+        nameLabel.setFont(nameFont);
+        stateLabel.setFont(codeFont);
         if (state.equals("LIVE") || state.endsWith("POS") || state.endsWith("SYM")) {
             stateLabel.setForeground(UiTheme.SUCCESS);
         } else if ("N/A".equals(state) || state.endsWith("OFF")) {
