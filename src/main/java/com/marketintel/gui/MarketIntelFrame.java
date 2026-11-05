@@ -292,9 +292,20 @@ public final class MarketIntelFrame extends JFrame {
         marketTape.start();
         loadTape();
         if (tapeRefresh == null) {
-            tapeRefresh = new Timer(90_000, event -> loadTape());
+            tapeRefresh = new Timer(90_000, event -> refreshMarketStrip());
         }
         tapeRefresh.start();
+    }
+
+    /**
+     * The tape and, while Home is showing, the holdings book.
+     * Both stay on this timer. A faster poll is not added.
+     */
+    private void refreshMarketStrip() {
+        loadTape();
+        if ("Dashboard".equals(activeSection)) {
+            dashboardPanel.reloadHoldings();
+        }
     }
 
     private void loadTape() {

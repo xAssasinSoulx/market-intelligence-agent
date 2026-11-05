@@ -197,3 +197,39 @@ videos and for the weekly commits still required in Period 3.
 The report describes the code that is in the repository, including
 the features that are not finished: videos, Period 1 commits, and
 Period 3.
+
+## Interaction 008 - Home desk holdings
+
+### Task
+
+Make the signed-in home screen show total holdings more clearly, after
+a review of UC-20.
+
+### Input / Instruction
+
+The project owner approved five changes: a dash instead of zero when
+no position is priced, and coverage text for a partial book; rows
+sorted by market value with weight, value, day dollars, and the quote
+percent, plus a stacked allocation bar and every unpriced name; a
+scrollable list with value and day move together; holdings in the
+center and the twelve tiles kept on one clickable row; refresh on the
+existing 90-second tape timer without clearing the last totals.
+
+### AI Contribution
+
+Cursor's coding agent implemented `HomeDeskView`, `HoldingsRefresh`,
+and `AllocationBar`, reworked `DashboardPanel`, and reloaded the book
+from the tape timer in `MarketIntelFrame`. Tests cover sort, weights,
+the blank total, and the retain-while-loading flag. Screenshots used
+fixture quotes only.
+
+### Human Contribution
+
+The project owner set the five priorities from the review and reviews
+the pull request. No currency badge and no portfolio look-through
+were added to Home.
+
+### Outcome
+
+Home keeps the amber desk, signs quotes off the Swing thread, and
+names a missing quote instead of adding it as zero.
