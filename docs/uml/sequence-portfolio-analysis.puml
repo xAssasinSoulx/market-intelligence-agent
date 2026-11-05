@@ -1,76 +1,43 @@
 @startuml
-title UC-15 - Analyze Portfolio Exposure
+title UC-15 - Portfolio exposure
 
 autonumber
 
 actor User
-
-participant TerminalUI <<boundary>>
-participant AgentController <<control>>
-participant SessionManager <<control>>
-participant RequestPlanner <<control>>
-participant LLMClient
-participant ToolManager <<control>>
+participant "TerminalUI or\nMarketIntelFrame" as UI
+participant ResearchGateway
 participant PortfolioAnalysisTool
-participant PortfolioService <<control>>
-participant PortfolioRepository
-participant ETFDataProvider
-participant ExposureCalculator <<control>>
-participant ResponseComposer <<control>>
+participant PortfolioService
+participant ProviderRouter
+participant PortfolioExposureCalculator
 
-User -> TerminalUI : "What sectors am I most exposed to?"
-TerminalUI -> AgentController : handleRequest(input)
-
-AgentController -> SessionManager : getCurrentUserId()
-SessionManager --> AgentController : userId
-
-AgentController -> RequestPlanner : createPlan(request, context)
-RequestPlanner -> LLMClient : generate(planningPrompt)
-LLMClient --> RequestPlanner : PORTFOLIO_EXPOSURE(SECTOR)
-RequestPlanner --> AgentController : AgentPlan
-
-AgentController -> ToolManager : execute(portfolioExposureRequest)
-ToolManager -> PortfolioAnalysisTool : execute(request)
-
+User -> UI : EXPOSURE
+UI -> ResearchGateway : execute(userId, PORTFOLIO_EXPOSURE)
+ResearchGateway -> PortfolioAnalysisTool : execute(request)
 PortfolioAnalysisTool -> PortfolioService : getPortfolio(userId)
-PortfolioService -> PortfolioRepository : loadForUser(userId)
-PortfolioRepository --> PortfolioService : Portfolio
-PortfolioService --> PortfolioAnalysisTool : Portfolio
+PortfolioService --> PortfolioAnalysisTool : positions
 
-loop For each ETF position
-    PortfolioAnalysisTool -> ETFDataProvider : getHoldings(symbol)
-
-    alt ETF holdings are available
-        ETFDataProvider --> PortfolioAnalysisTool : ETF holdings
-        PortfolioAnalysisTool -> PortfolioAnalysisTool : store holdings
-    else ETF holdings are unavailable
-        ETFDataProvider --> PortfolioAnalysisTool : provider error
-        PortfolioAnalysisTool -> PortfolioAnalysisTool : record missing data
+loop Each position
+    PortfolioAnalysisTool -> ProviderRouter : getQuote(symbol)
+    alt Quote succeeds
+        ProviderRouter --> PortfolioAnalysisTool : price
+    else No price
+        ProviderRouter --> PortfolioAnalysisTool : error, position is named and excluded
+    end
+    opt Position is an ETF and holdings are available
+        PortfolioAnalysisTool -> ProviderRouter : getProfile(symbol)
+        ProviderRouter --> PortfolioAnalysisTool : sector weights and holdings
     end
 end
 
-alt Required portfolio data is available
-    PortfolioAnalysisTool -> ExposureCalculator : calculatePortfolioExposure(portfolio, etfHoldings)
-    ExposureCalculator --> PortfolioAnalysisTool : ExposureResult
-    PortfolioAnalysisTool --> ToolManager : ToolResult(success)
-else Required ETF information is incomplete
-    PortfolioAnalysisTool --> ToolManager : ToolResult(failure)
-end
+PortfolioAnalysisTool -> PortfolioExposureCalculator : calculate(inputs)
+PortfolioExposureCalculator --> UI : value = price x quantity, by currency
 
-ToolManager --> AgentController : ToolResult
-
-AgentController -> ResponseComposer : compose(request, results, context)
-
-alt Exposure result is available
-    ResponseComposer -> LLMClient : explain calculated portfolio exposure
-    LLMClient --> ResponseComposer : portfolio explanation
-else Exposure result is incomplete
-    ResponseComposer -> LLMClient : explain unavailable portfolio data
-    LLMClient --> ResponseComposer : limitation response
-end
-
-ResponseComposer --> AgentController : AgentResponse
-AgentController --> TerminalUI : AgentResponse
-TerminalUI --> User : Display portfolio analysis
+note right of PortfolioExposureCalculator
+  Day move uses price minus previous close, times quantity.
+  Currencies stay in separate books.
+  A follow-up that reaches this action does not send
+  the numbers to Gemini. The formatted report is the reply.
+end note
 
 @enduml

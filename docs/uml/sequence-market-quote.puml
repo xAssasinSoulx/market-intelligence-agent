@@ -1,75 +1,54 @@
 @startuml
-title UC-04 - Get Market Quote
+title UC-04 - Get a market quote
 
 autonumber
 
 actor User
-
-participant TerminalUI <<boundary>>
-participant AgentController <<control>>
-participant SessionManager <<control>>
-participant RequestPlanner <<control>>
-participant LLMClient
-participant ToolManager <<control>>
+participant "TerminalUI or\nMarketIntelFrame" as UI
+participant ResearchGateway <<facade>>
+participant SessionManager
+participant ToolManager
 participant MarketDataTool
-participant RequestValidator <<control>>
-participant MarketDataProvider
-participant ResponseComposer <<control>>
+participant RequestValidator
+participant ProviderRouter
+participant FinnhubAdapter
 
-User -> TerminalUI : "What is the latest price of NVDA?"
-
-TerminalUI -> AgentController : handleRequest(input)
-
-AgentController -> SessionManager : getCurrentUserId()
-SessionManager --> AgentController : userId
-
-AgentController -> RequestPlanner : createPlan(request, context)
-
-RequestPlanner -> LLMClient : generate(planningPrompt)
-LLMClient --> RequestPlanner : MARKET_QUOTE(symbol = "NVDA")
-
-RequestPlanner --> AgentController : AgentPlan
-
-AgentController -> ToolManager : execute(ToolRequest)
+User -> UI : QUOTE NVDA
+UI -> ResearchGateway : execute(userId, MARKET_QUOTE, NVDA)
+ResearchGateway -> SessionManager : isAuthenticated()
+SessionManager --> ResearchGateway : true
+ResearchGateway -> ToolManager : execute(ToolRequest)
 ToolManager -> MarketDataTool : execute(request)
-
-MarketDataTool -> RequestValidator : validateSymbol("NVDA")
+MarketDataTool -> RequestValidator : validateSymbol(NVDA)
 
 alt Symbol is valid
-
-    RequestValidator --> MarketDataTool : ValidationResult(valid)
-
-    MarketDataTool -> MarketDataProvider : getQuote("NVDA")
-
-    alt Market-data provider succeeds
-
-        MarketDataProvider --> MarketDataTool : MarketQuote
-        MarketDataTool --> ToolManager : ToolResult(success, MarketQuote)
-
-    else Market-data provider fails
-
-        MarketDataProvider --> MarketDataTool : provider error
-        MarketDataTool --> ToolManager : ToolResult(failure, errorMessage)
-
+    MarketDataTool -> ProviderRouter : getQuote(NVDA)
+    ProviderRouter -> FinnhubAdapter : getQuote(NVDA)
+    alt Quote succeeds
+        FinnhubAdapter --> ProviderRouter : MarketQuote
+        ProviderRouter --> MarketDataTool : MarketQuote
+        MarketDataTool --> ToolManager : ToolResult(success)
+    else Provider fails
+        FinnhubAdapter --> MarketDataTool : MarketDataException
+        MarketDataTool --> ToolManager : ToolResult(failure)
     end
-
 else Symbol is invalid
-
-    RequestValidator --> MarketDataTool : ValidationResult(invalid)
-    MarketDataTool --> ToolManager : ToolResult(failure, "Invalid symbol")
-
+    MarketDataTool --> ToolManager : ToolResult(failure)
 end
 
-ToolManager --> AgentController : ToolResult
+ToolManager --> ResearchGateway : ToolResult
+opt Success
+    ResearchGateway -> AgentController : noteLookup(userId, NVDA, MARKET_QUOTE)
+end
+ResearchGateway --> UI : ToolResult
+UI --> User : price, previous close, percent change
 
-AgentController -> ResponseComposer : compose(request, results, context)
-
-ResponseComposer -> LLMClient : generate(responsePrompt)
-LLMClient --> ResponseComposer : natural-language response
-
-ResponseComposer --> AgentController : AgentResponse
-AgentController --> TerminalUI : AgentResponse
-
-TerminalUI --> User : Display quote or explicit failure
+note right of ProviderRouter
+  First registered quote adapter wins.
+  Twelve Data, then Alpha Vantage,
+  are used only if Finnhub was not registered.
+  A failed call does not try the next adapter.
+  This path does not call Gemini.
+end note
 
 @enduml

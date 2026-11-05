@@ -1,74 +1,42 @@
 @startuml
-title UC-06 - Analyze ETF Exposure
+title UC-06 - Sector exposure
 
 autonumber
 
 actor User
-
-participant TerminalUI <<boundary>>
-participant AgentController <<control>>
-participant SessionManager <<control>>
-participant RequestPlanner <<control>>
-participant LLMClient
-participant ToolManager <<control>>
+participant "TerminalUI or\nMarketIntelFrame" as UI
+participant ResearchGateway
+participant ToolManager
 participant ETFExposureTool
-participant RequestValidator <<control>>
-participant ETFDataProvider
-participant ExposureCalculator <<control>>
-participant ResponseComposer <<control>>
+participant RequestValidator
+participant ProviderRouter
+participant AlphaVantageAdapter
+participant ExposureCalculator
 
-User -> TerminalUI : "What sectors does XEQT expose me to?"
-TerminalUI -> AgentController : handleRequest(input)
-
-AgentController -> SessionManager : getCurrentUserId()
-SessionManager --> AgentController : userId
-
-AgentController -> RequestPlanner : createPlan(request, context)
-RequestPlanner -> LLMClient : generate(planningPrompt)
-LLMClient --> RequestPlanner : ETF_SECTOR_EXPOSURE(XEQT)
-RequestPlanner --> AgentController : AgentPlan
-
-AgentController -> ToolManager : execute(toolRequest)
+User -> UI : SECTOR QQQ
+UI -> ResearchGateway : execute(userId, ETF_SECTOR_EXPOSURE, QQQ)
+ResearchGateway -> ToolManager : execute(ToolRequest)
 ToolManager -> ETFExposureTool : execute(request)
+ETFExposureTool -> RequestValidator : validateSymbol(QQQ)
 
-ETFExposureTool -> RequestValidator : validateSymbol(XEQT)
-
-alt Symbol is valid
-    RequestValidator --> ETFExposureTool : ValidationResult(valid)
-
-    ETFExposureTool -> ETFDataProvider : getHoldings(XEQT)
-
-    alt ETF holdings are available
-        ETFDataProvider --> ETFExposureTool : ETF holdings
-
-        ETFExposureTool -> ExposureCalculator : calculateSectorExposure(holdings)
-        ExposureCalculator --> ETFExposureTool : ExposureResult
-
-        ETFExposureTool --> ToolManager : ToolResult(success)
-    else ETF holdings are unavailable
-        ETFDataProvider --> ETFExposureTool : provider error
-        ETFExposureTool --> ToolManager : ToolResult(failure)
-    end
-
-else Symbol is invalid
-    RequestValidator --> ETFExposureTool : ValidationResult(invalid)
+alt Symbol is valid and holdings are available
+    ETFExposureTool -> ProviderRouter : getProfile(QQQ)
+    ProviderRouter -> AlphaVantageAdapter : getEtfProfile(QQQ)
+    AlphaVantageAdapter --> ETFExposureTool : ETFProfile
+    ETFExposureTool -> ExposureCalculator : calculateSectorExposure(profile)
+    ExposureCalculator --> ETFExposureTool : ExposureResult
+    ETFExposureTool --> ToolManager : ToolResult(success)
+else Holdings or the symbol fail
     ETFExposureTool --> ToolManager : ToolResult(failure)
 end
 
-ToolManager --> AgentController : ToolResult
+ToolManager --> ResearchGateway : ToolResult
+ResearchGateway --> UI : ToolResult
+UI --> User : sector weights
 
-AgentController -> ResponseComposer : compose(request, results, context)
-
-alt Exposure result is available
-    ResponseComposer -> LLMClient : generate explanation from ExposureResult
-    LLMClient --> ResponseComposer : natural-language explanation
-else Exposure result is unavailable
-    ResponseComposer -> LLMClient : generate limitation response
-    LLMClient --> ResponseComposer : limitation explanation
-end
-
-ResponseComposer --> AgentController : AgentResponse
-AgentController --> TerminalUI : AgentResponse
-TerminalUI --> User : Display ETF analysis
+note right of ETFExposureTool
+  Deterministic. Gemini is not called.
+  Country weights use sequence-country-exposure.
+end note
 
 @enduml

@@ -1,0 +1,42 @@
+@startuml
+title UC-17, UC-18, UC-19 - Statements, history, and sentiment
+
+autonumber
+
+actor User
+participant "TerminalUI or\nMarketIntelFrame" as UI
+participant ResearchGateway
+participant MarketInsightTool
+participant ProviderRouter
+participant "FMP, Twelve Data,\nor SentiSense adapter" as Adapter
+
+User -> UI : STATEMENTS, HISTORY, or SENTIMENT
+UI -> ResearchGateway : execute(userId, action, symbol)
+ResearchGateway -> MarketInsightTool : execute(request)
+
+alt FINANCIAL_STATEMENTS
+    MarketInsightTool -> ProviderRouter : getFinancialStatements(symbol)
+    ProviderRouter -> Adapter : FinancialModelingPrepAdapter
+else PRICE_HISTORY
+    MarketInsightTool -> ProviderRouter : getPriceHistory(symbol)
+    ProviderRouter -> Adapter : TwelveDataAdapter
+else NEWS_SENTIMENT
+    MarketInsightTool -> ProviderRouter : getSentiment(symbol)
+    ProviderRouter -> Adapter : SentiSenseAdapter
+end
+
+alt Adapter succeeds
+    Adapter --> UI : statements, bars and RSI, or one sentiment point
+else Key missing or provider error
+    Adapter --> UI : redacted unavailable message
+end
+
+note right of MarketInsightTool
+  One command object, three actions.
+  A missing key leaves that action unregistered.
+  Sentiment labels are local bands around the
+  provider score. They are not a recommendation.
+  Gemini is not on this path.
+end note
+
+@enduml

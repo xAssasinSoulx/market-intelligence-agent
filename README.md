@@ -23,11 +23,21 @@ This is a market-research tool for EECS 3311. It does not give investment advice
 - JDK 21
 - The Maven wrapper in this repository (`./mvnw`)
 
-API keys are optional. The application reads them from the environment. It does not load a `.env` file. `.env.example` lists the names only. Do not commit real keys.
+API keys are optional. The application reads them from the environment. It does not load a `.env` file by itself. `.env.example` lists the names only. Do not commit real keys.
 
 ## Configuration
 
-Export the keys you have before launch:
+Copy the example, put your own keys in the copy, and load that copy into the shell. `.env` is gitignored.
+
+```bash
+cp .env.example .env
+# Edit .env. Replace each placeholder. Leave unused keys unset.
+set -a
+source .env
+set +a
+```
+
+You can also export the keys you have before launch:
 
 ```bash
 export FINNHUB_API_KEY="your-finnhub-key"
@@ -49,7 +59,7 @@ export MI_SCROLLBACK=1                    # optional
 | `FMP_API_KEY` | Annual income statement, balance sheet, and cash-flow statement |
 | `TWELVE_DATA_API_KEY` | Daily price history, 14-day RSI, and a quote fallback |
 | `SENTISENSE_API_KEY` | Latest news-and-social sentiment score |
-| `GEMINI_API_KEY` | Movement explanation written from the quote and the news |
+| `GEMINI_API_KEY` | Short movement notes, and optional follow-up planning. The model sees the tool result, not portfolio weights |
 | `GEMINI_MODEL` | Model name. Omit it to use the client default |
 | `MI_SCROLLBACK` | Set to `1` to keep terminal history. Otherwise each view clears the screen |
 | `RUN_GEMINI_LIVE_TEST` | Set to `1`, with `GEMINI_API_KEY`, to run the live Gemini smoke test |
@@ -83,7 +93,7 @@ Financial Modeling Prep returns up to four annual periods. A line the filing did
 | No `FMP_API_KEY` | `/statements` is unavailable |
 | No `TWELVE_DATA_API_KEY` | `/history` is unavailable. Quotes are unaffected while Finnhub or Alpha Vantage is set |
 | No `SENTISENSE_API_KEY` | `/sentiment` is unavailable. Article sentiment from Marketaux is unchanged |
-| No `GEMINI_API_KEY` | Movement analysis still shows the quote and the news, and states that the explanation is unavailable |
+| No `GEMINI_API_KEY` | Movement analysis still shows the quote and the news, and states that the explanation is unavailable. Follow-up questions use the keyword planner and show the tool result without a model sentence |
 
 ## Run
 
@@ -140,8 +150,8 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | `/statements` | Annual income, balance sheet, and cash flow from Financial Modeling Prep |
 | `/history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
 | `/sentiment` | Latest SentiSense score. The label is this desk's band for that score |
-| `/why` | Quote, news, and a Gemini explanation grounded in that evidence |
-| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini chooses an allowed action and writes the reply from the tool result. Without it, a keyword reading is used. A pronoun such as "its" uses the last symbol stored for this user |
+| `/why` | Quote, news, and a short Gemini note grounded in that evidence. `WHY MSFT` is the symbol form. A sentence such as `why did microsoft fall` is a follow-up, not a ticker |
+| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Portfolio exposure is calculated in Java and is not narrated by the model |
 | `/portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 
 ## Window
@@ -156,7 +166,9 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | F4 | Watchlist |
 | F5 | Movement explanation |
 
-The same screens are labeled `1 HOME` through `5 WHY`. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
+The same screens are labeled `1 HOME` through `5 WHY`. Home shows the signed-in portfolio market value, the day move, one chip per position, and a sliding tape of index quotes, portfolio quotes, and a few headlines. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
+
+Sign-on and account creation are separate screens. The sign-on screen does not ask you to confirm the password.
 
 The command line accepts the terminal verbs, with or without a leading slash:
 
@@ -172,6 +184,7 @@ STATEMENTS NVDA
 HISTORY NVDA
 SENTIMENT NVDA
 WHY NVDA
+why did microsoft fall
 ASK what about its sector exposure
 PORT
 PORT ADD NVDA 10 STOCK
@@ -195,7 +208,8 @@ The weights are headquarters countries of those holdings. A holding with no prof
 - Provider data can be delayed, incomplete, or rate-limited.
 - A news match means the ticker was associated with the article. It does not show that the article caused the price move.
 - Finnhub quotes include a last-trade time. Articles published after that time are marked. Alpha Vantage quotes have no trade time, and the screens say so.
-- Contextual follow-up is not available. `AgentController`, `RequestPlanner`, `PromptBuilder`, and `ResponseComposer` are unused.
+- A follow-up can run only the actions on the planner allowlist. It cannot add or remove a position, and it will not run a sentence that tries to override the instructions.
+- If `GEMINI_MODEL` is set to an older name such as `gemini-2.5-flash` or `gemini-3.8-flash`, unset it. The client default is `gemini-3.5-flash-lite`.
 - Explanations are research notes, not a recommendation to buy or sell.
 
 ## Layout
@@ -204,13 +218,17 @@ Java 21, Maven, SQLite JDBC, BCrypt, Jackson, and JUnit 5.
 
 ```text
 src/main/java/com/marketintel/
+  agent/           follow-up planner, tools registry, reply text
   auth/            accounts and sessions
   persistence/     SQLite repositories
-  providers/       DataProvider adapters and ProviderRouter
-  services/        validation and exposure arithmetic
+  providers/       DataProvider adapters, ProviderRouter, Gemini
+  services/        validation, exposure arithmetic, conversation memory
   tools/           research tools
   gui/             Swing desk
   ui/              terminal
-docs/uml/          Stage 1 diagrams, plus class-diagram-providers.puml
-docs/Stage1-pdfs/  rendered Stage 1 diagrams
+docs/uml/          Stage 2 PlantUML sources
+docs/Stage1-pdfs/  rendered Stage 1 diagrams, kept for comparison
+docs/stage2-report.pdf
 ```
+
+The Stage 2 implementation report is `docs/stage2-report.pdf`. Diagram sources are in `docs/uml/`. Rendered Stage 2 figures are in `docs/uml/rendered/`.

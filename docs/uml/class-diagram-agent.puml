@@ -1,369 +1,149 @@
 @startuml
-title Market Intelligence Agent - Core Agent Architecture
+title Stage 2 - Implemented agent and interfaces
 
 skinparam classAttributeIconSize 0
 skinparam packageStyle rectangle
 hide empty members
 
-' ============================================================
-' USER INTERFACE
-' ============================================================
+note as Scope
+  Stage 2 implementation.
+  Stage 1 renders stay in docs/Stage1-pdfs.
+  A slash command or function key does not call the model.
+  A sentence goes through AgentController.
+end note
 
-package "User Interface" {
-
+package "Interfaces" {
     interface UserInterface {
         + start(): void
-        + displayResponse(response: AgentResponse): void
-        + displayError(message: String): void
     }
+    class TerminalUI
+    class MarketIntelFrame
+    class DeskCommand
+    class CommandParser
+    class DashboardPanel
+    class AgentPanel
+}
 
-    class TerminalUI {
-        - commandParser: CommandParser
-        - authService: AuthService
-        - sessionManager: SessionManager
-        - agentController: AgentController
-
-        + start(): void
-        + displayResponse(response: AgentResponse): void
-        + displayError(message: String): void
-        - handleInput(input: String): void
+package "Application" {
+    class ApplicationContext {
+        + createDefault(): ApplicationContext
     }
-
-    class CommandParser {
-        + parse(input: String): ParsedCommand
-        + isCommand(input: String): boolean
+    class ResearchGateway {
+        + execute(userId, action, arguments): ToolResult
+        + explainMovement(userId, symbol): MovementReport
+        + ask(userId, text): String
     }
-
-    class ParsedCommand {
-        + commandType: String
-        + arguments: Map<String, String>
+    class SessionWorkspace {
+        + login(username, password): User
+        + addPosition(symbol, quantity, assetType): void
+        + portfolio(): Portfolio
+        + watchlist(): Watchlist
     }
+}
+
+package "Follow-up" {
+    class AgentController {
+        + handle(userId, input): String
+        + noteLookup(userId, symbol, action): void
+    }
+    class RequestPlanner {
+        + createPlan(input, previousSymbol): AgentPlan
+    }
+    class PromptBuilder
+    class ResponseComposer {
+        + compose(plan, result): String
+        + composeMovement(plan, report): String
+    }
+    class AgentPlan
+    class ConversationMemory {
+        + lastSymbol(userId): String
+        + remember(...): void
+    }
+}
+
+package "Tools" {
+    interface AgentTool {
+        + supports(action): boolean
+        + execute(request): ToolResult
+    }
+    class ToolManager {
+        + registerTool(tool): void
+        + execute(request): ToolResult
+    }
+    class MarketDataTool
+    class ETFExposureTool
+    class ComparisonTool
+    class NewsTool
+    class MarketMovementTool
+    class MarketInsightTool
+    class PortfolioAnalysisTool
+}
+
+package "Explanation" {
+    class MarketExplanationService {
+        + explain(context): String
+    }
+    interface LLMProvider {
+        + generate(prompt): String
+        + generateBrief(prompt): String
+    }
+    class GeminiLLMClient
 }
 
 UserInterface <|.. TerminalUI
+MarketIntelFrame --> ResearchGateway
+MarketIntelFrame --> DeskCommand
 TerminalUI --> CommandParser
-CommandParser --> ParsedCommand
+TerminalUI --> ResearchGateway
+TerminalUI --> SessionWorkspace
+DashboardPanel --> ResearchGateway
+AgentPanel --> ResearchGateway
 
-
-' ============================================================
-' AGENT ORCHESTRATION
-' ============================================================
-
-package "Agent Layer" {
-
-    class AgentController {
-        - planner: RequestPlanner
-        - toolManager: ToolManager
-        - responseComposer: ResponseComposer
-        - memoryService: MemoryService
-        - sessionManager: SessionManager
-
-        + handleRequest(input: String): AgentResponse
-        - executePlan(plan: AgentPlan): List<ToolResult>
-    }
-
-    class RequestPlanner {
-        - llmClient: LLMClient
-        - promptBuilder: PromptBuilder
-
-        + createPlan(
-            request: AgentRequest,
-            context: ConversationContext
-          ): AgentPlan
-    }
-
-    class ToolManager {
-        - tools: List<AgentTool>
-
-        + registerTool(tool: AgentTool): void
-        + findTool(request: ToolRequest): AgentTool
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class ResponseComposer {
-        - llmClient: LLMClient
-        - promptBuilder: PromptBuilder
-
-        + compose(
-            request: AgentRequest,
-            results: List<ToolResult>,
-            context: ConversationContext
-          ): AgentResponse
-    }
-
-    class PromptBuilder {
-        + buildPlanningPrompt(
-            request: AgentRequest,
-            context: ConversationContext
-          ): String
-
-        + buildResponsePrompt(
-            request: AgentRequest,
-            results: List<ToolResult>
-          ): String
-    }
-
-    interface LLMClient {
-        + generate(prompt: String): String
-    }
-
-    class HttpLLMClient {
-        - endpoint: String
-        - apiKey: String
-
-        + generate(prompt: String): String
-    }
-}
-
-TerminalUI --> AgentController
+ApplicationContext --> ResearchGateway
+ApplicationContext --> AgentController
+ResearchGateway --> ToolManager
+ResearchGateway --> AgentController
+ResearchGateway --> MarketExplanationService
+ResearchGateway --> SessionManager
 
 AgentController --> RequestPlanner
 AgentController --> ToolManager
 AgentController --> ResponseComposer
-AgentController --> MemoryService
-AgentController --> SessionManager
-
+AgentController --> ConversationMemory
+AgentController --> MarketExplanationService
+AgentController --> LLMProvider
+RequestPlanner --> LLMProvider
 RequestPlanner --> PromptBuilder
-RequestPlanner --> LLMClient
+MarketExplanationService --> LLMProvider
+LLMProvider <|.. GeminiLLMClient
 
-ResponseComposer --> PromptBuilder
-ResponseComposer --> LLMClient
-
-LLMClient <|.. HttpLLMClient
-
-
-' ============================================================
-' AGENT TOOL ABSTRACTION
-' ============================================================
-
-package "Agent Tools" {
-
-    interface AgentTool {
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class MarketDataTool {
-        - provider: MarketDataProvider
-        - validator: RequestValidator
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class ETFExposureTool {
-        - provider: ETFDataProvider
-        - calculator: ExposureCalculator
-        - validator: RequestValidator
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class NewsTool {
-        - provider: NewsProvider
-        - validator: RequestValidator
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class PortfolioTool {
-        - portfolioService: PortfolioService
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class PortfolioAnalysisTool {
-        - portfolioService: PortfolioService
-        - etfProvider: ETFDataProvider
-        - calculator: ExposureCalculator
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class WatchlistTool {
-        - watchlistService: WatchlistService
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-
-    class ComparisonTool {
-        - marketDataProvider: MarketDataProvider
-        - etfDataProvider: ETFDataProvider
-        - calculator: ExposureCalculator
-        - validator: RequestValidator
-
-        + getName(): String
-        + supports(request: ToolRequest): boolean
-        + execute(request: ToolRequest): ToolResult
-    }
-}
-
-ToolManager o-- "1..*" AgentTool
-
+ToolManager o-- AgentTool
 AgentTool <|.. MarketDataTool
 AgentTool <|.. ETFExposureTool
-AgentTool <|.. NewsTool
-AgentTool <|.. PortfolioTool
-AgentTool <|.. PortfolioAnalysisTool
-AgentTool <|.. WatchlistTool
 AgentTool <|.. ComparisonTool
+AgentTool <|.. NewsTool
+AgentTool <|.. MarketMovementTool
+AgentTool <|.. MarketInsightTool
+AgentTool <|.. PortfolioAnalysisTool
 
+SessionWorkspace --> AuthService
+SessionWorkspace --> PortfolioService
+SessionWorkspace --> WatchlistService
 
-' ============================================================
-' DOMAIN SERVICES
-' ============================================================
+note bottom of RequestPlanner
+  Keyword plan always runs first.
+  Gemini may return one allowlisted action.
+  A disallowed action, bad JSON, or a
+  stop-word ticker falls back to keywords.
+  Portfolio add and remove are not allowlisted.
+end note
 
-package "Domain Services" {
-
-    class ExposureCalculator {
-        + calculateSectorExposure(
-            holdings: List<ETFHolding>
-          ): ExposureResult
-
-        + calculateGeographicExposure(
-            holdings: List<ETFHolding>
-          ): ExposureResult
-
-        + calculateOverlap(
-            first: List<ETFHolding>,
-            second: List<ETFHolding>
-          ): OverlapResult
-
-        + calculatePortfolioExposure(
-            portfolio: Portfolio,
-            etfHoldings: Map<String, List<ETFHolding>>
-          ): ExposureResult
-    }
-
-    class RequestValidator {
-        + validateSymbol(symbol: String): ValidationResult
-        + validateToolRequest(request: ToolRequest): ValidationResult
-        + validateQuantity(quantity: double): ValidationResult
-    }
-
-    class PortfolioService {
-        - repository: PortfolioRepository
-
-        + getPortfolio(userId: long): Portfolio
-        + addPosition(
-            userId: long,
-            position: PortfolioPosition
-          ): void
-
-        + removePosition(
-            userId: long,
-            symbol: String
-          ): boolean
-    }
-
-    class WatchlistService {
-        - repository: WatchlistRepository
-
-        + getWatchlist(userId: long): Watchlist
-        + addSymbol(userId: long, symbol: String): void
-        + removeSymbol(userId: long, symbol: String): boolean
-    }
-
-    class MemoryService {
-        - repository: ConversationRepository
-
-        + startConversation(userId: long): ConversationSession
-
-        + getRecentContext(
-            userId: long,
-            limit: int
-          ): ConversationContext
-
-        + saveMessage(
-            userId: long,
-            message: ConversationMessage
-          ): void
-    }
-}
-
-MarketDataTool --> RequestValidator
-
-ETFExposureTool --> RequestValidator
-ETFExposureTool --> ExposureCalculator
-
-NewsTool --> RequestValidator
-
-PortfolioTool --> PortfolioService
-
-PortfolioAnalysisTool --> PortfolioService
-PortfolioAnalysisTool --> ExposureCalculator
-
-WatchlistTool --> WatchlistService
-
-ComparisonTool --> ExposureCalculator
-ComparisonTool --> RequestValidator
-
-
-' ============================================================
-' EXTERNAL PROVIDERS
-' ============================================================
-
-package "External Provider Layer" {
-
-    interface MarketDataProvider {
-        + getQuote(symbol: String): MarketQuote
-        + getSecurityOverview(symbol: String): SecurityOverview
-    }
-
-    interface ETFDataProvider {
-        + getHoldings(symbol: String): List<ETFHolding>
-    }
-
-    interface NewsProvider {
-        + getNews(symbol: String): List<NewsArticle>
-    }
-
-    class MarketDataApiClient {
-        - endpoint: String
-        - apiKey: String
-
-        + getQuote(symbol: String): MarketQuote
-        + getSecurityOverview(symbol: String): SecurityOverview
-    }
-
-    class ETFDataApiClient {
-        - endpoint: String
-        - apiKey: String
-
-        + getHoldings(symbol: String): List<ETFHolding>
-    }
-
-    class NewsApiClient {
-        - endpoint: String
-        - apiKey: String
-
-        + getNews(symbol: String): List<NewsArticle>
-    }
-}
-
-MarketDataProvider <|.. MarketDataApiClient
-ETFDataProvider <|.. ETFDataApiClient
-NewsProvider <|.. NewsApiClient
-
-MarketDataTool --> MarketDataProvider
-ETFExposureTool --> ETFDataProvider
-NewsTool --> NewsProvider
-
-PortfolioAnalysisTool --> ETFDataProvider
-
-ComparisonTool --> MarketDataProvider
-ComparisonTool --> ETFDataProvider
+note bottom of ResearchGateway
+  Facade for both interfaces.
+  execute() checks the session, runs one tool,
+  and stores the symbol for a later pronoun.
+  Portfolio edits go through SessionWorkspace,
+  not through the model.
+end note
 
 @enduml

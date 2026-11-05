@@ -1,5 +1,5 @@
 @startuml
-title Market Intelligence Agent - Use-Case Diagram
+title Stage 2 - Use cases
 
 left to right direction
 skinparam packageStyle rectangle
@@ -7,52 +7,49 @@ skinparam linetype ortho
 
 actor User
 actor "Authenticated User" as AuthUser
-
-actor "Market Data API" as MarketAPI
-actor "ETF Data API" as ETFAPI
+actor "Quote and profile APIs" as MarketAPI
+actor "ETF holdings API" as ETFAPI
 actor "News API" as NewsAPI
-actor "LLM Service" as LLM
+actor "Statements API" as StatementsAPI
+actor "Price history API" as HistoryAPI
+actor "Sentiment API" as SentimentAPI
+actor "Gemini" as LLM
 
 User <|-- AuthUser
 
 rectangle "Market Intelligence Agent" {
-
-    package "Account and Session" {
+    package "Account" {
         usecase "UC-01\nRegister Account" as UC01
         usecase "UC-02\nLog In" as UC02
         usecase "UC-03\nLog Out" as UC03
     }
-
-    package "Market Research" {
+    package "Market research" {
         usecase "UC-04\nGet Market Quote" as UC04
         usecase "UC-05\nGet Security Overview" as UC05
         usecase "UC-06\nAnalyze ETF Exposure" as UC06
         usecase "UC-07\nCompare Securities" as UC07
-        usecase "UC-08\nAnalyze ETF Holding Overlap" as UC08
+        usecase "UC-08\nAnalyze ETF Overlap" as UC08
         usecase "UC-09\nRetrieve Financial News" as UC09
-        usecase "UC-10\nExplain Recent Market Movement" as UC10
+        usecase "UC-10\nExplain Market Movement" as UC10
+        usecase "UC-17\nRead Financial Statements" as UC17
+        usecase "UC-18\nRead Price History" as UC18
+        usecase "UC-19\nRead Sentiment" as UC19
     }
-
-    package "Portfolio and Watchlist" {
+    package "Portfolio and watchlist" {
         usecase "UC-11\nAdd Portfolio Position" as UC11
         usecase "UC-12\nRemove Portfolio Position" as UC12
         usecase "UC-13\nView Portfolio" as UC13
         usecase "UC-14\nManage Watchlist" as UC14
         usecase "UC-15\nAnalyze Portfolio Exposure" as UC15
+        usecase "UC-20\nView Home Desk" as UC20
     }
-
     package "Conversation" {
         usecase "UC-16\nAsk Contextual Follow-Up" as UC16
     }
 }
 
-' ============================================================
-' USER ASSOCIATIONS
-' ============================================================
-
 User --> UC01
 User --> UC02
-
 AuthUser --> UC03
 AuthUser --> UC04
 AuthUser --> UC05
@@ -67,33 +64,34 @@ AuthUser --> UC13
 AuthUser --> UC14
 AuthUser --> UC15
 AuthUser --> UC16
-
-
-' ============================================================
-' EXTERNAL SYSTEM ASSOCIATIONS
-' ============================================================
+AuthUser --> UC17
+AuthUser --> UC18
+AuthUser --> UC19
+AuthUser --> UC20
 
 MarketAPI --> UC04
 MarketAPI --> UC05
 MarketAPI --> UC07
 MarketAPI --> UC10
-
+MarketAPI --> UC15
+MarketAPI --> UC20
 ETFAPI --> UC06
-ETFAPI --> UC07
 ETFAPI --> UC08
 ETFAPI --> UC15
-
 NewsAPI --> UC09
 NewsAPI --> UC10
-
-LLM --> UC04
-LLM --> UC05
-LLM --> UC06
-LLM --> UC07
-LLM --> UC08
-LLM --> UC09
+NewsAPI --> UC20
+StatementsAPI --> UC17
+HistoryAPI --> UC18
+SentimentAPI --> UC19
 LLM --> UC10
-LLM --> UC15
 LLM --> UC16
+
+note bottom of LLM
+  Gemini is used for movement explanations
+  and for optional follow-up planning and
+  short replies. Direct commands do not call it.
+  Portfolio exposure numbers are not sent to it.
+end note
 
 @enduml

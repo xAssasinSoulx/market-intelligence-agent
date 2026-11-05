@@ -1,0 +1,43 @@
+@startuml
+title UC-06 - Country exposure on the free plan
+
+autonumber
+
+actor User
+participant ETFExposureTool
+participant FinnhubMarketDataClient
+participant AlphaVantageAdapter
+participant HoldingCountryResolver
+participant FinnhubAdapter
+participant ExposureCalculator
+
+User -> ETFExposureTool : GEO QQQ
+ETFExposureTool -> FinnhubMarketDataClient : getCountryExposure(QQQ)
+
+alt Published country report is returned
+    FinnhubMarketDataClient --> ETFExposureTool : country weights
+    ETFExposureTool -> ExposureCalculator : calculateReportedCountryExposure
+    ExposureCalculator --> User : published fund countries
+else Free plan returns HTTP 403
+    FinnhubMarketDataClient --> ETFExposureTool : MarketDataException
+    ETFExposureTool -> AlphaVantageAdapter : getEtfProfile(QQQ)
+    AlphaVantageAdapter --> ETFExposureTool : holdings
+    loop At most 25 largest holdings
+        ETFExposureTool -> HoldingCountryResolver : apply(profile, lookup)
+        HoldingCountryResolver -> FinnhubAdapter : headquarters country
+        FinnhubAdapter --> HoldingCountryResolver : country or unknown
+    end
+    ETFExposureTool -> ExposureCalculator : calculateGeographicExposure
+    ExposureCalculator --> User : headquarters countries, with a note
+end
+
+note right of HoldingCountryResolver
+  Headquarters of reported holdings.
+  Not the fund's published country report
+  and not revenue exposure.
+  Missing profiles stay Unknown.
+  Unassigned weight is named, not invented.
+  Provider errors are redacted before display.
+end note
+
+@enduml

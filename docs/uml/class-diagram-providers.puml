@@ -89,13 +89,25 @@ class MarketDataTool
 class NewsTool
 class ETFExposureTool
 class MarketInsightTool
+class HoldingCountryResolver
+interface HeadquartersLookup
+interface CountryExposureSource
+class ProviderText
 
 MarketDataTool --> MarketDataProvider
 NewsTool --> NewsProvider
 ETFExposureTool --> ETFDataProvider
+ETFExposureTool --> CountryExposureSource
+ETFExposureTool --> HoldingCountryResolver
+HoldingCountryResolver --> HeadquartersLookup
 MarketInsightTool --> FinancialStatementProvider
 MarketInsightTool --> PriceHistoryProvider
 MarketInsightTool --> SentimentProvider
+
+CountryExposureSource <|.. FinnhubMarketDataClient
+HeadquartersLookup <|.. FinnhubMarketDataClient
+ProviderText .. AlphaVantageAdapter
+ProviderText .. ETFExposureTool
 
 note as Policy
   Registration order is the priority.
