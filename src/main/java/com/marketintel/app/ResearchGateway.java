@@ -68,6 +68,28 @@ public final class ResearchGateway {
             ActionType action,
             Map<String, String> arguments) {
 
+        return dispatch(expectedUserId, action, arguments, true);
+    }
+
+    /**
+     * Runs a tool without storing a follow-up symbol.
+     * The home book and the tape use this. A price refresh must not
+     * replace the symbol the signed-in user last asked about.
+     */
+    public ToolResult read(
+            long expectedUserId,
+            ActionType action,
+            Map<String, String> arguments) {
+
+        return dispatch(expectedUserId, action, arguments, false);
+    }
+
+    private ToolResult dispatch(
+            long expectedUserId,
+            ActionType action,
+            Map<String, String> arguments,
+            boolean rememberLookup) {
+
         if (action == null) {
             return ToolResult.failure("An action is required.");
         }
@@ -90,7 +112,7 @@ public final class ResearchGateway {
         ToolResult result = toolManager.execute(
                 new ToolRequest(expectedUserId, action, safeArguments)
         );
-        if (result.isSuccess() && followUp != null) {
+        if (rememberLookup && result.isSuccess() && followUp != null) {
             followUp.noteLookup(expectedUserId, notedSymbol(safeArguments), action);
         }
         return result;

@@ -210,7 +210,7 @@ public final class DashboardPanel extends JPanel {
             protected PortfolioBook doInBackground() {
                 Map<String, MarketQuote> quotes = new LinkedHashMap<>();
                 for (PortfolioPosition position : positions) {
-                    ToolResult result = gateway.execute(
+                    ToolResult result = gateway.read(
                             userId,
                             ActionType.MARKET_QUOTE,
                             Map.of("symbol", position.getSymbol())

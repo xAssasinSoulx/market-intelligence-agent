@@ -327,7 +327,7 @@ public final class MarketIntelFrame extends JFrame {
             protected List<TapeLine.Piece> doInBackground() {
                 List<MarketQuote> quotes = new ArrayList<>();
                 for (String symbol : symbols) {
-                    ToolResult result = gateway.execute(
+                    ToolResult result = gateway.read(
                             userId,
                             ActionType.MARKET_QUOTE,
                             Map.of("symbol", symbol)
@@ -337,7 +337,7 @@ public final class MarketIntelFrame extends JFrame {
                     }
                 }
                 List<NewsArticle> articles = List.of();
-                ToolResult news = gateway.execute(
+                ToolResult news = gateway.read(
                         userId,
                         ActionType.FINANCIAL_NEWS,
                         Map.of("symbol", "SPY")
