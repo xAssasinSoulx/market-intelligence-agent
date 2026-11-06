@@ -164,6 +164,58 @@ class HomeDeskViewTest {
         assertEquals("PRICING 6 POSITIONS...", HomeDeskView.pricingNote(6));
     }
 
+    @Test
+    void showsOneReasonWhenEveryHoldingFailedTheSameWay() {
+        HomeDeskView.Model model = HomeDeskView.present(PortfolioBook.value(
+                List.of(position("SHOP.TO", "4"), position("XEQT.TO", "2")),
+                Map.of(),
+                Map.of(
+                        "SHOP.TO", "Quotes are unavailable. Set FINNHUB_API_KEY and restart.",
+                        "XEQT.TO", "Quotes are unavailable. Set FINNHUB_API_KEY and restart."
+                )
+        ));
+
+        assertTrue(model.totalsBlank());
+        assertEquals(
+                "Quotes are unavailable. Set FINNHUB_API_KEY and restart.",
+                model.note()
+        );
+        assertEquals(List.of("SHOP.TO", "XEQT.TO"), symbols(model));
+    }
+
+    @Test
+    void keepsAPricedBookAndNamesTheQuoteThatFailed() {
+        HomeDeskView.Model model = HomeDeskView.present(PortfolioBook.value(
+                List.of(position("NVDA", "10"), position("SHOP.TO", "2")),
+                Map.of("NVDA", quote("NVDA", "100", "90", "11.11")),
+                Map.of("SHOP.TO", "No quote data found for symbol: SHOP.TO.")
+        ));
+
+        assertFalse(model.totalsBlank());
+        assertEquals("1,000.00", model.marketValue());
+        assertTrue(model.note().startsWith("Total omits SHOP.TO. "));
+        assertTrue(model.note().contains("No quote data found for symbol: SHOP.TO."));
+        assertTrue(model.note().contains("Quantity times the latest price."));
+    }
+
+    @Test
+    void namesEachReasonWhenTheFailuresDiffer() {
+        HomeDeskView.Model model = HomeDeskView.present(PortfolioBook.value(
+                List.of(position("SHOP.TO", "2"), position("XEQT.TO", "1")),
+                Map.of(),
+                Map.of(
+                        "SHOP.TO", "No quote data found for symbol: SHOP.TO.",
+                        "XEQT.TO", "Finnhub rate limit reached. Wait a minute and retry."
+                )
+        ));
+
+        assertEquals(
+                "SHOP.TO: No quote data found for symbol: SHOP.TO. "
+                        + "XEQT.TO: Finnhub rate limit reached. Wait a minute and retry.",
+                model.note()
+        );
+    }
+
     private static List<String> symbols(HomeDeskView.Model model) {
         return model.rows().stream().map(HomeDeskView.Row::symbol).toList();
     }

@@ -233,3 +233,33 @@ were added to Home.
 
 Home keeps the amber desk, signs quotes off the Swing thread, and
 names a missing quote instead of adding it as zero.
+
+## Interaction 009 - Home refresh follow-ups
+
+### Task
+
+Three further home and portfolio fixes after the holdings view: keep
+follow-up memory stable, avoid a duplicate in-flight quote, and name
+the reason a holding could not be priced or saved.
+
+### Input / Instruction
+
+The project owner asked for three meaningful Java commits on top of
+the home-desk branch before the Stage 2 deadline. No live vendor
+calls, no API budget changes, and no docs-only commits.
+
+### AI Contribution
+
+The agent found that home and tape refreshes stored a follow-up
+symbol, priced the same symbol twice, and hid quote and save
+failures. Each fix is its own commit, with tests.
+
+### Human Contribution
+
+The project owner set the scope and reviews the pull request.
+
+### Outcome
+
+A refresh no longer replaces the symbol a later question uses. One
+in-flight quote serves both the tape and the book. A failed quote or
+save names the reason.

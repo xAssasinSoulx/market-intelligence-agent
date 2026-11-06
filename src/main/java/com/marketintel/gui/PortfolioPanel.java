@@ -211,9 +211,15 @@ public final class PortfolioPanel extends JPanel {
         } catch (NumberFormatException exception) {
             statusLabel.setText("QUANTITY MUST BE A NUMBER GREATER THAN ZERO");
         } catch (IllegalArgumentException exception) {
-            statusLabel.setText(exception.getMessage());
+            statusLabel.setText(DeskMessages.orFallback(
+                    exception,
+                    "UNABLE TO SAVE THE POSITION"
+            ));
         } catch (RuntimeException exception) {
-            statusLabel.setText("UNABLE TO SAVE THE POSITION");
+            statusLabel.setText(DeskMessages.orFallback(
+                    exception,
+                    "UNABLE TO SAVE THE POSITION"
+            ));
         }
     }
 
@@ -230,9 +236,15 @@ public final class PortfolioPanel extends JPanel {
                     ? "POSITION REMOVED"
                     : "THAT SYMBOL IS NOT IN THE PORTFOLIO");
         } catch (IllegalArgumentException exception) {
-            statusLabel.setText(exception.getMessage());
+            statusLabel.setText(DeskMessages.orFallback(
+                    exception,
+                    "UNABLE TO REMOVE THE POSITION"
+            ));
         } catch (RuntimeException exception) {
-            statusLabel.setText("UNABLE TO REMOVE THE POSITION");
+            statusLabel.setText(DeskMessages.orFallback(
+                    exception,
+                    "UNABLE TO REMOVE THE POSITION"
+            ));
         }
     }
 }

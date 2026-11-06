@@ -151,7 +151,7 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | `/history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
 | `/sentiment` | Latest SentiSense score. The label is this desk's band for that score |
 | `/why` | Quote, news, and a short Gemini note grounded in that evidence. `WHY MSFT` is the symbol form. A sentence such as `why did microsoft fall` is a follow-up, not a ticker |
-| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Portfolio exposure is calculated in Java and is not narrated by the model |
+| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Home and tape refreshes do not replace that symbol. Portfolio exposure is calculated in Java and is not narrated by the model |
 | `/portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 
 ## Window
@@ -166,7 +166,7 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | F4 | Watchlist |
 | F5 | Movement explanation |
 
-The same screens are labeled `1 HOME` through `5 WHY`. Home shows market value and day move together, a stacked allocation bar, and one row per position sorted by market value. Each priced row shows weight, value, day dollars, and the quote percent. Unpriced positions stay named and are left out of the total. When none can be priced, the total stays a dash. The holding list scrolls, and the twelve function tiles stay on one row. Holdings refresh on the same 90-second cadence as the tape. A later refresh keeps the last totals until the new quotes return. The tape still slides index quotes, portfolio quotes, and a few headlines. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
+The same screens are labeled `1 HOME` through `5 WHY`. Home shows market value and day move together, a stacked allocation bar, and one row per position sorted by market value. Each priced row shows weight, value, day dollars, and the quote percent. Unpriced positions stay named and are left out of the total. A quote that fails names the reason under the figures. When every holding fails the same way, that reason is the note and the total stays a dash. When none can be priced and no reason came back, the note stays "NO POSITION COULD BE PRICED." The holding list scrolls, and the twelve function tiles stay on one row. Holdings refresh on the same 90-second cadence as the tape. A later refresh keeps the last totals until the new quotes return. The tape still slides index quotes, portfolio quotes, and a few headlines. Network and model calls run off the Swing event thread. Log out before another person uses the same window.
 
 Sign-on and account creation are separate screens. The sign-on screen does not ask you to confirm the password.
 

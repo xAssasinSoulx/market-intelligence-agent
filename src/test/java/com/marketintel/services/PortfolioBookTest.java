@@ -44,6 +44,38 @@ class PortfolioBookTest {
         assertTrue(book.unpriced().isEmpty());
     }
 
+    @Test
+    void recordsWhyAQuoteWasLeftOut() {
+        PortfolioBook book = PortfolioBook.value(
+                List.of(position("NVDA", "10"), position("shop.to", "2")),
+                Map.of("NVDA", quote("NVDA", "100", "90", "11.11")),
+                Map.of("SHOP.TO", "No quote data found for symbol: SHOP.TO.")
+        );
+
+        assertEquals(List.of("shop.to"), book.unpriced());
+        assertEquals(1, book.omissions().size());
+        assertEquals("shop.to", book.omissions().getFirst().symbol());
+        assertEquals(
+                "No quote data found for symbol: SHOP.TO.",
+                book.omissions().getFirst().reason()
+        );
+    }
+
+    @Test
+    void ignoresABlankReasonAndAReasonForAPricedSymbol() {
+        PortfolioBook book = PortfolioBook.value(
+                List.of(position("NVDA", "10"), position("SHOP.TO", "2")),
+                Map.of("NVDA", quote("NVDA", "100", "90", "11.11")),
+                Map.of(
+                        "NVDA", "ignored because the quote arrived",
+                        "SHOP.TO", "  "
+                )
+        );
+
+        assertTrue(book.omissions().isEmpty());
+        assertEquals(List.of("SHOP.TO"), book.unpriced());
+    }
+
     private static PortfolioPosition position(String symbol, String quantity) {
         return new PortfolioPosition(symbol, new BigDecimal(quantity), AssetType.STOCK);
     }

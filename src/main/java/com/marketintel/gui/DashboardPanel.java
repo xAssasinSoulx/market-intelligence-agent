@@ -40,6 +40,7 @@ public final class DashboardPanel extends JPanel {
 
     private final SessionWorkspace workspace;
     private final ResearchGateway gateway;
+    private final InflightQuotes inflightQuotes;
     private final ToolManager toolManager;
     private final boolean explanationsAvailable;
     private final Consumer<String> openSection;
@@ -59,12 +60,17 @@ public final class DashboardPanel extends JPanel {
     public DashboardPanel(
             SessionWorkspace workspace,
             ResearchGateway gateway,
+            InflightQuotes inflightQuotes,
             ToolManager toolManager,
             boolean explanationsAvailable,
             Consumer<String> openSection) {
 
+        if (inflightQuotes == null) {
+            throw new IllegalArgumentException("In-flight quotes cannot be null.");
+        }
         this.workspace = workspace;
         this.gateway = gateway;
+        this.inflightQuotes = inflightQuotes;
         this.toolManager = toolManager;
         this.explanationsAvailable = explanationsAvailable;
         this.openSection = openSection;
@@ -209,17 +215,28 @@ public final class DashboardPanel extends JPanel {
             @Override
             protected PortfolioBook doInBackground() {
                 Map<String, MarketQuote> quotes = new LinkedHashMap<>();
+                Map<String, String> failures = new LinkedHashMap<>();
                 for (PortfolioPosition position : positions) {
-                    ToolResult result = gateway.execute(
-                            userId,
-                            ActionType.MARKET_QUOTE,
-                            Map.of("symbol", position.getSymbol())
+                    ToolResult result = inflightQuotes.load(
+                            InflightQuotes.quoteKey(userId, position.getSymbol()),
+                            () -> gateway.read(
+                                    userId,
+                                    ActionType.MARKET_QUOTE,
+                                    Map.of("symbol", position.getSymbol())
+                            )
                     );
                     if (result.isSuccess() && result.getData() instanceof MarketQuote quote) {
                         quotes.put(position.getSymbol(), quote);
+                    } else {
+                        String reason = DeskMessages.clean(result.isSuccess()
+                                ? "Unexpected market-data response."
+                                : result.getErrorMessage());
+                        if (reason != null) {
+                            failures.put(position.getSymbol(), reason);
+                        }
                     }
                 }
-                return PortfolioBook.value(positions, quotes);
+                return PortfolioBook.value(positions, quotes, failures);
             }
 
             @Override
@@ -230,10 +247,11 @@ public final class DashboardPanel extends JPanel {
                 try {
                     showBook(get());
                 } catch (Exception exception) {
+                    String message = DeskMessages.loadFailure(exception);
                     if (refreshState.retainWhileLoading()) {
-                        bookNote.setText("PORTFOLIO PRICES COULD NOT BE LOADED.");
+                        bookNote.setText(message);
                     } else {
-                        showBookMessage("PORTFOLIO PRICES COULD NOT BE LOADED.");
+                        showBookMessage(message);
                     }
                 }
             }
@@ -331,7 +349,7 @@ public final class DashboardPanel extends JPanel {
         area.setFocusable(false);
         area.setLineWrap(true);
         area.setWrapStyleWord(true);
-        area.setRows(2);
+        area.setRows(3);
         area.setFont(UiTheme.UI_FONT);
         area.setBackground(Color.BLACK);
         area.setForeground(UiTheme.MUTED);

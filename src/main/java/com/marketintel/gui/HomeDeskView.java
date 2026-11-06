@@ -66,7 +66,7 @@ public final class HomeDeskView {
         if (priced.isEmpty()) {
             String note = held == 0
                     ? "NO OPEN POSITIONS."
-                    : "NO POSITION COULD BE PRICED.";
+                    : emptyBookNote(book);
             List<Row> rows = new ArrayList<>();
             for (String symbol : book.unpriced()) {
                 rows.add(unpriced(symbol));
@@ -125,10 +125,7 @@ public final class HomeDeskView {
                 : priced.size() + " OF " + held + " PRICED";
         String note = book.unpriced().isEmpty()
                 ? quantityNote()
-                : "Total omits "
-                        + String.join(", ", book.unpriced())
-                        + ". "
-                        + quantityNote();
+                : omitNote(book);
         return new Model(
                 false,
                 money(total),
@@ -152,6 +149,47 @@ public final class HomeDeskView {
                 Tone.FLAT,
                 Tone.FLAT
         );
+    }
+
+    private static String emptyBookNote(PortfolioBook book) {
+        String failures = failureSummary(book);
+        if (failures != null) {
+            return failures;
+        }
+        return "NO POSITION COULD BE PRICED.";
+    }
+
+    private static String omitNote(PortfolioBook book) {
+        String names = String.join(", ", book.unpriced());
+        String failures = failureSummary(book);
+        if (failures == null) {
+            return "Total omits " + names + ". " + quantityNote();
+        }
+        return "Total omits " + names + ". " + failures + " " + quantityNote();
+    }
+
+    /**
+     * One provider message when every omitted name failed the same way.
+     * Mixed reasons stay attached to the symbol.
+     */
+    private static String failureSummary(PortfolioBook book) {
+        List<PortfolioBook.Omission> omissions = book.omissions();
+        if (omissions.isEmpty()) {
+            return null;
+        }
+        String shared = omissions.getFirst().reason();
+        boolean sameReason = omissions.stream().allMatch(item -> item.reason().equals(shared));
+        if (sameReason && omissions.size() == book.unpriced().size()) {
+            return shared;
+        }
+        StringBuilder text = new StringBuilder();
+        for (PortfolioBook.Omission omission : omissions) {
+            if (!text.isEmpty()) {
+                text.append(' ');
+            }
+            text.append(omission.symbol()).append(": ").append(omission.reason());
+        }
+        return text.toString();
     }
 
     private static String quantityNote() {
