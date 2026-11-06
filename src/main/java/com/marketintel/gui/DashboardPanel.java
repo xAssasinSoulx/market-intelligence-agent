@@ -40,6 +40,7 @@ public final class DashboardPanel extends JPanel {
 
     private final SessionWorkspace workspace;
     private final ResearchGateway gateway;
+    private final InflightQuotes inflightQuotes;
     private final ToolManager toolManager;
     private final boolean explanationsAvailable;
     private final Consumer<String> openSection;
@@ -59,12 +60,17 @@ public final class DashboardPanel extends JPanel {
     public DashboardPanel(
             SessionWorkspace workspace,
             ResearchGateway gateway,
+            InflightQuotes inflightQuotes,
             ToolManager toolManager,
             boolean explanationsAvailable,
             Consumer<String> openSection) {
 
+        if (inflightQuotes == null) {
+            throw new IllegalArgumentException("In-flight quotes cannot be null.");
+        }
         this.workspace = workspace;
         this.gateway = gateway;
+        this.inflightQuotes = inflightQuotes;
         this.toolManager = toolManager;
         this.explanationsAvailable = explanationsAvailable;
         this.openSection = openSection;
@@ -210,10 +216,13 @@ public final class DashboardPanel extends JPanel {
             protected PortfolioBook doInBackground() {
                 Map<String, MarketQuote> quotes = new LinkedHashMap<>();
                 for (PortfolioPosition position : positions) {
-                    ToolResult result = gateway.read(
-                            userId,
-                            ActionType.MARKET_QUOTE,
-                            Map.of("symbol", position.getSymbol())
+                    ToolResult result = inflightQuotes.load(
+                            InflightQuotes.quoteKey(userId, position.getSymbol()),
+                            () -> gateway.read(
+                                    userId,
+                                    ActionType.MARKET_QUOTE,
+                                    Map.of("symbol", position.getSymbol())
+                            )
                     );
                     if (result.isSuccess() && result.getData() instanceof MarketQuote quote) {
                         quotes.put(position.getSymbol(), quote);

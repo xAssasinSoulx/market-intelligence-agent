@@ -63,6 +63,7 @@ public final class MarketIntelFrame extends JFrame {
     private final WatchlistPanel watchlistPanel;
     private final AgentPanel agentPanel;
     private final MarketTape marketTape = new MarketTape();
+    private final InflightQuotes inflightQuotes = new InflightQuotes();
     private final Map<String, JButton> navigation = new LinkedHashMap<>();
     private String activeSection = "Dashboard";
     private int tapeGeneration;
@@ -94,6 +95,7 @@ public final class MarketIntelFrame extends JFrame {
         dashboardPanel = new DashboardPanel(
                 workspace,
                 gateway,
+                inflightQuotes,
                 context.getToolManager(),
                 explanationsAvailable,
                 openSection
@@ -327,10 +329,13 @@ public final class MarketIntelFrame extends JFrame {
             protected List<TapeLine.Piece> doInBackground() {
                 List<MarketQuote> quotes = new ArrayList<>();
                 for (String symbol : symbols) {
-                    ToolResult result = gateway.read(
-                            userId,
-                            ActionType.MARKET_QUOTE,
-                            Map.of("symbol", symbol)
+                    ToolResult result = inflightQuotes.load(
+                            InflightQuotes.quoteKey(userId, symbol),
+                            () -> gateway.read(
+                                    userId,
+                                    ActionType.MARKET_QUOTE,
+                                    Map.of("symbol", symbol)
+                            )
                     );
                     if (result.isSuccess() && result.getData() instanceof MarketQuote quote) {
                         quotes.add(quote);
