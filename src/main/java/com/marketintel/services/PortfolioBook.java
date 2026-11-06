@@ -18,17 +18,27 @@ public final class PortfolioBook {
 
     private final List<Row> priced;
     private final List<String> unpriced;
+    private final List<Omission> omissions;
     private final BigDecimal marketValue;
     private final BigDecimal dayChange;
+
+    /**
+     * A holding left out of the total, with the reason the quote failed.
+     * A missing quote that has no reason stays on {@link #unpriced()} only.
+     */
+    public record Omission(String symbol, String reason) {
+    }
 
     private PortfolioBook(
             List<Row> priced,
             List<String> unpriced,
+            List<Omission> omissions,
             BigDecimal marketValue,
             BigDecimal dayChange) {
 
         this.priced = List.copyOf(priced);
         this.unpriced = List.copyOf(unpriced);
+        this.omissions = List.copyOf(omissions);
         this.marketValue = marketValue;
         this.dayChange = dayChange;
     }
@@ -37,8 +47,17 @@ public final class PortfolioBook {
             List<PortfolioPosition> positions,
             Map<String, MarketQuote> quotes) {
 
+        return value(positions, quotes, Map.of());
+    }
+
+    public static PortfolioBook value(
+            List<PortfolioPosition> positions,
+            Map<String, MarketQuote> quotes,
+            Map<String, String> failures) {
+
         List<Row> priced = new ArrayList<>();
         List<String> unpriced = new ArrayList<>();
+        List<Omission> omissions = new ArrayList<>();
         BigDecimal marketValue = BigDecimal.ZERO;
         BigDecimal dayChange = BigDecimal.ZERO;
 
@@ -47,6 +66,10 @@ public final class PortfolioBook {
                 MarketQuote quote = quoteFor(quotes, position.getSymbol());
                 if (quote == null) {
                     unpriced.add(position.getSymbol());
+                    String reason = reasonFor(failures, position.getSymbol());
+                    if (reason != null) {
+                        omissions.add(new Omission(position.getSymbol(), reason));
+                    }
                     continue;
                 }
                 BigDecimal value = quote.getPrice().multiply(position.getQuantity());
@@ -66,7 +89,7 @@ public final class PortfolioBook {
             }
         }
 
-        return new PortfolioBook(priced, unpriced, marketValue, dayChange);
+        return new PortfolioBook(priced, unpriced, omissions, marketValue, dayChange);
     }
 
     public List<Row> priced() {
@@ -75,6 +98,10 @@ public final class PortfolioBook {
 
     public List<String> unpriced() {
         return unpriced;
+    }
+
+    public List<Omission> omissions() {
+        return omissions;
     }
 
     public BigDecimal marketValue() {
@@ -97,6 +124,20 @@ public final class PortfolioBook {
         return dayChange
                 .multiply(new BigDecimal("100"))
                 .divide(previous, 2, RoundingMode.HALF_UP);
+    }
+
+    private static String reasonFor(Map<String, String> failures, String symbol) {
+        if (failures == null || symbol == null) {
+            return null;
+        }
+        String direct = failures.get(symbol);
+        if (direct == null) {
+            direct = failures.get(symbol.toUpperCase(Locale.ROOT));
+        }
+        if (direct == null || direct.isBlank()) {
+            return null;
+        }
+        return direct.trim();
     }
 
     private static MarketQuote quoteFor(Map<String, MarketQuote> quotes, String symbol) {
