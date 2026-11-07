@@ -83,7 +83,7 @@ The following limits are part of the implementation.
 
 \begin{itemize}
 \item Period~1 (20--26 October 2026) has no commits in this repository. That week cannot be repaired by later commits, and those commits were not backdated.
-\item Period~3 (3--9 November 2026) has started. As of the morning of 5~November 2026 there are no commits in that week. Five meaningful code commits are still required during the week.
+\item Period~3 (3--9 November 2026) has six non-merge commits. Five of them change the desk and meet the minimum of five meaningful code commits. They are listed under Weekly Commits.
 \item Demonstration videos do not yet have public links. Section~\ref{sec:demos} is the index. Recordings of the flows that do not call a vendor were captured with this report. Live provider clips still need the student's keys and a public link.
 \item Country weights on the free plan are headquarters of reported holdings. They are not the fund's published country report and they are not revenue exposure. Unknown and unassigned weight is named. It is not filled in.
 \item Finnhub's free plan prices US listings. A symbol such as \texttt{XEQT.TO} stays unpriced and is named.
@@ -690,7 +690,16 @@ Period~2, 27 October--2 November 2026, has more than five meaningful code commit
 
 Also in Period~2: \texttt{6843eed} Finnhub quotes, \texttt{9716283} country exposure without echoing keys, \texttt{cc386c7} last-trade time, \texttt{1f4db1c} home summary and tape, \texttt{04de078} Gemini interpretation of questions, \texttt{4f52ca0} Flash-Lite, and \texttt{931ec38} so that ``why did microsoft fall'' stays a question.
 
-Period~3, 3--9 November 2026, has no commits as of the morning of 5~November 2026. Five meaningful code commits are still required during that week. This report does not count Period~2 commits toward that week.
+Period~3, 3--9 November 2026, has six non-merge commits. Five of them change the desk and meet the minimum of five meaningful code commits. This report does not count Period~2 commits toward that week.
+
+\begin{itemize}
+\item \texttt{44080fd} -- 5 November. Stage 2 report set in the Stage 1 layout.
+\item \texttt{d5d220c} -- 5 November. Home-desk view of value, weight, and unpriced names.
+\item \texttt{cfe059e} -- 5 November. Holdings in the center of the home desk.
+\item \texttt{9fff4a7} -- 6 November. Background quote refresh keeps the follow-up symbol.
+\item \texttt{1bcaa63} -- 6 November. One in-flight quote shared by the tape and the home book.
+\item \texttt{a0838f5} -- 6 November. Provider or database reason for an unpriced or unsaved holding.
+\end{itemize}
 
 \subsection{Checks}
 On 29~October 2026, \texttt{./mvnw test} completed with 207 tests, 0 failures, 0 errors, and 1 skipped. The skipped test is \texttt{GeminiLiveSmokeTest}. It runs only when \texttt{RUN\_GEMINI\_LIVE\_TEST=1} and \texttt{GEMINI\_API\_KEY} are set. The suite uses fake providers and does not call Finnhub, Alpha Vantage, Marketaux, Financial Modeling Prep, Twelve Data, SentiSense, or Gemini.
@@ -745,7 +754,7 @@ Interaction 005. The owner saw HTTP 403 on country exposure and then saw an API 
 
 Interaction 006. The owner reported that ordinary questions were missed, that Gemini timed out, that a new key received HTTP 404 from \texttt{gemini-2.5-flash}, and that ``why did microsoft fall'' was read as the ticker \texttt{DID}. The agent added memory, the allowlist, \texttt{generateBrief}, Flash-Lite, and the sentence parser. The owner confirmed the Microsoft question in the window.
 
-Interaction 007. This report and the updated diagrams. Videos with public links, and Period~3 commits, remain the owner's work.
+Interaction 007. This report and the updated diagrams. Videos with public links remain the owner's work.
 
 The owner's instruction was that the model should interpret a question, and the answer should come from the tool result. The implementation does that only for an allowlisted action. A sentence that says to ignore previous instructions does not run a tool. That boundary was a human decision, kept after the model was wired in.
 
@@ -797,6 +806,6 @@ The terminal segment should include \texttt{/quote}, \texttt{/why} or a follow-u
 \section{Stage 2 Summary}
 The Stage~1 design is now a running desk. Both interfaces call one gateway. Research actions are commands. Vendor payloads sit behind adapters, and \texttt{ProviderRouter} chooses one adapter per capability by registration order. Deterministic Java code performs authentication, persistence, validation, and exposure arithmetic. Gemini writes a movement note from retrieved evidence and may name one allowlisted follow-up action. It does not edit the portfolio, and a quote does not call it.
 
-What remains before the 10~November 2026 submission is outside the source that is already merged: five meaningful code commits during 3--9 November, and public demonstration links for the rows in Section~\ref{sec:demos}. Period~1 remains a missed week.
+What remains before the 10~November 2026 submission is public demonstration links for the rows in Section~\ref{sec:demos}. Period~3 has the six non-merge commits listed under Weekly Commits. Period~1 remains a missed week.
 
 \end{document}
