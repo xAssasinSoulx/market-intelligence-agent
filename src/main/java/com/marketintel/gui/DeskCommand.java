@@ -99,7 +99,7 @@ public final class DeskCommand {
 
         return switch (verb) {
             case "HELP", "?" -> help();
-            case "HOME", "MENU", "1" -> navigate(Action.HOME);
+            case "HOME", "MENU", "MAIN", "BACK", "H", "1" -> navigate(Action.HOME);
             case "RESEARCH", "DESK", "2" -> navigate(Action.RESEARCH);
             case "3" -> navigate(Action.PORTFOLIO);
             case "4" -> navigate(Action.WATCHLIST);
@@ -142,7 +142,7 @@ public final class DeskCommand {
         return """
                 COMMANDS
                 --------
-                1 HOME                         Session monitor
+                1 HOME                         Session monitor. main does this too.
                 2 DES                          Research screen
                 3 PORT                         Portfolio
                 4 MON                          Watchlist

@@ -497,6 +497,8 @@ public class TerminalUI
 
         System.out.println();
 
+        printPortfolioLine();
+
         String username =
                 sessionManager
                         .getCurrentUser()
@@ -533,27 +535,25 @@ public class TerminalUI
             return;
         }
 
-        TerminalTheme.clearScreen();
-
-        displayTerminalHeader();
-
+        System.out.println();
+        System.out.println(TerminalTheme.bold("You"));
+        System.out.println(input);
         System.out.println();
 
         if (followUp == null) {
-            System.out.println(
-                    TerminalTheme.yellow(
-                            "Natural-language follow-up is not connected."
-                    )
-            );
+            System.out.println(TerminalTheme.bold("Desk"));
+            System.out.println(TerminalTheme.yellow(
+                    "Natural-language follow-up is not connected."
+            ));
             return;
         }
 
-        System.out.println(
-                followUp.handle(
-                        sessionManager.getCurrentUserId(),
-                        input
-                )
-        );
+        System.out.println(TerminalTheme.bold("Desk"));
+        System.out.println(followUp.handle(
+                sessionManager.getCurrentUserId(),
+                input
+        ));
+        System.out.println();
     }
 
     private void handleCommand(
@@ -656,6 +656,9 @@ public class TerminalUI
 
                 case "logout" ->
                         logout();
+
+                case "home", "main", "back" ->
+                        displayDashboard();
 
                 case "exit" ->
                         exitApplication();
@@ -3205,5 +3208,37 @@ public class TerminalUI
                                 + "╝"
                 )
         );
+
+        printPortfolioLine();
+    }
+
+    private void printPortfolioLine() {
+        if (!sessionManager.isAuthenticated()) {
+            return;
+        }
+        var positions = portfolioService
+                .getPortfolio(sessionManager.getCurrentUserId())
+                .getPositions();
+        if (positions.isEmpty()) {
+            System.out.println(TerminalTheme.dim(
+                    "  PORTFOLIO  ·  no positions     main returns home"
+            ));
+            return;
+        }
+        StringBuilder line = new StringBuilder("  PORTFOLIO");
+        int shown = 0;
+        for (var position : positions) {
+            if (shown == 6) {
+                line.append("  ·  +").append(positions.size() - shown);
+                break;
+            }
+            line.append("  ·  ")
+                    .append(position.getSymbol())
+                    .append(" ")
+                    .append(position.getQuantity().stripTrailingZeros().toPlainString());
+            shown++;
+        }
+        line.append("     main returns home");
+        System.out.println(TerminalTheme.yellow(line.toString()));
     }
 }

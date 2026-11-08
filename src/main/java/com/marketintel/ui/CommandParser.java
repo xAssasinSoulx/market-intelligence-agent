@@ -32,7 +32,10 @@ public class CommandParser {
             "geo",
             "overlap",
             "logout",
-            "exit"
+            "exit",
+            "home",
+            "main",
+            "back"
     );
 
     public boolean isCommand(String input) {
