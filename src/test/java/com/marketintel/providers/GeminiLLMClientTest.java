@@ -41,8 +41,8 @@ class GeminiLLMClientTest {
 
         assertEquals(prompt, submittedPrompt);
 
-        assertEquals(1024, root.path("generationConfig").path("maxOutputTokens").asInt());
-        assertEquals("LOW", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
+        assertEquals(2048, root.path("generationConfig").path("maxOutputTokens").asInt());
+        assertEquals("MINIMAL", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
 
         assertEquals(
                 "user",
@@ -100,6 +100,32 @@ class GeminiLLMClientTest {
                 """;
 
         assertEquals("NVDA is down 1.1%.", client.parseResponse(response));
+    }
+
+    @Test
+    void rejectsAnExplanationCutOffByTheTokenLimit() {
+        String response = """
+                {
+                  "candidates": [
+                    {
+                      "content": {"parts": [{"text": "None of the supplied articles ([1]),"}]},
+                      "finishReason": "MAX_TOKENS"
+                    }
+                  ]
+                }
+                """;
+
+        LLMException failure = assertThrows(LLMException.class, () -> client.parseResponse(response));
+        assertTrue(failure.getMessage().contains("cut off"));
+    }
+
+    @Test
+    void keepsThinkingLowForAFullGemini3Model() throws Exception {
+        GeminiLLMClient full = new GeminiLLMClient("dummy-test-key", "gemini-3.8-flash");
+
+        JsonNode root = mapper.readTree(full.createRequestBody("Explain the move."));
+
+        assertEquals("LOW", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
     }
 
     @Test

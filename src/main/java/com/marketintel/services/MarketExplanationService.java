@@ -216,15 +216,14 @@ public final class MarketExplanationService {
                 END OF EVIDENCE
                 ========================================
 
-                Produce a short spoken explanation.
-                Write three or four complete sentences and then stop.
-                Start by naming the symbol, the reported price, and the percent change.
-                If this symbol is an ETF, say so. Do not call an ETF the exchange or the index.
-                Say whether any article was published in time to bear on the last trade.
-                An article marked AFTER the last trade cannot explain that trade.
+                Explain the price move. Write four complete sentences and finish every one.
+                Do not stop after the price.
+
+                First sentence: name the symbol, say if it is an ETF, and state the reported price and percent change.
+                Second sentence: give the reason the evidence can support. Only an article published at or before the last trade can be relevant to this move. If none qualify, say the evidence does not establish a cause.
+                Third sentence: for each article marked AFTER the last trade, say it cannot explain this move, then say what that headline is about.
+                Fourth sentence: state what still cannot be concluded. Do not give a buy or sell recommendation.
                 Do not use numbered headings.
-                Do not stop in the middle of a word.
-                Do not give a buy or sell recommendation.
                 """);
 
         return prompt.toString();

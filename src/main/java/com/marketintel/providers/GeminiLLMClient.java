@@ -27,7 +27,7 @@ public final class GeminiLLMClient implements LLMProvider {
     private static final Duration BRIEF_TIMEOUT = Duration.ofSeconds(25);
     private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(60);
 
-    private static final int EXPLANATION_TOKENS = 1024;
+    private static final int EXPLANATION_TOKENS = 2048;
     private static final int BRIEF_TOKENS = 160;
 
     private final String apiKey;
@@ -208,7 +208,9 @@ public final class GeminiLLMClient implements LLMProvider {
         generation.put("maxOutputTokens", maxOutputTokens);
         generation.put("temperature", 0.2);
         ObjectNode thinking = generation.putObject("thinkingConfig");
-        if (model.startsWith("gemini-3")) {
+        if (model.contains("lite")) {
+            thinking.put("thinkingLevel", "MINIMAL");
+        } else if (model.startsWith("gemini-3")) {
             thinking.put("thinkingLevel", "LOW");
         } else {
             thinking.put("thinkingBudget", 0);
@@ -315,7 +317,14 @@ public final class GeminiLLMClient implements LLMProvider {
                 );
             }
 
-            return answer.toString().trim();
+            String text = answer.toString().trim();
+            String finish = candidates.get(0).path("finishReason").asText("");
+            if ("MAX_TOKENS".equals(finish)) {
+                throw new LLMException(
+                        "The explanation was cut off before it finished. The quote and news are still shown."
+                );
+            }
+            return text;
 
         } catch (JsonProcessingException e) {
 
