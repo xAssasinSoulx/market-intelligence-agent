@@ -151,7 +151,7 @@ Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 | `/history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
 | `/sentiment` | Latest SentiSense score. The label is this desk's band for that score |
 | `/why` | Quote, news, and a short Gemini note grounded in that evidence. `WHY MSFT` is the symbol form. A sentence such as `why did microsoft fall` is a follow-up, not a ticker |
-| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Home and tape refreshes do not replace that symbol. Portfolio exposure is calculated in Java and is not narrated by the model |
+| `/ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A greeting, "what can you do", or "say that more simply" continues the conversation from the last reply and does not fetch new data. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Home and tape refreshes do not replace that symbol. Portfolio exposure is calculated in Java and is not narrated by the model |
 | `/portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 
 ## Window

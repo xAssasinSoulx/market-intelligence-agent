@@ -15,7 +15,8 @@ public record AgentPlan(
     public enum Kind {
         RUN,
         CLARIFY,
-        UNSUPPORTED
+        UNSUPPORTED,
+        DISCUSS
     }
 
     public static AgentPlan run(ActionType action, String symbol, String secondSymbol) {
@@ -28,5 +29,9 @@ public record AgentPlan(
 
     public static AgentPlan unsupported(String message) {
         return new AgentPlan(Kind.UNSUPPORTED, null, null, null, message);
+    }
+
+    public static AgentPlan discuss() {
+        return new AgentPlan(Kind.DISCUSS, null, null, null, null);
     }
 }
