@@ -131,6 +131,14 @@ class RequestPlannerTest {
     }
 
     @Test
+    void readsNasdaqAsTheNasdaq100Etf() {
+        AgentPlan plan = planner.createPlan("why did nasdaq fall", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+        assertEquals("QQQ", plan.symbol());
+    }
+
+    @Test
     void usesAConversationPlanFromTheModelWhenNoToolIsRequired() {
         RequestPlanner planned = new RequestPlanner(
                 prompt -> "{\"action\":\"CONVERSATION\",\"symbol\":null,\"secondSymbol\":null,\"message\":null}"

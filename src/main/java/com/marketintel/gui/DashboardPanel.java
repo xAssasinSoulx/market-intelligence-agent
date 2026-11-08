@@ -82,7 +82,7 @@ public final class DashboardPanel extends JPanel {
         board.setBackground(Color.BLACK);
         rowStack.setBackground(Color.BLACK);
         notes.setRows(2);
-        notes.setText("F1-F5 SWITCH SCREENS.  QUOTE NVDA, WHY NVDA, PORT, HELP.\n");
+        notes.setText("F1-F5 SWITCH SCREENS.  THE BOX AT THE BOTTOM IS THE CONVERSATION.\n");
 
         valueAmount.setFont(new Font(Font.MONOSPACED, Font.BOLD, 28));
         dayAmount.setFont(new Font(Font.MONOSPACED, Font.BOLD, 22));
@@ -176,7 +176,7 @@ public final class DashboardPanel extends JPanel {
         tile("10", "MON", symbols + " SYM", "Watchlist", true);
         tile("11", "EXPOSURE", state(available(ActionType.PORTFOLIO_EXPOSURE)), "Portfolio",
                 available(ActionType.PORTFOLIO_EXPOSURE));
-        tile("12", "FOLLOW-UP", "ASK", "Explain", true);
+        tile("12", "CHAT", "ASK", "Explain", true);
 
         board.revalidate();
         board.repaint();

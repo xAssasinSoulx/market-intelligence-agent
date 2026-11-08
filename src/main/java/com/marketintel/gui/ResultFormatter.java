@@ -238,7 +238,19 @@ public final class ResultFormatter {
         MarketQuote quote = context.getQuote();
 
         StringBuilder text = new StringBuilder();
-        text.append(section("MARKET MOVEMENT"));
+        text.append(section("ANSWER"));
+        if (report.getExplanation() != null) {
+            text.append(report.getExplanation().trim()).append("\n\n");
+            text.append("Citation markers such as [1] can only refer to the numbered sources below. ");
+            text.append("A marker does not prove the source supports every sentence.\n");
+        } else if (report.getExplanationNote() != null) {
+            text.append(report.getExplanationNote().trim()).append("\n");
+            text.append("The quote and news evidence below remain available.\n");
+        } else {
+            text.append("No explanation was produced.\n");
+        }
+
+        text.append(section("QUOTE"));
         text.append(row("Symbol", context.getSymbol()));
         text.append(row("Price", plain(quote.getPrice())));
         text.append(row("Previous close", plain(quote.getPreviousClose())));
@@ -262,7 +274,7 @@ public final class ResultFormatter {
             text.append("\nNews warning: ").append(context.getNewsWarning()).append("\n");
         }
 
-        text.append(section("NEWS USED AS EVIDENCE"));
+        text.append(section("SOURCES"));
         if (context.getArticles().isEmpty()) {
             text.append("No qualifying articles were available.\n");
         } else {
@@ -281,18 +293,6 @@ public final class ResultFormatter {
                 text.append(row("URL", article.getUrl()));
                 index++;
             }
-        }
-
-        text.append(section("EXPLANATION"));
-        if (report.getExplanation() != null) {
-            text.append(report.getExplanation().trim()).append("\n\n");
-            text.append("Citation markers such as [1] can only refer to the numbered sources above. ");
-            text.append("A marker does not prove the source supports every sentence.\n");
-        } else if (report.getExplanationNote() != null) {
-            text.append(report.getExplanationNote().trim()).append("\n");
-            text.append("The quote and news evidence above remain available.\n");
-        } else {
-            text.append("No explanation was produced.\n");
         }
         return text.toString();
     }

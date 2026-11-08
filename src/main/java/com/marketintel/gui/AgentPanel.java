@@ -8,149 +8,112 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.FlowLayout;
 import java.util.List;
 
 /**
- * Direct movement explanation and contextual follow-up.
- * A follow-up such as "what about its sector" uses the last symbol
- * stored for this signed-in user.
+ * The conversation. The message box at the bottom of the window is the
+ * only input. Each exchange stays on screen.
  */
 public final class AgentPanel extends JPanel {
+
+    private static final String WELCOME = """
+            Desk
+            Ask in the box below, the way you would ask a person.
+            For example: why did Microsoft fall
+            Or: say that more simply
+            A desk command such as quote NVDA still works, and the reply stays in this conversation.
+            """;
 
     private final SessionWorkspace workspace;
     private final ResearchGateway gateway;
     private final JLabel statusLabel;
-    private final JTextField symbolField = UiTheme.textField(12);
-    private final JTextField followUpField = UiTheme.textField(28);
-    private final JButton askButton = UiTheme.button("ASK");
-    private final JTextArea results = UiTheme.resultArea();
-    private final JButton explainButton = UiTheme.button("WHY <GO>", true);
-    private int requestGeneration;
+    private final JTextArea composer;
+    private final JButton sendButton;
+    private final JTextArea transcript = UiTheme.resultArea();
+    private int sessionGeneration;
+    private boolean showingWelcome = true;
 
     public AgentPanel(
             SessionWorkspace workspace,
             ResearchGateway gateway,
-            JLabel statusLabel) {
+            JLabel statusLabel,
+            JTextArea composer,
+            JButton sendButton) {
 
         this.workspace = workspace;
         this.gateway = gateway;
         this.statusLabel = statusLabel;
+        this.composer = composer;
+        this.sendButton = sendButton;
 
         setLayout(new BorderLayout(0, 8));
         setBackground(Color.BLACK);
         setBorder(UiTheme.padding(10));
-
-        UiTheme.uppercase(symbolField);
-
-        JPanel form = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        form.setBackground(Color.BLACK);
-        form.add(UiTheme.fieldLabel("SYMBOL"));
-        form.add(symbolField);
-        form.add(explainButton);
-        symbolField.addActionListener(event -> explain());
-        explainButton.addActionListener(event -> explain());
-
-        JPanel followUp = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-        followUp.setBackground(Color.BLACK);
-        followUp.add(UiTheme.fieldLabel("FOLLOW-UP"));
-        followUp.add(followUpField);
-        followUp.add(askButton);
-        askButton.addActionListener(event -> ask(followUpField.getText()));
-        followUpField.addActionListener(event -> ask(followUpField.getText()));
-
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(Color.BLACK);
-        header.add(new UiTheme.JPanelBar("WHY", "MOVEMENT EXPLANATION"), BorderLayout.NORTH);
-        header.add(form, BorderLayout.CENTER);
-        header.add(followUp, BorderLayout.SOUTH);
-
-        results.setText(
-                "ENTER ONE SYMBOL AND PRESS WHY <GO>.\n"
-                        + "THE DESK LOADS THE QUOTE AND RECENT NEWS, THEN ASKS GEMINI\n"
-                        + "TO EXPLAIN ONLY THAT EVIDENCE.\n"
-                        + "IF GEMINI IS OFF, THE EVIDENCE IS STILL SHOWN.\n"
-                        + "COMMAND LINE: WHY NVDA\n"
-                        + "FOLLOW-UP: what about its sector exposure\n"
-        );
-
-        add(header, BorderLayout.NORTH);
-        add(UiTheme.scroll(results), BorderLayout.CENTER);
+        transcript.setText(WELCOME);
+        add(new UiTheme.JPanelBar("CHAT", "CONVERSATION"), BorderLayout.NORTH);
+        add(UiTheme.scroll(transcript), BorderLayout.CENTER);
     }
 
     public void clear() {
-        requestGeneration++;
-        symbolField.setText("");
-        followUpField.setText("");
-        results.setText("");
+        sessionGeneration++;
+        transcript.setText(WELCOME);
+        transcript.setCaretPosition(0);
+        showingWelcome = true;
     }
 
     public void explainSymbol(String symbol) {
-        symbolField.setText(symbol);
-        explain();
+        ask("why did " + symbol + " move");
     }
 
     public void ask(String question) {
         if (!workspace.isAuthenticated()) {
-            show("Error: Sign in again before asking a follow-up.\n");
+            append("Desk", "Sign in again before asking.");
             return;
         }
-        followUpField.setText(question == null ? "" : question);
+        String text = question == null ? "" : question.trim();
+        if (text.isEmpty()) {
+            return;
+        }
+        append("You", text);
         long userId = gateway.currentUserId();
-        int generation = ++requestGeneration;
-        List<JComponent> controls = List.of(followUpField, askButton, symbolField, explainButton);
+        int generation = sessionGeneration;
+        List<JComponent> controls = List.of(composer, sendButton);
         BackgroundWork.submit(
                 statusLabel,
                 controls,
                 () -> {
-                    followUpField.setEnabled(true);
-                    askButton.setEnabled(true);
-                    symbolField.setEnabled(true);
-                    explainButton.setEnabled(true);
+                    composer.setEnabled(true);
+                    sendButton.setEnabled(true);
+                    composer.requestFocusInWindow();
                 },
-                "Planning the follow-up...",
-                () -> gateway.ask(userId, question),
-                text -> {
-                    if (generation == requestGeneration) {
-                        show(text);
+                "Writing the reply...",
+                () -> gateway.ask(userId, text),
+                reply -> {
+                    if (generation == sessionGeneration) {
+                        append("Desk", reply);
                     }
                 }
         );
     }
 
-    private void explain() {
-        if (!workspace.isAuthenticated()) {
-            show("Error: Sign in again before requesting an explanation.\n");
+    private void append(String speaker, String body) {
+        String message = body == null ? "" : body.trim();
+        if (message.isEmpty()) {
             return;
         }
-
-        String symbol = symbolField.getText();
-        long userId = gateway.currentUserId();
-        int generation = ++requestGeneration;
-        List<JComponent> controls = List.of(symbolField, explainButton);
-
-        BackgroundWork.submit(
-                statusLabel,
-                controls,
-                () -> {
-                    symbolField.setEnabled(true);
-                    explainButton.setEnabled(true);
-                },
-                "Reading the question. A lookup or a short reply should follow.",
-                () -> gateway.ask(userId, "why did " + symbol + " move"),
-                text -> {
-                    if (generation == requestGeneration) {
-                        show(text);
-                    }
-                }
-        );
-    }
-
-    private void show(String text) {
-        results.setText(text == null ? "" : text);
-        results.setCaretPosition(0);
+        if (showingWelcome) {
+            transcript.setText("");
+            showingWelcome = false;
+        }
+        if (transcript.getDocument().getLength() > 0) {
+            transcript.append("\n\n");
+        }
+        transcript.append(speaker);
+        transcript.append("\n");
+        transcript.append(message);
+        transcript.append("\n");
+        transcript.setCaretPosition(transcript.getDocument().getLength());
     }
 }
