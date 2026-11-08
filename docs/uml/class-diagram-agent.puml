@@ -6,10 +6,11 @@ skinparam packageStyle rectangle
 hide empty members
 
 note as Scope
-  Stage 2 implementation.
-  Stage 1 renders stay in docs/Stage1-pdfs.
-  A slash command or function key does not call the model.
-  A sentence goes through AgentController.
+  Stage 2 implementation, 8 November 2026.
+  The window message box sends a sentence to AgentController.
+  A verb such as QUOTE runs one tool and does not call the model.
+  AgentPlan.Kind includes DISCUSS. That path does not run a tool.
+  createPlan also receives the recent turns for this user.
 end note
 
 package "Interfaces" {
@@ -47,7 +48,7 @@ package "Follow-up" {
         + noteLookup(userId, symbol, action): void
     }
     class RequestPlanner {
-        + createPlan(input, previousSymbol): AgentPlan
+        + createPlan(input, previous, recent): AgentPlan
     }
     class PromptBuilder
     class ResponseComposer {
