@@ -3,6 +3,7 @@ package com.marketintel.agent;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.marketintel.model.ActionType;
+import com.marketintel.model.ConversationTurn;
 import com.marketintel.providers.LLMProvider;
 
 import java.util.ArrayList;
@@ -54,7 +55,9 @@ public final class RequestPlanner {
             "LOOKS", "WANT", "NEED", "KNOW", "THINK", "BECAUSE", "AFTER",
             "BEFORE", "DURING", "WHILE", "OVER", "UNDER", "ONLY", "EVEN",
             "BACK", "OUT", "OFF", "DOWN", "FALL", "FALLING", "FELL", "DROP",
-            "DROPPED", "WHATS", "HOWS", "WHYS", "DONT", "DOESNT"
+            "DROPPED", "WHATS", "HOWS", "WHYS", "DONT", "DOESNT",
+            "SAY", "SAID", "SIMPLY", "SIMPLER", "SHORTER", "PLAIN", "AGAIN",
+            "MEAN", "MEANS", "HELLO", "HEY", "THANKS", "THANK", "ELABORATE"
     );
 
     private final LLMProvider languageModel;
@@ -71,8 +74,15 @@ public final class RequestPlanner {
     }
 
     public AgentPlan createPlan(String input, String previousSymbol) {
+        return createPlan(input, previousSymbol, List.of());
+    }
+
+    public AgentPlan createPlan(String input, String previousSymbol, List<ConversationTurn> recent) {
         AgentPlan keywords = keywordPlan(input, previousSymbol);
         if (languageModel == null || input == null || input.isBlank()) {
+            return keywords;
+        }
+        if (keywords.kind() == AgentPlan.Kind.DISCUSS) {
             return keywords;
         }
         if (keywords.kind() == AgentPlan.Kind.UNSUPPORTED
@@ -82,10 +92,18 @@ public final class RequestPlanner {
         }
         try {
             AgentPlan interpreted = interpret(
-                    languageModel.generateBrief(prompts.planPrompt(input, previousSymbol)),
+                    languageModel.generateBrief(
+                            prompts.planPrompt(input, previousSymbol, PromptBuilder.transcript(recent))
+                    ),
                     previousSymbol
             );
-            return interpreted == null ? keywords : interpreted;
+            if (interpreted == null) {
+                return keywords;
+            }
+            if (interpreted.kind() == AgentPlan.Kind.DISCUSS && keywords.kind() == AgentPlan.Kind.RUN) {
+                return keywords;
+            }
+            return interpreted;
         } catch (RuntimeException exception) {
             return keywords;
         }
@@ -115,6 +133,10 @@ public final class RequestPlanner {
         String prior = previousSymbol == null || previousSymbol.isBlank()
                 ? null
                 : previousSymbol.trim().toUpperCase(Locale.ROOT);
+
+        if (symbols.isEmpty() && isContinuation(upper) && !asksForFreshData(upper)) {
+            return AgentPlan.discuss();
+        }
 
         if (action == ActionType.PORTFOLIO_EXPOSURE) {
             return AgentPlan.run(action, null, null);
@@ -167,6 +189,9 @@ public final class RequestPlanner {
         String message = clip(node.path("message").asText(""));
         if ("CLARIFY".equals(actionName)) {
             return AgentPlan.clarify(message.isBlank() ? "Which symbol should I use?" : message);
+        }
+        if ("CONVERSATION".equals(actionName)) {
+            return AgentPlan.discuss();
         }
         if ("UNSUPPORTED".equals(actionName)) {
             return AgentPlan.unsupported(message.isBlank()
@@ -255,6 +280,35 @@ public final class RequestPlanner {
             return prior;
         }
         return prior;
+    }
+
+    private static boolean asksForFreshData(String upper) {
+        String padded = " " + upper + " ";
+        return contains(
+                padded,
+                "QUOTE", "PRICE", "TRADING AT", "NEWS", "HEADLINE", "SECTOR",
+                "OVERLAP", "COMPARE", "VERSUS", " VS ", "SENTIMENT", "STATEMENT",
+                "FINANCIALS", "HISTORY", " RSI ", "GEOGRAPHIC", "GEOGRAPHY",
+                "COUNTRY", "PORTFOLIO", "OVERVIEW", "DESCRIBE", "PROFILE"
+        );
+    }
+
+    private static boolean isContinuation(String upper) {
+        String padded = " " + upper + " ";
+        if (upper.equals("HI") || upper.equals("HEY") || upper.equals("HELLO")
+                || upper.equals("THANKS") || upper.equals("THANK YOU")
+                || upper.equals("OK") || upper.equals("OKAY")) {
+            return true;
+        }
+        return contains(
+                padded,
+                "THANK", "HELLO", " HI ", "HEY ",
+                "SIMPLER", "SHORTER", "IN OTHER WORDS", "SUMMARIZE", "SUM UP",
+                "IN SHORT", "WHAT DOES THAT MEAN", "DONT UNDERSTAND",
+                "DO NOT UNDERSTAND", "EXPLAIN THAT", "SAY THAT", "SAY IT AGAIN",
+                "ONE MORE TIME", "MORE DETAIL", "ELABORATE", "WHAT CAN YOU",
+                "WHO ARE YOU", "WHAT DO YOU DO", "GOT IT", "GO ON", "KEEP GOING"
+        );
     }
 
     private static boolean refersToPrevious(String upper) {

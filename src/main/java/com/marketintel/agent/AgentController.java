@@ -2,6 +2,7 @@ package com.marketintel.agent;
 
 import com.marketintel.app.MovementReport;
 import com.marketintel.model.ActionType;
+import com.marketintel.model.ConversationTurn;
 import com.marketintel.model.MarketMovementContext;
 import com.marketintel.model.ToolRequest;
 import com.marketintel.model.ToolResult;
@@ -11,6 +12,7 @@ import com.marketintel.services.ConversationMemory;
 import com.marketintel.services.MarketExplanationService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -59,14 +61,18 @@ public final class AgentController {
 
     public String handle(long userId, String input) {
         String previous = memory.lastSymbol(userId);
-        AgentPlan plan = planner.createPlan(input, previous);
-        String symbol = plan.symbol();
-        String actionName = plan.action() == null ? null : plan.action().name();
+        List<ConversationTurn> recent = memory.recent(userId);
+        AgentPlan plan = planner.createPlan(input, previous, recent);
+        String symbol = plan.symbol() != null ? plan.symbol() : previous;
+        String actionName = plan.kind() == AgentPlan.Kind.DISCUSS
+                ? "CONVERSATION"
+                : plan.action() == null ? null : plan.action().name();
         memory.remember(userId, "user", input, symbol, actionName);
 
         String reply = switch (plan.kind()) {
             case CLARIFY, UNSUPPORTED -> composer.composeMessage(plan.message());
-            case RUN -> run(userId, input, plan);
+            case DISCUSS -> discuss(input, recent);
+            case RUN -> run(userId, input, plan, recent);
         };
         memory.remember(userId, "assistant", reply, symbol, actionName);
         return reply;
@@ -90,7 +96,38 @@ public final class AgentController {
         );
     }
 
-    private String run(long userId, String question, AgentPlan plan) {
+    private String discuss(String question, List<ConversationTurn> recent) {
+        String earlier = PromptBuilder.transcript(recent);
+        if (languageModel == null) {
+            if (earlier.isBlank()) {
+                return composer.composeMessage(
+                        "Ask a market question, such as why did Microsoft fall, or name a symbol to quote. "
+                                + "This is not investment advice."
+                );
+            }
+            return composer.composeMessage(
+                    "Gemini is not configured, so I can't rephrase the last result. "
+                            + "The figures stay in the reply above. This is not investment advice."
+            );
+        }
+        try {
+            String spoken = languageModel.generateBrief(prompts.conversationPrompt(question, earlier));
+            if (spoken == null || spoken.isBlank()) {
+                return composer.composeMessage(
+                        "I couldn't rephrase that. Ask for a quote, news, or why a symbol moved. "
+                                + "This is not investment advice."
+                );
+            }
+            return spoken.trim() + "\nThis is not investment advice.\n";
+        } catch (RuntimeException exception) {
+            return composer.composeMessage(
+                    "I couldn't continue that conversation. The last lookup is unchanged. "
+                            + "This is not investment advice."
+            );
+        }
+    }
+
+    private String run(long userId, String question, AgentPlan plan, List<ConversationTurn> recent) {
         if (plan.action() == ActionType.MARKET_MOVEMENT) {
             return movement(userId, plan);
         }
@@ -102,7 +139,9 @@ public final class AgentController {
             return evidence;
         }
         try {
-            String spoken = languageModel.generateBrief(prompts.answerPrompt(question, plan, evidence));
+            String spoken = languageModel.generateBrief(
+                    prompts.answerPrompt(question, plan, evidence, PromptBuilder.transcript(recent))
+            );
             if (spoken == null || spoken.isBlank()) {
                 return evidence;
             }
