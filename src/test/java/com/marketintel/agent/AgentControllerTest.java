@@ -56,6 +56,35 @@ class AgentControllerTest {
         );
     }
 
+    @Test
+    void rephrasesTheLastReplyWithoutRunningAnotherTool() throws Exception {
+        DatabaseManager database = new DatabaseManager(
+                "jdbc:sqlite:" + tempDirectory.resolve("talk.db")
+        );
+        database.initialize();
+        insertUser(database, 8);
+        RecordingTool tool = new RecordingTool();
+        ToolManager tools = new ToolManager();
+        tools.registerTool(tool);
+        AgentController controller = new AgentController(
+                new ConversationMemory(new SQLiteConversationRepository(database)),
+                new RequestPlanner(),
+                tools,
+                new ResponseComposer(),
+                null,
+                prompt -> "The last lookup was a sector breakdown, in plain words."
+        );
+
+        controller.handle(8, "Why did QQQ move?");
+        int callsAfterLookup = tool.calls;
+        String reply = controller.handle(8, "say that more simply");
+
+        assertEquals(1, callsAfterLookup);
+        assertEquals(callsAfterLookup, tool.calls);
+        assertTrue(reply.contains("plain words"));
+        assertTrue(reply.contains("not investment advice"));
+    }
+
     private static void insertUser(DatabaseManager database, long id) throws Exception {
         try (Connection connection = database.getConnection();
              Statement statement = connection.createStatement()) {
@@ -69,6 +98,7 @@ class AgentControllerTest {
     private static final class RecordingTool implements AgentTool {
         private ActionType lastAction;
         private String lastSymbol;
+        private int calls;
 
         @Override
         public String getName() {
@@ -82,6 +112,7 @@ class AgentControllerTest {
 
         @Override
         public ToolResult execute(ToolRequest request) {
+            calls++;
             lastAction = request.getAction();
             lastSymbol = request.getArgument("symbol");
             if (request.getAction() == ActionType.MARKET_MOVEMENT) {

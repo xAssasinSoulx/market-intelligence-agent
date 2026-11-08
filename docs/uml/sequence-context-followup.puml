@@ -56,6 +56,9 @@ note right of RequestPlanner
   "its" uses the stored symbol for this user only.
   Compare and overlap need two symbols.
   Portfolio exposure is not narrated by the model.
+  "Say that more simply" continues from the
+  last reply and does not run a tool.
+  Portfolio figures are left out of that prompt.
 end note
 
 @enduml

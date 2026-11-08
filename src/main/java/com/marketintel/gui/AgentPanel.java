@@ -139,7 +139,7 @@ public final class AgentPanel extends JPanel {
                     symbolField.setEnabled(true);
                     explainButton.setEnabled(true);
                 },
-                "Planning the question. Gemini should answer in a few seconds.",
+                "Reading the question. A lookup or a short reply should follow.",
                 () -> gateway.ask(userId, "why did " + symbol + " move"),
                 text -> {
                     if (generation == requestGeneration) {

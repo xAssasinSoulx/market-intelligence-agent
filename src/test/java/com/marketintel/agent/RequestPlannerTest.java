@@ -117,4 +117,39 @@ class RequestPlannerTest {
 
         assertEquals(AgentPlan.Kind.UNSUPPORTED, plan.kind());
     }
+
+    @Test
+    void treatsARephraseAsConversation() {
+        AgentPlan simpler = planner.createPlan("say that more simply", "NVDA");
+        AgentPlan greeting = planner.createPlan("what can you do?", null);
+        AgentPlan named = planner.createPlan("explain microsoft", null);
+
+        assertEquals(AgentPlan.Kind.DISCUSS, simpler.kind());
+        assertEquals(AgentPlan.Kind.DISCUSS, greeting.kind());
+        assertEquals(ActionType.MARKET_MOVEMENT, named.action());
+        assertEquals("MSFT", named.symbol());
+    }
+
+    @Test
+    void usesAConversationPlanFromTheModelWhenNoToolIsRequired() {
+        RequestPlanner planned = new RequestPlanner(
+                prompt -> "{\"action\":\"CONVERSATION\",\"symbol\":null,\"secondSymbol\":null,\"message\":null}"
+        );
+
+        AgentPlan plan = planned.createPlan("I'm not sure I follow", null);
+
+        assertEquals(AgentPlan.Kind.DISCUSS, plan.kind());
+    }
+
+    @Test
+    void keepsALookupWhenTheModelTriesToTurnItIntoChat() {
+        RequestPlanner planned = new RequestPlanner(
+                prompt -> "{\"action\":\"CONVERSATION\",\"symbol\":\"NVDA\",\"secondSymbol\":null}"
+        );
+
+        AgentPlan plan = planned.createPlan("Why did NVDA move?", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+        assertEquals("NVDA", plan.symbol());
+    }
 }
