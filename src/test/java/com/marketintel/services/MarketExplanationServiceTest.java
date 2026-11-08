@@ -79,6 +79,7 @@ class MarketExplanationServiceTest {
 
         assertTrue(prompt.contains("Do not invent prices"));
         assertTrue(prompt.contains("complete sentences"));
+        assertTrue(prompt.contains("what the articles say"));
         assertTrue(prompt.contains("does not establish a cause"));
         assertFalse(prompt.contains("PRICE MOVEMENT"));
         assertFalse(prompt.contains("250 words"));

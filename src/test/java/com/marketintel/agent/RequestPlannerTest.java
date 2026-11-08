@@ -160,4 +160,24 @@ class RequestPlannerTest {
         assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
         assertEquals("NVDA", plan.symbol());
     }
+
+    @Test
+    void explainsARiseFromTheArticlesInsteadOfListingHeadlines() {
+        AgentPlan up = planner.createPlan("why is intel up", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, up.action());
+        assertEquals("INTC", up.symbol());
+    }
+
+    @Test
+    void doesNotLetTheModelTurnAMoveQuestionIntoAHeadlineList() {
+        RequestPlanner planned = new RequestPlanner(
+                prompt -> "{\"action\":\"FINANCIAL_NEWS\",\"symbol\":\"INTC\",\"secondSymbol\":null}"
+        );
+
+        AgentPlan plan = planned.createPlan("Why did INTC move?", null);
+
+        assertEquals(ActionType.MARKET_MOVEMENT, plan.action());
+        assertEquals("INTC", plan.symbol());
+    }
 }

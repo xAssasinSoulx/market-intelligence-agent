@@ -103,6 +103,11 @@ public final class RequestPlanner {
             if (interpreted.kind() == AgentPlan.Kind.DISCUSS && keywords.kind() == AgentPlan.Kind.RUN) {
                 return keywords;
             }
+            if (keywords.kind() == AgentPlan.Kind.RUN
+                    && keywords.action() == ActionType.MARKET_MOVEMENT
+                    && interpreted.action() == ActionType.FINANCIAL_NEWS) {
+                return keywords;
+            }
             return interpreted;
         } catch (RuntimeException exception) {
             return keywords;
@@ -347,6 +352,8 @@ public final class RequestPlanner {
         if (has(upper, "DROP") || has(upper, "DROPPED") || has(upper, "FALL")
                 || has(upper, "FALLING") || has(upper, "FELL") || has(upper, "DOWN")
                 || has(upper, "CRASH") || has(upper, "RALLY") || has(upper, "SURGE")
+                || has(upper, "UP") || has(upper, "ROSE") || has(upper, "CLIMB")
+                || has(upper, "GAIN") || has(upper, "HIGHER")
                 || has(upper, "EXPLAIN")) {
             if (padded.contains("COMPANY") || padded.contains("BUSINESS") || has(upper, "DOES")) {
                 return ActionType.SECURITY_OVERVIEW;
