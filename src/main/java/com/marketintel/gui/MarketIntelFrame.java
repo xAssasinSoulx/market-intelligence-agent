@@ -67,6 +67,7 @@ public final class MarketIntelFrame extends JFrame {
     private final WatchlistPanel watchlistPanel;
     private final AgentPanel agentPanel;
     private final MarketTape marketTape = new MarketTape();
+    private final PortfolioRail portfolioRail;
     private final InflightQuotes inflightQuotes = new InflightQuotes();
     private final Map<String, JButton> navigation = new LinkedHashMap<>();
     private String activeSection = "Dashboard";
@@ -108,6 +109,7 @@ public final class MarketIntelFrame extends JFrame {
         portfolioPanel = new PortfolioPanel(workspace, gateway, statusLabel);
         watchlistPanel = new WatchlistPanel(workspace, statusLabel);
         agentPanel = new AgentPanel(workspace, gateway, statusLabel, composer, sendButton);
+        portfolioRail = new PortfolioRail(workspace, gateway);
 
         sectionPanel.setBackground(Color.BLACK);
         sectionPanel.add(dashboardPanel, "Dashboard");
@@ -119,6 +121,7 @@ public final class MarketIntelFrame extends JFrame {
         JPanel desk = new JPanel(new BorderLayout());
         desk.setBackground(Color.BLACK);
         desk.add(marketTape, BorderLayout.NORTH);
+        desk.add(portfolioRail, BorderLayout.WEST);
         desk.add(sectionPanel, BorderLayout.CENTER);
 
         JPanel application = new JPanel(new BorderLayout(0, 0));
@@ -248,7 +251,7 @@ public final class MarketIntelFrame extends JFrame {
         );
         sendButton.addActionListener(event -> runCommand());
 
-        JLabel hint = UiTheme.text("Message the desk. Enter sends. Shift+Enter adds a line.", true);
+        JLabel hint = UiTheme.text("Message the desk. Enter sends.  main returns home.", true);
 
         JScrollPane composerScroll = new JScrollPane(composer);
         composerScroll.setBorder(javax.swing.BorderFactory.createLineBorder(UiTheme.ACCENT_DARK));
@@ -317,6 +320,7 @@ public final class MarketIntelFrame extends JFrame {
     private void showApplication() {
         refreshFeeds();
         showSection("Dashboard");
+        portfolioRail.refresh();
         statusLabel.setText("SIGNED IN  " + workspace.currentUser().getUsername());
         rootCards.show(rootCardsPanel, "app");
         composer.requestFocusInWindow();
@@ -337,6 +341,7 @@ public final class MarketIntelFrame extends JFrame {
         if ("Dashboard".equals(activeSection)) {
             dashboardPanel.reloadHoldings();
         }
+        portfolioRail.refresh();
     }
 
     private void loadTape() {
@@ -407,6 +412,7 @@ public final class MarketIntelFrame extends JFrame {
             }
         }
         sectionCards.show(sectionPanel, section);
+        portfolioRail.refresh();
     }
 
     private void paintNavigation() {
@@ -494,6 +500,7 @@ public final class MarketIntelFrame extends JFrame {
         portfolioPanel.clear();
         watchlistPanel.clear();
         agentPanel.clear();
+        portfolioRail.refresh();
         dashboardPanel.refresh();
         composer.setText("");
         statusLabel.setText("SIGNED OUT");

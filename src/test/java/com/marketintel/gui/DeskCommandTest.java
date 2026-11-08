@@ -107,4 +107,10 @@ class DeskCommandTest {
         assertEquals("QQQ", DeskCommand.parse("HIST qqq").argument(0));
         assertEquals(DeskCommand.Action.SENTIMENT, DeskCommand.parse("SENT AAPL").action());
     }
+
+    @Test
+    void mainReturnsHome() {
+        assertEquals(DeskCommand.Action.HOME, DeskCommand.parse("main").action());
+        assertEquals(DeskCommand.Action.HOME, DeskCommand.parse("back").action());
+    }
 }

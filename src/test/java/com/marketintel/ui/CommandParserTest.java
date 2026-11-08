@@ -113,4 +113,11 @@ class CommandParserTest {
                 () -> parser.parse("/")
         );
     }
+
+    @Test
+    void homeIsACommand() {
+        assertTrue(parser.isCommand("main"));
+        assertEquals("home", parser.parse("HOME").getCommand());
+        assertFalse(parser.isCommand("why did microsoft fall"));
+    }
 }
