@@ -12,7 +12,7 @@
 \usepackage{hyperref}
 
 \hypersetup{hidelinks}
-\setlist{itemsep=2pt,parsep=0pt,topsep=6pt,partopsep=0pt}
+\setlist{itemsep=2pt,parsep=0pt,topsep=4pt,partopsep=0pt}
 \graphicspath{{uml/rendered/}}
 \setlength{\parskip}{6pt plus 1pt minus 1pt}
 \setlength{\parindent}{0pt}
@@ -20,9 +20,7 @@
 \pagestyle{plain}
 \urlstyle{same}
 
-\title{Market Intelligence Agent}
-\author{}
-\date{}
+\newcommand{\field}[2]{\textbf{#1.} #2\par}
 
 \begin{document}
 
@@ -33,12 +31,12 @@
 {\large Lassonde School of Engineering\\[2.4em]}
 {\Large EECS3311 -- Software Design\\[2.6em]}
 {\Huge\bfseries Market Intelligence Agent\\[0.55em]}
-{\Large Stage 2 -- Implementation\\[2.15in]}
+{\Large Stage 2 -- Implementation Report\\[2.15in]}
 \begin{tabular}{rl}
-\textbf{Student:} & [Erdem Calikoglu] \\
-\textbf{Student Number:} & [218188771] \\
-\textbf{Instructor:} & [Song Wang] \\
-\textbf{Date:} & [November 8, 2026] \\
+\textbf{Student:} & Erdem Calikoglu \\
+\textbf{Student Number:} & 218188771 \\
+\textbf{Instructor:} & Song Wang \\
+\textbf{Date:} & November 8, 2026 \\
 \end{tabular}
 \vfill
 \end{titlepage}
@@ -46,766 +44,506 @@
 \tableofcontents
 \newpage
 
-\section{Project Description and Scope}
+\section{Project overview and implementation status}
 
-\subsection{Project Title}
-Market Intelligence Agent
+I built a small research desk for one signed-in person. The Swing window and the terminal call the same Java services, and both read the same SQLite file, \texttt{data/market-intelligence.db}. You can ask for a quote, a company profile, ETF exposure, news, statements, a price history, or a sentiment score. You can also keep a portfolio and a watchlist. The desk does not place orders and it does not tell you to buy or sell.
 
-\subsection{Project Description}
-The Market Intelligence Agent is a Java 21 research desk for a signed-in user. The same services answer the Swing window and the terminal. Accounts, portfolios, watchlists, and conversation turns are stored in one SQLite database, \texttt{data/market-intelligence.db}. The desk retrieves quotes, company profiles, ETF exposure, news, statements, price history, and a sentiment score, and it can write a short note about a price move. It does not give investment advice. A movement note and a follow-up reply say so.
+Gemini is in two places, and only those two. If you ask why a price moved, the desk first loads the quote and the news, then asks Gemini to explain the move from what those articles say. If you type an ordinary sentence, Gemini may pick one allowed action, and it may write a short reply from the tool result. A plain quote never goes to the model. ``Say that more simply'' stays on the last reply and does not fetch anything new. Portfolio weights are calculated in Java. I do not send those numbers to Gemini.
 
-Stage~1 described this system as a design. This report describes the application that is in the repository. A feature listed here has a class and a command. A limit is stated as the behavior of the running desk, not as a plan for a later change.
+The model I ship with is \texttt{gemini-3.5-flash-lite}. Flash-Lite uses minimal thinking, because a longer thinking pass was eating the token budget and the note stopped after the price. If \texttt{GEMINI\_MODEL} is set to \texttt{gemini-3.8-flash} or \texttt{gemini-2.5-flash}, unset it. The first one thought too long. The second one returned HTTP 404 on a new key.
 
-Market data comes from free provider plans. \texttt{ProviderRouter} selects the first adapter registered for a capability. A later adapter is used only when an earlier one was not registered. A failed call does not try the next adapter. Keys are environment variables. The process does not read a \texttt{.env} file. \texttt{.env.example} contains placeholders only.
+The box at the bottom of the window is a message field. Enter sends, Shift+Enter adds a line, and the reply stays in the conversation. The terminal takes the same words. A leading slash still works, but you do not need it.
 
-Gemini participates in two places. \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate} and writes the move from what the retrieved articles say. An article published after the last trade is still summarized, and it is labeled as later context rather than proof it caused that print. \texttt{RequestPlanner} may ask Gemini to name one allowlisted action for a sentence, and \texttt{AgentController} may ask it for a reply from the tool result. A direct quote does not call the model. A question about why a price rose or fell stays \texttt{MARKET\_MOVEMENT} and is not turned into a headline list. Portfolio weights are calculated in Java and are not sent to Gemini. If the model returns bad JSON, a disallowed action, or a word that is not a ticker, the keyword plan is used. ``Say that more simply'' continues from the stored exchange and does not run a tool.
-
-The default model is \texttt{gemini-3.5-flash-lite}. \texttt{GEMINI\_MODEL} overrides it. Flash-Lite requests use minimal thinking so a note can finish. \texttt{gemini-3.8-flash} thought too long for a short note. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. Those names stay unset.
-
-The project is not a brokerage and it does not place orders. Its scope is financial-information retrieval, ETF and portfolio analysis, news retrieval, and an explanation grounded in the quote and the headlines that were retrieved.
-
-\section{Implementation Status}
-
-The following behavior is in the repository on 8~November 2026.
+What works today, when the matching key is set:
 
 \begin{itemize}
-\item Register, sign in, and sign out, on separate GUI screens and in the terminal.
-\item Quotes, company overviews, security comparison, news, ETF sector weights, ETF overlap, portfolio view, portfolio edits, and watchlists.
-\item Country exposure: the published Finnhub report when the plan allows it, otherwise the headquarters country of at most 25 holdings.
+\item Register, sign in, and sign out. The create-account screen and the sign-on screen are separate.
+\item Quotes, overviews, comparison, news, ETF sector weights, overlap, portfolio edits, and a watchlist.
+\item Country exposure. Finnhub's published report if the plan allows it. Otherwise the headquarters country of at most 25 holdings.
 \item Portfolio exposure as price times quantity, with currencies kept apart.
-\item A movement explanation from the quote and the news. The note attributes the move to what the articles say.
-\item Follow-up questions in the window message box and at the terminal. The last symbol for that user is remembered. ``Say that more simply'' continues the last reply.
-\item Annual statements, daily bars with a 14-day RSI, and one sentiment score, when those keys are set.
-\item A home screen with portfolio value, day move, position chips, and a quote and news tape.
+\item A move note that uses the articles, then the quote and the sources underneath.
+\item Statements, daily bars with RSI, and one sentiment score.
+\item A home screen with portfolio value, the day move, one row per position, and a sliding tape.
 \end{itemize}
 
-The following limits are part of the implementation.
+What I am not going to dress up:
 
 \begin{itemize}
-\item Period~1 (20--26 October 2026) has no commits in this repository. That week cannot be repaired by later commits, and those commits were not backdated.
-\item Period~3 (3--9 November 2026) meets the minimum of five meaningful code commits. The 8~November commits for the message box and the article-based explanation are included under Weekly Commits.
-\item Demonstration videos do not yet have public links. Section~\ref{sec:demos} is the index. Recordings of the flows that do not call a vendor were captured with this report. Live provider clips still need the student's keys and a public link.
-\item Country weights on the free plan are headquarters of reported holdings. They are not the fund's published country report and they are not revenue exposure. Unknown and unassigned weight is named. It is not filled in.
-\item Finnhub's free plan prices US listings. A symbol such as \texttt{XEQT.TO} stays unpriced and is named.
-\item Alpha Vantage company overview is a premium endpoint. This desk uses Alpha Vantage for ETF profile and holdings.
-\item The router does not fail over when a live call fails.
-\item The model cannot add or remove a position. Those commands stay on \texttt{SessionWorkspace}.
-\item A sentence that tries to override the instructions is rejected and does not run a tool.
-\end{itemize}
-
-\section{Major Features}
-
-\subsection{User Authentication}
-The desk supports account registration, login, and logout. Passwords are not stored directly. \texttt{BCryptPasswordHasher} stores a hash. A username is 3 to 30 characters. A password is at least 8 characters. Registration returns to the sign-on screen. The user still has to log in. A failed login does not say whether the username or the password was wrong.
-
-\subsection{Persistent User Profiles}
-Each user has a portfolio and a watchlist in SQLite. Conversation turns are stored for that user id. Logging out clears the in-memory session. The rows remain under the previous user. The next person must sign in.
-
-\subsection{Natural-Language Follow-Up}
-The box at the bottom of the window is a message field. Enter sends. Shift+Enter adds a line. The letters stay as typed. The reply stays in the conversation on screen 5. The terminal accepts the same sentence without a leading slash. \texttt{RequestPlanner} maps it to one allowlisted action. Pronouns use the last symbol stored for this user. \texttt{why did microsoft fall} stays a sentence: Microsoft maps to \texttt{MSFT}, and the word ``did'' is a stop word, so it cannot become the ticker. \texttt{why is intel up} is a movement explanation, not a headline list. Compare and overlap still require two symbols. Portfolio edits are not on the allowlist.
-
-\subsection{Terminal and Window Commands}
-The terminal accepts the verbs without a leading slash. A slash still works. The window message box accepts the same verbs and ordinary sentences. Both call \texttt{ResearchGateway}. A successful lookup stores the symbol for a later follow-up. \texttt{PORT ADD} and \texttt{PORT REMOVE} still open the portfolio screen. They are not sent to the model.
-
-\subsection{Market Data}
-Quotes and company profiles come from Finnhub when \texttt{FINNHUB\_API\_KEY} is set. Twelve Data is the quote fallback and the source of daily bars and RSI. Alpha Vantage is the last quote fallback and the source of ETF holdings. A quote shows last price, previous close, and percent change. A direct quote does not call Gemini.
-
-\subsection{ETF Exposure and Overlap}
-Sector weights come from the ETF profile. Country exposure tries Finnhub's published report. On HTTP 403 the desk reads holdings and the headquarters country of at most 25 names. Overlap is the shared holdings of two ETFs. The calculations are in Java.
-
-\subsection{News, Movement, Statements, History, and Sentiment}
-News prefers Marketaux when its token is set, and otherwise uses Finnhub company news. A question about why a price rose or fell gathers the quote and the news, then Gemini explains the move from what the articles say. Statements come from Financial Modeling Prep. History and RSI come from Twelve Data. The sentiment score comes from SentiSense. The display band is this desk's label for the score.
-
-\subsection{Portfolio, Watchlist, and Home Desk}
-A position stores a symbol, a quantity, and a type of \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. Exposure values each position as price times quantity. Currencies stay in separate books. The home screen shows that value, the day move, one chip per position, and a tape. The terminal lists the same positions with \texttt{portfolio} and does not show a sliding tape.
-
-\section{Major User Interactions}
-The implementation supports twenty user-facing interactions. Login, logout, and registration are included because Stage~1 specified them. They are not counted toward the ten meaningful features. The meaningful features are UC-04 through UC-20.
-
-\begin{enumerate}
-\item UC-01 -- Register Account
-\item UC-02 -- Log In
-\item UC-03 -- Log Out
-\item UC-04 -- Get Market Quote
-\item UC-05 -- Get Security Overview
-\item UC-06 -- Analyze ETF Exposure
-\item UC-07 -- Compare Securities
-\item UC-08 -- Analyze ETF Holding Overlap
-\item UC-09 -- Retrieve Financial News
-\item UC-10 -- Explain Recent Market Movement
-\item UC-11 -- Add Portfolio Position
-\item UC-12 -- Remove Portfolio Position
-\item UC-13 -- View Portfolio
-\item UC-14 -- Manage Watchlist
-\item UC-15 -- Analyze Portfolio Exposure
-\item UC-16 -- Ask a Contextual Follow-Up Question
-\item UC-17 -- Read Financial Statements
-\item UC-18 -- Read Price History
-\item UC-19 -- Read Sentiment
-\item UC-20 -- View Home Desk
-\end{enumerate}
-
-\section{Use Cases}
-
-\subsection{UC-01 -- Register Account}
-\textbf{Primary Actor:} User.
-
-\textbf{Goal:} Create a new user account.
-
-\textbf{Preconditions:} The application is running and SQLite is available.
-
-\textbf{Trigger:} The user opens the create-account screen, or chooses register in the terminal.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item The user enters a username and a password. The window also asks for a confirmation.
-\item \texttt{AuthService.register} validates the lengths and the username characters.
-\item The service checks that the username is not already stored.
-\item \texttt{BCryptPasswordHasher} hashes the password.
-\item \texttt{SQLiteUserRepository.save} stores the user. The password is not copied into the status line.
-\item The window returns to the sign-on screen. The user is not signed in yet.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:}
-\begin{itemize}
-\item A taken username, a short password, or a confirmation that does not match is rejected.
-\item A persistence failure does not create the account.
-\end{itemize}
-\textbf{Postconditions:} A new user row exists. No session is active.
-
-\textbf{Classes and patterns:} \texttt{AuthenticationPanel}, \texttt{TerminalUI}, \texttt{SessionWorkspace}, \texttt{AuthService}, \texttt{PasswordHasher}. Strategy, Repository, and Factory (\texttt{ApplicationContext} wires them). Deterministic.
-
-\subsection{UC-02 -- Log In}
-\textbf{Primary Actor:} User.
-
-\textbf{Goal:} Start a session for an existing account.
-
-\textbf{Preconditions:} The user has registered.
-
-\textbf{Trigger:} The user submits a username and password on the sign-on screen. That screen has no confirmation field.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{AuthService.authenticate} loads the user by username.
-\item The hasher checks the password against the stored hash.
-\item \texttt{SessionManager} starts a session for that user id.
-\item The window opens the desk. The terminal opens the authenticated prompt.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} A mismatch stays on the sign-on screen and does not say which field failed.
-
-\textbf{Postconditions:} An authenticated session exists for that user id.
-
-\textbf{Classes and patterns:} \texttt{AuthenticationPanel} or \texttt{TerminalUI}, \texttt{AuthService}, \texttt{SessionManager}. Strategy and Repository. Deterministic.
-
-\subsection{UC-03 -- Log Out}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} End the active session.
-
-\textbf{Preconditions:} A user is signed in.
-
-\textbf{Trigger:} The user chooses logout.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{SessionWorkspace.logout} calls \texttt{SessionManager.endSession}.
-\item In-memory session state is cleared.
-\item The next command requires sign-on.
-\end{enumerate}
-\textbf{Postconditions:} No authenticated session remains. Conversation rows stay in SQLite under the previous user id.
-
-\textbf{Classes and patterns:} \texttt{SessionWorkspace}, \texttt{SessionManager}. Facade. Deterministic.
-
-\subsection{UC-04 -- Get Market Quote}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show the latest price, previous close, and percent change.
-
-\textbf{Preconditions:} A quote adapter is registered. The order is Finnhub, then Twelve Data, then Alpha Vantage.
-
-\textbf{Trigger:} \texttt{QUOTE NVDA} or \texttt{/quote NVDA}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{ResearchGateway} checks that the signed-in user still matches the request.
-\item \texttt{MarketDataTool} validates the symbol and calls \texttt{ProviderRouter.getQuote}.
-\item The first registered quote adapter returns a \texttt{MarketQuote}.
-\item The window or the terminal shows the price, the previous close, and the percent change.
-\item The symbol is stored as the last lookup for this user.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} A blank or invalid symbol is rejected. A missing key says which variable to set. Gemini is not called. Stage~1 sent this use case through the model. That path was removed so a quote stays a lookup.
-
-\textbf{Postconditions:} The user sees a retrieved quote or an explicit failure. The stored portfolio is unchanged.
-
-\textbf{Classes and patterns:} \texttt{DeskCommand}, \texttt{CommandParser}, \texttt{MarketDataTool}, \texttt{FinnhubAdapter}. Command, Facade, Composite, Adapter. Deterministic.
-
-\subsection{UC-05 -- Get Security Overview}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show the name, exchange, currency, and industry label.
-
-\textbf{Preconditions:} Finnhub or Alpha Vantage is registered for overviews.
-
-\textbf{Trigger:} \texttt{OVERVIEW NVDA}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item The same gateway and \texttt{MarketDataTool} call \texttt{getSecurityOverview}.
-\item Finnhub's free profile supplies the name, exchange, currency, and a Finnhub industry label.
-\item The screen says that the profile has no company description and no separate GICS sector.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} An ETF often has no company profile. Portfolio exposure then values it from the quote currency and names that fact. Alpha Vantage overview is a premium endpoint and returns that error when it is the only overview adapter.
-
-\textbf{Postconditions:} The user receives an overview or an explicit failure.
-
-\textbf{Classes and patterns:} Same quote path, with \texttt{ProviderRouter.getSecurityOverview}. Deterministic.
-
-\subsection{UC-06 -- Analyze ETF Exposure}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show sector weights, or country weights, for one ETF.
-
-\textbf{Preconditions:} Sector weights need \texttt{ALPHA\_VANTAGE\_API\_KEY}. Country weights need Finnhub, and the headquarters fallback also needs Alpha Vantage holdings.
-
-\textbf{Trigger:} \texttt{SECTOR QQQ} or \texttt{GEO QQQ}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{ETFExposureTool} loads the ETF profile and \texttt{ExposureCalculator} sums the provider's sector weights.
-\item For country exposure, the tool requests Finnhub's published report.
-\item On HTTP 403 it reads holdings and the headquarters country of at most 25 names through \texttt{HoldingCountryResolver}.
-\item A holding with no profile is Unknown. Weight the provider left blank stays unassigned and is named.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} A stock such as \texttt{NVDA} has no holdings list, so it has no country breakdown. Provider errors pass through \texttt{ProviderText.redact}. Stage~1 had the model explain the exposure. The implementation shows the calculated weights instead.
-
-\textbf{Postconditions:} A deterministic exposure result is shown, or the missing report is named.
-
-\textbf{Classes and patterns:} \texttt{ETFExposureTool}, \texttt{AlphaVantageAdapter}, \texttt{FinnhubMarketDataClient}. Command, Adapter, Composite. Deterministic.
-
-\subsection{UC-07 -- Compare Securities}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show the difference between two percent changes.
-
-\textbf{Preconditions:} A quote adapter is registered. Two symbols are required.
-
-\textbf{Trigger:} \texttt{COMPARE NVDA MSFT}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{ComparisonTool} loads both quotes.
-\item \texttt{SecurityComparisonCalculator} subtracts the second percent change from the first.
-\item The screen shows both quotes and the difference.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} One symbol is rejected. A follow-up that names only one symbol asks for the second.
-
-\textbf{Postconditions:} A structured comparison is displayed, or the failure is explicit.
-
-\textbf{Classes and patterns:} \texttt{ComparisonTool}, \texttt{ProviderRouter}. Command, Composite, Adapter. Deterministic.
-
-\subsection{UC-08 -- Analyze ETF Holding Overlap}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} List holdings that two ETFs share.
-
-\textbf{Preconditions:} \texttt{ALPHA\_VANTAGE\_API\_KEY} is set. Two ETF symbols are required.
-
-\textbf{Trigger:} \texttt{OVERLAP QQQ SPY}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{ComparisonTool} loads both holding lists through the router.
-\item \texttt{ExposureCalculator.calculateOverlap} reports the shared names.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} A missing key or a missing holdings list is reported. The overlap is not estimated.
-
-\textbf{Postconditions:} The user receives the deterministic overlap, or an explicit failure.
-
-\textbf{Classes and patterns:} \texttt{ComparisonTool}, \texttt{ExposureCalculator}, \texttt{AlphaVantageAdapter}. Command, Adapter. Deterministic.
-
-\subsection{UC-09 -- Retrieve Financial News}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show recent articles associated with a symbol.
-
-\textbf{Preconditions:} \texttt{MARKETAUX\_API\_TOKEN} or \texttt{FINNHUB\_API\_KEY} is set.
-
-\textbf{Trigger:} \texttt{NEWS NVDA}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{NewsTool} calls \texttt{ProviderRouter.getNews}.
-\item Marketaux is used when its token is set. Otherwise Finnhub company news is used.
-\item The screen shows headlines. A match means the ticker was associated with the article.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} Alpha Vantage news exists on \texttt{AlphaVantageAdapter} and is not registered, because that free plan is about 25 calls a day. Association is not evidence that the article caused a price move.
-
-\textbf{Postconditions:} The user sees the retrieved articles or an explicit failure.
-
-\textbf{Classes and patterns:} \texttt{NewsTool}, \texttt{MarketauxAdapter}, \texttt{FinnhubAdapter}. Command, Composite, Adapter. Deterministic.
-
-\subsection{UC-10 -- Explain Recent Market Movement}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show the quote, the news, and an explanation of the move taken from those articles.
-
-\textbf{Preconditions:} A quote provider and a news provider are registered.
-
-\textbf{Trigger:} The message box, for example \texttt{why did microsoft fall} or \texttt{why is intel up}. \texttt{WHY MSFT} is the short form. \texttt{nasdaq} is read as \texttt{QQQ}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{MarketMovementTool} gathers the quote and the news.
-\item \texttt{NewsTiming} marks an article published after the last trade when the quote has a trade time.
-\item \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate}. Flash-Lite uses minimal thinking so the note can finish.
-\item The note names the symbol, the price, and the percent change. It attributes the move to what the articles say. An article after the last trade is still described, and labeled as later context rather than proof it caused that print.
-\item The screen shows that note first, then the quote and the sources, and the line that this is not investment advice.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} If Gemini is unset, times out, or the reply is cut off by the token limit, the quote and the news still appear with the failure note. The desk does not invent a reason that is not in the articles.
-
-\textbf{Postconditions:} The user receives the evidence and either a note or an explicit explanation failure.
-
-\textbf{Classes and patterns:} \texttt{MarketMovementTool}, \texttt{MarketExplanationService}, \texttt{ResponseComposer}. Command, Adapter, Strategy (\texttt{LLMProvider}). Hybrid.
-
-\subsection{UC-11 -- Add Portfolio Position}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Store a position for the signed-in user.
-
-\textbf{Preconditions:} The user is signed in.
-
-\textbf{Trigger:} \texttt{PORT ADD NVDA 10 STOCK}, or the Portfolio screen.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{SessionWorkspace.addPosition} checks the session.
-\item \texttt{PortfolioService} validates the symbol, the quantity, and the asset type.
-\item \texttt{SQLitePortfolioRepository} stores the position for this user id.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} An invalid quantity or type is rejected. A sentence cannot add a position. Stage~1 exposed this as a tool the planner could call. The implementation keeps it off the allowlist.
-
-\textbf{Postconditions:} The position belongs to the authenticated user's stored portfolio.
-
-\textbf{Classes and patterns:} \texttt{PortfolioPanel}, \texttt{DeskCommand}, \texttt{PortfolioService}. Command, Repository, Facade. Deterministic.
-
-\subsection{UC-12 -- Remove Portfolio Position}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Delete one symbol from the signed-in portfolio.
-
-\textbf{Preconditions:} The user is signed in.
-
-\textbf{Trigger:} \texttt{PORT REMOVE NVDA}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{SessionWorkspace.removePosition} calls \texttt{PortfolioService.removePosition}.
-\item The repository deletes that symbol for this user.
-\item The screen reports whether the symbol was present.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} A missing symbol is reported and the other positions stay. The model cannot remove a position.
-
-\textbf{Postconditions:} The requested position no longer exists when removal succeeds.
-
-\textbf{Classes and patterns:} \texttt{PortfolioService}, \texttt{SQLitePortfolioRepository}. Command, Repository. Deterministic.
-
-\subsection{UC-13 -- View Portfolio}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} List the stored positions.
-
-\textbf{Preconditions:} The user is signed in.
-
-\textbf{Trigger:} \texttt{portfolio} or the Portfolio screen.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{PortfolioService.getPortfolio} loads the rows for this user.
-\item The screen lists symbol, quantity, and asset type.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} An empty portfolio is shown as empty. Listing positions does not require a network call. Prices appear when another feature quotes them.
-
-\textbf{Postconditions:} The stored portfolio is unchanged.
-
-\textbf{Classes and patterns:} \texttt{PortfolioPanel}, \texttt{TerminalUI}, \texttt{SessionWorkspace}. Repository, Facade. Deterministic.
-
-\subsection{UC-14 -- Manage Watchlist}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Add or remove a symbol on the signed-in watchlist.
-
-\textbf{Preconditions:} The user is signed in.
-
-\textbf{Trigger:} \texttt{WATCH ADD NVDA} or \texttt{WATCH REMOVE NVDA}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{WatchlistService} validates the symbol.
-\item \texttt{SQLiteWatchlistRepository} stores or deletes it for this user.
-\item The watchlist screen and \texttt{watchlist} show the result.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} The watchlist has no quantity and is not a portfolio. Stage~1 had a \texttt{WatchlistTool} on the agent. The implementation uses the session workspace, as it does for portfolio edits.
-
-\textbf{Postconditions:} The user's watchlist reflects the requested change.
-
-\textbf{Classes and patterns:} \texttt{WatchlistPanel}, \texttt{WatchlistService}. Repository, Command. Deterministic.
-
-\subsection{UC-15 -- Analyze Portfolio Exposure}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Show sector weights by market value.
-
-\textbf{Preconditions:} The user is signed in and a quote provider is registered.
-
-\textbf{Trigger:} \texttt{EXPOSURE} or \texttt{portfolio exposure}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{PortfolioAnalysisTool} loads the signed-in positions.
-\item Each position is quoted. Market value is price times quantity.
-\item Day move is (price minus previous close) times quantity.
-\item Currencies stay in separate books. A position with no price is excluded and named.
-\item ETF sector weights are look-through when the holding list exists.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} \texttt{AgentController} does not ask Gemini to narrate this result, even when a sentence selects the action.
-
-\textbf{Postconditions:} The user receives the calculated exposure. The stored quantities are unchanged.
-
-\textbf{Classes and patterns:} \texttt{PortfolioAnalysisTool}, \texttt{PortfolioExposureCalculator}, \texttt{PortfolioBook}. Command, Composite, Adapter. Deterministic.
-
-\subsection{UC-16 -- Ask a Contextual Follow-Up Question}
-\textbf{Primary Actor:} Authenticated user.
-
-\textbf{Goal:} Answer a sentence from the last stored symbol, or from a symbol named in the sentence.
-
-\textbf{Preconditions:} The user is signed in. A pronoun requires an earlier lookup for this user.
-
-\textbf{Trigger:} A sentence in the window message box or at the terminal prompt, for example \texttt{what about its sector exposure} or \texttt{say that more simply}.
-
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item The window shows the user's line in the conversation, then \texttt{ResearchGateway.ask} calls \texttt{AgentController.handle}.
-\item \texttt{ConversationMemory} reads recent turns for this user only, including the last symbol.
-\item \texttt{RequestPlanner.createPlan} builds a keyword plan. When Gemini is configured and the sentence is not a greeting or a request to rephrase, it may replace that plan with one allowlisted JSON action.
-\item If the plan runs a tool, \texttt{ToolManager} executes it and \texttt{ResponseComposer} formats the result. A movement plan explains the move from the articles.
-\item If the plan is \texttt{DISCUSS}, no tool runs. Gemini rephrases the stored exchange. Portfolio figures are left out of that prompt.
-\item Both turns are stored. The reply says that this is not investment advice.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:}
-\begin{itemize}
+\item The week of 20--26 October has no commits. I did not backdate any.
+\item The demonstration videos are not public yet. Section~\ref{sec:demos} is the shot list.
+\item On the free Finnhub plan, country weights are headquarters of the holdings I could look up. They are not the fund's factsheet and they are not revenue. Anything unknown stays unknown.
+\item Finnhub's free quotes are US listings. \texttt{XEQT.TO} stays unpriced, and the screen says so.
+\item Alpha Vantage company overview is a paid endpoint. I use Alpha Vantage for ETF holdings.
+\item If a live call fails, the router does not try the next vendor.
+\item The model cannot add or remove a position.
 \item A sentence that tries to override the instructions does not run a tool.
-\item Compare and overlap with one symbol ask for the second.
-\item If Gemini is unset or returns a disallowed action, the keyword plan is used.
-\item Portfolio exposure selected this way is not narrated by the model.
 \end{itemize}
-\textbf{Postconditions:} The conversation history for this user contains the question and the reply.
 
-\textbf{Classes and patterns:} \texttt{AgentPanel}, \texttt{TerminalUI}, \texttt{RequestPlanner}, \texttt{PromptBuilder}, \texttt{ConversationMemory}. Command, Strategy, Facade, Repository. Hybrid when Gemini is set. Keyword-only when it is not.
+\section{Feature to implementation mapping}
 
-\subsection{UC-17 -- Read Financial Statements}
-\textbf{Primary Actor:} Authenticated user.
+Stage~1 had UC-01 through UC-16. I kept all of them. UC-17, UC-18, and UC-19 are the statement, history, and sentiment commands I added once those free APIs were wired in. UC-20 is the home screen. Login, logout, and registration work, but I am not counting them toward the ten meaningful features.
 
-\textbf{Goal:} Show up to four annual periods of income, balance sheet, and cash flow.
+For each one I say how you get from the sentence to the result, whether Gemini is involved, and where the clip will go. The video cell is empty until the recordings are public.
 
-\textbf{Preconditions:} \texttt{FMP\_API\_KEY} is set.
+\subsection{UC-01 Register account}
+\field{Stage 1}{UC-01. Implemented.}
+I open the create-account screen, which asks me to type the password twice. \texttt{AuthService.register} checks the length, \texttt{BCryptPasswordHasher} hashes the password, and \texttt{SQLiteUserRepository.save} stores the row. The window then sends me back to sign-on. I am not logged in yet. A taken username or a short password is rejected, and the password never lands in the status line. This does not call Gemini.
+\field{Classes}{\texttt{AuthenticationPanel} collects the form. \texttt{SessionWorkspace.register} is what the screen calls. \texttt{AuthService} owns the rules.}
+\field{Methods}{\texttt{AuthService.register}, \texttt{PasswordHasher.hash}, \texttt{UserRepository.save}.}
+\field{Patterns}{Strategy for the hasher, Repository for the user row.}
+\field{Video}{Not public. Clip in Section~\ref{sec:demos}.}
 
-\textbf{Trigger:} \texttt{STATEMENTS NVDA}.
+\subsection{UC-02 Log in}
+\field{Stage 1}{UC-02. Implemented.}
+Sign-on does not ask me to confirm the password. \texttt{AuthService.authenticate} loads the user and checks the hash. \texttt{SessionManager.startSession} starts the session. A wrong password stays on that screen and does not say which field failed. Deterministic.
+\field{Classes}{\texttt{AuthenticationPanel} or \texttt{TerminalUI}, \texttt{AuthService}, \texttt{SessionManager}.}
+\field{Methods}{\texttt{authenticate}, \texttt{PasswordHasher.verify}, \texttt{startSession}.}
+\field{Patterns}{Strategy, Repository.}
+\field{Video}{Not public.}
 
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{MarketInsightTool} calls \texttt{ProviderRouter.getFinancialStatements}.
-\item \texttt{FinancialModelingPrepAdapter} requests the three annual statements. One request uses three calls.
-\item A line the filing omitted stays blank. It is not stored as zero.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} Without the key the action is unavailable.
+\subsection{UC-03 Log out}
+\field{Stage 1}{UC-03. Implemented.}
+Logout clears the in-memory session. The next command asks me to sign in again. The old conversation rows stay in SQLite under that user. Deterministic.
+\field{Classes}{\texttt{SessionWorkspace.logout}, \texttt{SessionManager.endSession}.}
+\field{Methods}{\texttt{endSession}.}
+\field{Patterns}{Facade, through \texttt{SessionWorkspace}.}
+\field{Video}{Not public.}
 
-\textbf{Postconditions:} The user sees the translated statements or an explicit failure. This use case is new in Stage~2.
+\subsection{UC-04 Get a market quote}
+\field{Stage 1}{UC-04. Modified. I took the model off this path.}
+I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the signed-in user. \texttt{MarketDataTool} checks the symbol and asks \texttt{ProviderRouter} for a quote. Finnhub answers if that key is set. Twelve Data, then Alpha Vantage, are used only when an earlier adapter was not registered. A failed call does not hop to the next one. The screen shows price, previous close, and percent change, and NVDA is remembered so I can say ``it'' later. Gemini is not called.
+\field{Classes}{\texttt{DeskCommand} or \texttt{CommandParser} reads the verb. \texttt{MarketDataTool} does the lookup. \texttt{FinnhubAdapter} is the usual adaptee.}
+\field{Methods}{\texttt{ResearchGateway.execute}, \texttt{MarketDataTool.execute}, \texttt{ProviderRouter.getQuote}.}
+\field{Patterns}{Command, Facade, Composite, Adapter.}
+\field{Kind}{Deterministic.}
+\field{Video}{Not public.}
 
-\textbf{Classes and patterns:} \texttt{MarketInsightTool}, \texttt{FinancialModelingPrepAdapter}. Command, Adapter, Composite. Deterministic.
+\subsection{UC-05 Get a security overview}
+\field{Stage 1}{UC-05. Modified the same way as the quote.}
+\texttt{overview NVDA} follows the quote path, but it calls \texttt{getSecurityOverview}. Finnhub's free profile gives me the name, exchange, currency, and an industry label. It does not give a company description, and the screen says that. An ETF often has no profile at all. Deterministic.
+\field{Classes}{Same gateway and \texttt{MarketDataTool}.}
+\field{Methods}{\texttt{ProviderRouter.getSecurityOverview}.}
+\field{Patterns}{Command, Facade, Composite, Adapter.}
+\field{Video}{Not public.}
 
-\subsection{UC-18 -- Read Price History}
-\textbf{Primary Actor:} Authenticated user.
+\subsection{UC-06 Analyze ETF exposure}
+\field{Stage 1}{UC-06. Modified. Country weights are headquarters when the free plan refuses the factsheet. I do not ask Gemini to narrate the weights.}
+\texttt{sector QQQ} loads the ETF profile and \texttt{ExposureCalculator} reports the provider's sector weights. \texttt{geo QQQ} tries Finnhub's published country report. On HTTP 403, \texttt{HoldingCountryResolver} looks up the headquarters of at most 25 holdings. A holding with no profile stays Unknown. Weight the provider left blank stays unassigned. \texttt{geo NVDA} has nothing to break down, because a stock has no holdings list. Provider errors go through \texttt{ProviderText.redact} so a key cannot leak into the window.
+\field{Classes}{\texttt{ETFExposureTool} decides sector versus country. \texttt{AlphaVantageAdapter} supplies holdings. \texttt{FinnhubMarketDataClient} is the country source and the headquarters lookup.}
+\field{Methods}{\texttt{ETFExposureTool.execute}, \texttt{calculateSectorExposure}, \texttt{HoldingCountryResolver.apply}, \texttt{calculateGeographicExposure}.}
+\field{Patterns}{Command, Adapter, Composite.}
+\field{Kind}{Deterministic.}
+\field{Video}{Not public.}
 
-\textbf{Goal:} Show recent daily bars and the latest 14-day RSI.
+\subsection{UC-07 Compare securities}
+\field{Stage 1}{UC-07. Modified. No model on the direct command.}
+\texttt{compare NVDA MSFT} loads two quotes. \texttt{SecurityComparisonCalculator} subtracts the percent changes. One symbol is not enough, and the desk asks for the second. Deterministic.
+\field{Classes}{\texttt{ComparisonTool}, \texttt{SecurityComparisonCalculator}, \texttt{ProviderRouter}.}
+\field{Methods}{\texttt{ComparisonTool.execute}.}
+\field{Patterns}{Command, Composite, Adapter.}
+\field{Video}{Not public.}
 
-\textbf{Preconditions:} \texttt{TWELVE\_DATA\_API\_KEY} is set.
+\subsection{UC-08 Analyze ETF overlap}
+\field{Stage 1}{UC-08. Modified. No model on the direct command.}
+\texttt{overlap QQQ SPY} loads both holding lists. \texttt{ExposureCalculator.calculateOverlap} reports the names they share. Deterministic.
+\field{Classes}{\texttt{ComparisonTool}, \texttt{ExposureCalculator}, \texttt{AlphaVantageAdapter} through the router.}
+\field{Methods}{\texttt{calculateOverlap}.}
+\field{Patterns}{Command, Adapter.}
+\field{Video}{Not public.}
 
-\textbf{Trigger:} \texttt{HISTORY NVDA}.
+\subsection{UC-09 Retrieve financial news}
+\field{Stage 1}{UC-09. Modified.}
+\texttt{news NVDA} asks \texttt{NewsTool}, which asks the router. Marketaux is used when its token is set. Otherwise Finnhub company news is used. I left Alpha Vantage news unregistered because that free plan is about 25 calls a day. A headline match means the ticker was attached to the article. It does not, by itself, mean the article caused a move. If I ask why the price moved, that is UC-10, not this list. Deterministic for the list itself. A spoken reply on top of the list, when Gemini is set, is hybrid and has to stick to the article text.
+\field{Classes}{\texttt{NewsTool}, \texttt{MarketauxAdapter}, \texttt{FinnhubAdapter}.}
+\field{Methods}{\texttt{NewsTool.execute}, \texttt{ProviderRouter.getNews}.}
+\field{Patterns}{Command, Composite, Adapter.}
+\field{Video}{Not public.}
 
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{TwelveDataAdapter} requests thirty daily bars and one RSI value.
-\item The screen shows the eight newest bars and the RSI.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} Without the key, history is unavailable. Quotes still work through Finnhub when that key is set.
+\subsection{UC-10 Explain a recent move}
+\field{Stage 1}{UC-10. Modified. The note is written from the articles, and it has to finish.}
+I type \texttt{why did microsoft fall} or \texttt{why is intel up}. \texttt{nasdaq} is read as \texttt{QQQ}, and the note has to say QQQ is an ETF. \texttt{MarketMovementTool} loads the quote and up to three articles. \texttt{NewsTiming} marks anything published after the last trade. \texttt{MarketExplanationService.explain} calls \texttt{generate}, not the short call, and Flash-Lite is told to think as little as possible so the note is not cut off after the price.
 
-\textbf{Postconditions:} The user sees the bars or an explicit failure. This use case is new in Stage~2.
+The note names the symbol, the price, and the percent change. It then explains the move from what the articles say, and it attributes each reason to the reporting. An article that came out after the last trade is still summarized, but it is labeled as later context, not as proof it caused that print. If no article states a reason, the note says the evidence does not establish a cause. It does not recommend a buy or a sell. The answer is shown first. The quote and the sources follow.
+\field{Classes}{\texttt{MarketMovementTool} gathers evidence. \texttt{MarketExplanationService} writes the prompt. \texttt{GeminiLLMClient} calls the API. \texttt{ResponseComposer} lays out the screen.}
+\field{Methods}{\texttt{MarketMovementTool.execute}, \texttt{explain}, \texttt{LLMProvider.generate}.}
+\field{Patterns}{Command, Adapter, Strategy (\texttt{LLMProvider}).}
+\field{Kind}{Hybrid. The evidence is deterministic. The note is the model.}
+\field{Video}{Not public.}
 
-\textbf{Classes and patterns:} \texttt{MarketInsightTool}, \texttt{TwelveDataAdapter}. Command, Adapter. Deterministic.
+\subsection{UC-11 Add a portfolio position}
+\field{Stage 1}{UC-11. Modified. This is no longer a tool the model can call.}
+\texttt{port add NVDA 10 STOCK} goes to \texttt{SessionWorkspace.addPosition}, then \texttt{PortfolioService}, then \texttt{SQLitePortfolioRepository}. The type is \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. A sentence cannot add a position. Deterministic.
+\field{Classes}{\texttt{PortfolioPanel}, \texttt{DeskCommand}, \texttt{PortfolioService}.}
+\field{Methods}{\texttt{addPosition}, \texttt{PortfolioRepository.saveForUser}.}
+\field{Patterns}{Command, Repository, Facade.}
+\field{Video}{Not public.}
 
-\subsection{UC-19 -- Read Sentiment}
-\textbf{Primary Actor:} Authenticated user.
+\subsection{UC-12 Remove a portfolio position}
+\field{Stage 1}{UC-12. Modified for the same reason.}
+\texttt{port remove NVDA} deletes that symbol for me. If it was not there, the screen says so and leaves the rest alone. The model cannot do this. Deterministic.
+\field{Classes}{\texttt{PortfolioService}, \texttt{SQLitePortfolioRepository}.}
+\field{Methods}{\texttt{removePosition}.}
+\field{Patterns}{Command, Repository.}
+\field{Video}{Not public.}
 
-\textbf{Goal:} Show the latest SentiSense score for a symbol.
+\subsection{UC-13 View the portfolio}
+\field{Stage 1}{UC-13. Implemented.}
+\texttt{portfolio}, or the Portfolio screen, lists what is stored. No network call is required just to list the rows. Prices show up when something else quotes them. Deterministic.
+\field{Classes}{\texttt{PortfolioPanel}, \texttt{TerminalUI}, \texttt{SessionWorkspace}.}
+\field{Methods}{\texttt{PortfolioService.getPortfolio}, \texttt{loadForUser}.}
+\field{Patterns}{Repository, Facade.}
+\field{Video}{Not public.}
 
-\textbf{Preconditions:} \texttt{SENTISENSE\_API\_KEY} is set.
+\subsection{UC-14 Manage the watchlist}
+\field{Stage 1}{UC-14. Modified. There is no \texttt{WatchlistTool} on the agent.}
+\texttt{watch add NVDA} and \texttt{watch remove NVDA} go through \texttt{WatchlistService} and \texttt{SQLiteWatchlistRepository}. A watchlist item has no quantity. Deterministic.
+\field{Classes}{\texttt{WatchlistPanel}, \texttt{WatchlistService}.}
+\field{Methods}{\texttt{addSymbol}, \texttt{removeSymbol}.}
+\field{Patterns}{Repository, Command.}
+\field{Video}{Not public.}
 
-\textbf{Trigger:} \texttt{SENTIMENT NVDA}.
+\subsection{UC-15 Analyze portfolio exposure}
+\field{Stage 1}{UC-15. Modified. Java does the arithmetic, and Gemini does not narrate it.}
+\texttt{exposure} loads my positions, quotes each one, and sets value to price times quantity. Day move is the price change times quantity. Currencies stay in separate books. A position with no price is named and left out of the total. ETF sector weights are look-through when the holding list exists. If a sentence selects this action, the numbers still are not sent to the model.
+\field{Classes}{\texttt{PortfolioAnalysisTool}, \texttt{PortfolioExposureCalculator}, \texttt{PortfolioBook} for the home summary.}
+\field{Methods}{\texttt{PortfolioAnalysisTool.execute}, \texttt{calculate}.}
+\field{Patterns}{Command, Composite, Adapter.}
+\field{Kind}{Deterministic.}
+\field{Video}{Not public.}
 
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{SentiSenseAdapter} reads the latest sentiment point on a scale from $-1$ to $1$.
-\item \texttt{SentimentBands} assigns the same display label used for a Marketaux score.
-\item The screen shows the score, the change from the previous point when two points exist, and the label.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} The label is this desk's wording. It is not a recommendation. Marketaux article sentiment, when present, stays on the article and is a separate value.
+\subsection{UC-16 Ask a follow-up}
+\field{Stage 1}{UC-16. Modified. The model may only name an allowed action, and a rephrase does not run a tool.}
+I type in the message box, for example \texttt{what about its sector exposure}, or at the terminal with no slash. The window shows my line, then \texttt{ResearchGateway.ask} calls \texttt{AgentController.handle}. \texttt{ConversationMemory} reads my recent turns and the last symbol. \texttt{RequestPlanner} always builds a keyword plan first. If Gemini is configured, it may replace that plan with one allowed JSON action. A bad reply falls back to the keywords.
 
-\textbf{Postconditions:} The user sees the score or an explicit failure. This use case is new in Stage~2.
+If the plan is a lookup, \texttt{ToolManager} runs it. A move plan then explains the move from the articles. If I say ``say that more simply'', the plan is \texttt{DISCUSS}: nothing is fetched, and Gemini rewrites the stored exchange. Portfolio figures are left out of that prompt. Both sides of the exchange are stored for me only. Another user's rows are never read.
 
-\textbf{Classes and patterns:} \texttt{MarketInsightTool}, \texttt{SentiSenseAdapter}. Command, Adapter. Deterministic.
+A sentence that says to ignore previous instructions, or that looks like SQL, is rejected and does not run a tool. Compare and overlap still need two symbols.
+\field{Classes}{\texttt{AgentPanel} is the conversation. \texttt{TerminalUI} is the other door. \texttt{RequestPlanner}, \texttt{PromptBuilder}, \texttt{ConversationMemory}, \texttt{ResponseComposer}.}
+\field{Methods}{\texttt{AgentController.handle}, \texttt{createPlan}, \texttt{remember}, \texttt{lastSymbol}.}
+\field{Patterns}{Command, Strategy, Facade, Repository.}
+\field{Kind}{Hybrid when Gemini is set. Keyword-only when it is not.}
+\field{Video}{Not public.}
 
-\subsection{UC-20 -- View Home Desk}
-\textbf{Primary Actor:} Authenticated user.
+\subsection{UC-17 Read financial statements}
+\field{Stage 1}{New.}
+\texttt{statements NVDA} goes through \texttt{MarketInsightTool} to \texttt{FinancialModelingPrepAdapter}. I show up to four annual periods. A line the filing omitted stays blank. Without \texttt{FMP\_API\_KEY} the command says it is unavailable. Deterministic.
+\field{Classes}{\texttt{MarketInsightTool}, \texttt{FinancialModelingPrepAdapter}, \texttt{ProviderRouter}.}
+\field{Methods}{\texttt{getFinancialStatements}.}
+\field{Patterns}{Command, Adapter, Composite.}
+\field{Video}{Not public.}
 
-\textbf{Goal:} See portfolio value, day move, position chips, and a market tape after sign-on.
+\subsection{UC-18 Read price history}
+\field{Stage 1}{New.}
+\texttt{history NVDA} asks Twelve Data for recent daily bars and the latest 14-day RSI. Quotes still work from Finnhub if this key is missing. Deterministic.
+\field{Classes}{\texttt{MarketInsightTool}, \texttt{TwelveDataAdapter}.}
+\field{Methods}{\texttt{getPriceHistory}.}
+\field{Patterns}{Command, Adapter.}
+\field{Video}{Not public.}
 
-\textbf{Preconditions:} The user is signed in. The tape needs a quote provider. Headlines need a news provider.
+\subsection{UC-19 Read sentiment}
+\field{Stage 1}{New.}
+\texttt{sentiment NVDA} asks SentiSense for the latest score, from $-1$ to $1$, and shows my own band label for that score. The band is a label, not advice. I did not buy the paid SentiSense plan. Deterministic.
+\field{Classes}{\texttt{MarketInsightTool}, \texttt{SentiSenseAdapter}, \texttt{SentimentBands}.}
+\field{Methods}{\texttt{getSentiment}.}
+\field{Patterns}{Command, Adapter.}
+\field{Video}{Not public.}
 
-\textbf{Trigger:} The window opens on the home screen, or the user presses F1.
+\subsection{UC-20 View the home desk}
+\field{Stage 1}{New. Window only.}
+After sign-on, F1 shows market value, the day move, one row per position, and a tape of index quotes, portfolio quotes, and a few headlines. \texttt{DashboardPanel} asks \texttt{PortfolioBook} for the figures and \texttt{TapeLine} for the tape. Network calls run off the Swing thread. The terminal has no tape. The same positions are on \texttt{portfolio}. Deterministic.
+\field{Classes}{\texttt{DashboardPanel}, \texttt{PortfolioBook}, \texttt{TapeLine}, \texttt{BackgroundWork}.}
+\field{Methods}{The panel's book load, \texttt{TapeLine.pieces}.}
+\field{Patterns}{Facade. The panel calls the gateway rather than a vendor.}
+\field{Video}{Not public.}
 
-\textbf{Main Success Scenario:}
-\begin{enumerate}
-\item \texttt{DashboardPanel} asks \texttt{PortfolioBook} for value and day move.
-\item One chip is shown per stored position.
-\item The tape quotes a fixed set of symbols plus portfolio symbols, off the Swing thread, and shows a few headlines.
-\end{enumerate}
-\textbf{Alternative/Exception Flows:} The terminal has no sliding tape. The same positions are visible with \texttt{/portfolio}. A missing quote is named rather than shown as zero.
+\section{Implemented design patterns}
 
-\textbf{Postconditions:} The home screen reflects the stored portfolio and the latest quotes that returned. This use case is new in Stage~2.
-
-\textbf{Classes and patterns:} \texttt{DashboardPanel}, \texttt{PortfolioBook}, \texttt{TapeLine}, \texttt{BackgroundWork}. Facade and Command. Deterministic.
-
-\section{Design Patterns}
-
-Five patterns carry the Stage~2 structure. Naming a class after a pattern is not the claim. Each pattern below is the reason a change in one place does not rewrite the desk. Repository and Strategy are also present and are named on the use cases they carry.
+I am counting five. Adapter, Composite, Command, Facade, and Factory. Strategy and Repository are also in the code, and I mention them where they matter. I did not get an extra pattern by using the same idea twice.
 
 \subsection{Adapter}
-Finnhub, Alpha Vantage, Marketaux, Financial Modeling Prep, Twelve Data, and SentiSense do not share a response shape. \texttt{DataProvider} is the target. \texttt{FinnhubAdapter}, \texttt{AlphaVantageAdapter}, and \texttt{MarketauxAdapter} are three of the adapters. \texttt{FinancialModelingPrepAdapter}, \texttt{TwelveDataAdapter}, and \texttt{SentiSenseAdapter} are the other three. \texttt{FinnhubMarketDataClient} and \texttt{AlphaVantageClient} are the adaptees. A tool asks for a quote. It does not build a vendor URL. Stage~1 showed one client class per provider interface. Stage~2 kept those clients and put an adapter in front of each vendor.
+The vendors do not return the same JSON. I wanted the tools to ask for a quote without knowing which site they were calling. \texttt{DataProvider} is the shape they share. \texttt{FinnhubAdapter}, \texttt{AlphaVantageAdapter}, \texttt{MarketauxAdapter}, \texttt{FinancialModelingPrepAdapter}, \texttt{TwelveDataAdapter}, and \texttt{SentiSenseAdapter} are the adapters. \texttt{FinnhubMarketDataClient} and \texttt{AlphaVantageClient} are the older clients sitting behind two of them. The files are under \texttt{src/main/java/com/marketintel/providers/}.
+
+Stage~1 had one client class per provider interface. That was already a thin adapter, but it assumed one vendor. Once I stayed on free plans, I needed several. Putting an adapter in front of each vendor is what let me swap Finnhub in for quotes without rewriting \texttt{MarketDataTool}.
 
 \subsection{Composite}
-The desk needs one object the tools can call, while each capability may be served by a different vendor. \texttt{ProviderRouter} is the composite. It implements \texttt{MarketDataProvider}, \texttt{NewsProvider}, \texttt{ETFDataProvider}, \texttt{FinancialStatementProvider}, \texttt{PriceHistoryProvider}, and \texttt{SentimentProvider}. The children are the adapters registered with \texttt{prefer}. Registration order is the priority. This is not a failover chain. Stage~1 had no router. One client was the provider.
+The tools still want one object. \texttt{ProviderRouter} is that object. It implements \texttt{MarketDataProvider}, \texttt{NewsProvider}, \texttt{ETFDataProvider}, and the statement, history, and sentiment interfaces. \texttt{prefer} registers an adapter for one capability. The first one registered handles that capability. A later one is used only if the earlier one was never registered. It is not a failover chain. Stage~1 had no router. One client was the provider.
 
 \subsection{Command}
-The window, the terminal, and the follow-up planner run the same research actions. \texttt{ActionType} names the command. \texttt{AgentTool} is the command interface. \texttt{ToolManager} is the invoker. \texttt{DeskCommand} and \texttt{CommandParser} turn text into a command. Adding statements, history, and sentiment added \texttt{MarketInsightTool}. The frame and the terminal did not gain provider code. Portfolio edits are commands the model cannot issue.
+The window, the terminal, and the planner all need to run the same research actions. \texttt{ActionType} is the name. \texttt{AgentTool} is the command, with \texttt{supports} and \texttt{execute}. \texttt{ToolManager} finds the tool and runs it. \texttt{DeskCommand} and \texttt{CommandParser} turn what I typed into that name. Statements, history, and sentiment share one tool, \texttt{MarketInsightTool}, instead of three copies of the same plumbing. Portfolio edits are commands too, but they stop at \texttt{SessionWorkspace}. The planner is not allowed to issue them.
+
+Stage~1 already had \texttt{AgentTool}. I kept it. What changed is that the model cannot use it to edit the portfolio.
 
 \subsection{Facade}
-The Swing window and the terminal share session checks, tool execution, movement explanation, and follow-up. \texttt{ResearchGateway} is that facade. Behind it are \texttt{ToolManager}, \texttt{SessionManager}, \texttt{MarketExplanationService}, and \texttt{AgentController}. \texttt{SessionWorkspace} is the facade for account and portfolio edits. A panel calls \texttt{execute}. It does not decide which adapter is registered. Stage~1's terminal talked to the controller directly, and there was no window.
+I did not want the window and the terminal to grow their own copies of the session check. \texttt{ResearchGateway} is the front door. \texttt{execute} runs one tool. \texttt{ask} handles a sentence. \texttt{explainMovement} is the direct move path. \texttt{SessionWorkspace} is the front door for login and for portfolio edits. Stage~1's terminal talked to the controller directly, and there was no window. The facade is what made the second interface safe to add.
 
 \subsection{Factory}
-Which adapters, tools, and the Gemini client exist depends on environment variables. \texttt{ApplicationContext.create} is the factory. It builds the database, repositories, router, tools, explanation service, and follow-up controller. An unset key means that adapter is not constructed and that tool is not registered. Tests build their own objects and do not use this factory to call the network.
+Which adapters exist depends on which keys I exported. \texttt{ApplicationContext.create} and \texttt{createDefault} build the database, the repositories, the router, the tools, and the Gemini client. An unset key means that adapter is never constructed. Tests build fakes themselves and do not go through this factory to hit the network. Stage~1 showed the objects, but not one place that decides which of them exist.
 
-\subsection{Strategy and Repository}
-\texttt{PasswordHasher} is implemented by \texttt{BCryptPasswordHasher}. \texttt{LLMProvider} is implemented by \texttt{GeminiLLMClient}. The keyword plan is the behavior used when the model strategy is absent or rejected. \texttt{UserRepository}, \texttt{PortfolioRepository}, \texttt{WatchlistRepository}, and \texttt{ConversationRepository} each have one SQLite class. Services do not write SQL.
+\subsection{Also in the code}
+\texttt{PasswordHasher} with \texttt{BCryptPasswordHasher}, and \texttt{LLMProvider} with \texttt{GeminiLLMClient}, are Strategy. The keyword plan is what I use when the model is missing or its answer is rejected. The four repository interfaces each have one SQLite class, so the services do not write SQL.
 
-\section{Changes from the Stage 1 Design}
-
-\begin{center}
-\small
-\begin{tabularx}{\textwidth}{@{}p{3.3cm}Xp{3.2cm}@{}}
-\toprule
-Stage 1 design & Implemented change & Reason \\
-\midrule
-One API client per provider interface, with Alpha Vantage as the market source. \\
-& Six adapters behind \texttt{ProviderRouter}. Finnhub is first for quotes and profiles. Alpha Vantage is first for ETF holdings. \\
-& The free Alpha Vantage plan does not cover the overview the desk needs, and its daily budget is small. \\
-\addlinespace
-UC-06 geographic exposure is the fund's published country weights, then an LLM explanation. \\
-& Try Finnhub \texttt{/etf/country}. On HTTP 403, map at most 25 holdings to headquarters countries. Do not call the model. \\
-& The free plan returns 403 for the published report. Guessing the rest would present invented exposure. \\
-\addlinespace
-Every research use case is planned and narrated by the LLM. \\
-& The window message box and the terminal send a sentence to the follow-up. A verb such as \texttt{QUOTE} runs one tool. Gemini is on UC-10 and, when a sentence needs a tool or a rephrase, on UC-16. \\
-& A quote does not need a model, and a model on that path could invent a sentence around a number the tool already had. \\
-\addlinespace
-The planner may add or remove a portfolio position. \\
-& \texttt{PORT ADD} and \texttt{PORT REMOVE} stay on \texttt{SessionWorkspace}. They are not on the allowlist. \\
-& A sentence must not change stored positions. \\
-\bottomrule
-\end{tabularx}
-\end{center}
-
-A live Alpha Vantage key appeared in the window inside a rate-limit message. \texttt{ProviderText.redact} now replaces that notice. The exposed key was rotated. The repository does not contain it.
-
-\section{UML Diagrams}
-
-The diagrams in this section match the running desk. Gemini is associated with movement explanation and follow-up. A quote does not call the model. The Stage~1 PDF renders remain in \texttt{docs/Stage1-pdfs/} so the difference can be checked. Those older pages show an LLM call on a quote and classes that were not built, including \texttt{UserPreferences}, \texttt{ConversationSession}, and \texttt{AgentRequest}.
+\subsection{Diagrams}
+These match the code as of 8~November. The old Stage~1 renders are still in \texttt{docs/Stage1-pdfs/}. They show an LLM call on a quote, and classes I never built, including \texttt{UserPreferences} and \texttt{ConversationSession}.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{use-case-diagram.png}
-\caption{Use cases. Gemini is associated only with movement explanation and follow-up.}
+\includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{class-diagram-agent.png}
+\caption{The window, the terminal, and the follow-up. A sentence goes through \texttt{AgentController}. A quote does not.}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.72\textheight,keepaspectratio]{class-diagram-providers.png}
-\caption{Provider adapters and \texttt{ProviderRouter}.}
+\caption{The adapters and \texttt{ProviderRouter}.}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\textwidth,height=0.55\textheight,keepaspectratio]{use-case-diagram.png}
+\caption{Use cases. Gemini is only on the move note and the follow-up.}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{sequence-market-quote.png}
-\caption{UC-04. A quote is a tool call. The model is not on this path.}
+\caption{UC-04. A quote is a tool call.}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{sequence-context-followup.png}
-\caption{UC-16. A sentence is planned against the allowlist. A rephrase does not run a tool.}
+\caption{UC-16. A sentence is planned. A rephrase does not run a tool.}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.48\textheight,keepaspectratio]{sequence-market-movement.png}
-\caption{UC-10. The quote and the news are gathered first. Gemini explains the move from the articles.}
+\caption{UC-10. Quote and news first. Gemini explains the move from the articles.}
 \end{figure}
 
-The remaining PlantUML sources are the class diagrams for the agent, the domain, and persistence, and the sequence diagrams for ETF analysis, country exposure, portfolio analysis, and market insight. Rendered copies are in \texttt{docs/uml/rendered/}.
+The other sources, for ETF analysis, country exposure, portfolio exposure, and the insight commands, are in \texttt{docs/uml/}. Rendered copies are in \texttt{docs/uml/rendered/}.
 
-\section{Development and Verification}
+\section{Changes and rationale}
 
-Dates are Toronto local dates of the commits on the public repository. A merge commit is not counted as the meaningful change. The meaningful change is the commit it merged.
+I kept the Stage~1 use cases. Where the running desk differs, this is why.
 
-\subsection{Weekly Commits}
-Period~1, 20--26 October 2026, has no commits. This period does not meet the minimum of five meaningful code commits. The course applies one 5-point deduction when any period misses the minimum. Extra commits in Period~2 do not repair Period~1.
+\textbf{Providers.}
+Stage~1 had one client per provider interface, and Alpha Vantage was the market source.
+I put six adapters behind \texttt{ProviderRouter}. Finnhub is first for quotes. Alpha Vantage is first for ETF holdings.
+Alpha Vantage turned down a free educational plan, and the free tier is too small to carry the whole desk.
+The tools still depend on the role interfaces. An unset key drops that adapter. UC-04, UC-05, and UC-09.
 
-Period~2, 27 October--2 November 2026, has more than five meaningful code commits. Five of them are enough to meet the minimum.
+\textbf{Country exposure.}
+Stage~1 was the fund's published country weights, then a model explanation.
+I try Finnhub's country report. On HTTP 403 I map at most 25 holdings to headquarters countries, and I show the weights without calling Gemini.
+The free plan returns 403. Filling in the rest would have been an invented allocation.
+The user still gets a country breakdown, and the screen says it is headquarters, not the factsheet. UC-06.
 
-\begin{itemize}
-\item \texttt{3770181} -- 28 October. Share service wiring for the terminal and the window.
-\item \texttt{f103405} -- 28 October. Swing window over the existing services.
-\item \texttt{fcd3877} -- 29 October. Portfolio exposure from price times quantity.
-\item \texttt{4da99b3} -- 29 October. Route free APIs through adapters.
-\item \texttt{c75e138} -- 29 October. Follow-up from the last stored symbol.
-\end{itemize}
+\textbf{Where Gemini sits.}
+Stage~1 sent every research use case through the model.
+A verb such as \texttt{quote} runs one tool. Gemini is on the move note and on sentences.
+A quote does not need a model, and a model there was inventing a sentence around a number I already had.
+UC-04 through UC-09 and UC-15 stay deterministic. UC-10 and UC-16 are the hybrid ones.
 
-Also in Period~2: \texttt{6843eed} Finnhub quotes, \texttt{9716283} country exposure without echoing keys, \texttt{cc386c7} last-trade time, \texttt{1f4db1c} home summary and tape, \texttt{04de078} Gemini interpretation of questions, \texttt{4f52ca0} Flash-Lite, and \texttt{931ec38} so that ``why did microsoft fall'' stays a question.
+\textbf{How a move is explained.}
+Stage~1 had the composer ask the model to explain, including when evidence was missing.
+I load the quote and the news first. The note has to use what the articles say, attribute the reason to the reporting, and still finish. An article after the last trade is later context, not proof.
+The first notes were either cut off after the price, or they said the articles could not explain a move that the articles did discuss.
+UC-10. \texttt{MarketExplanationService}, \texttt{generate}, minimal thinking on Flash-Lite.
 
-Period~3, 3--9 November 2026, meets the minimum of five meaningful code commits. The week also includes the conversation, the message box, and the article-based explanation. This report does not count Period~2 commits toward that week.
+\textbf{Portfolio exposure.}
+Stage~1 had the model explain the exposure.
+Java multiplies price by quantity. Those numbers are not sent to Gemini.
+The figure is arithmetic. Narrating it invited a recommendation.
+UC-15.
 
-\begin{itemize}
-\item \texttt{d5d220c} -- 5 November. Home-desk view of value, weight, and unpriced names.
-\item \texttt{cfe059e} -- 5 November. Holdings in the center of the home desk.
-\item \texttt{9fff4a7} -- 6 November. Background quote refresh keeps the follow-up symbol.
-\item \texttt{1bcaa63} -- 6 November. One in-flight quote shared by the tape and the home book.
-\item \texttt{a0838f5} -- 6 November. Provider or database reason for an unpriced or unsaved holding.
-\item \texttt{6eef95e} -- 8 November. Terminal commands without a required leading slash.
-\item \texttt{d7aa5d3} -- 8 November. A follow-up can continue the last reply.
-\item \texttt{f1d9eaf} -- 8 November. The window box is a conversation.
-\item \texttt{1ae3345} -- 8 November. A movement note can finish instead of stopping after the price.
-\item \texttt{9f71542} -- 8 November. A move is explained from what the articles say.
-\end{itemize}
+\textbf{Portfolio edits.}
+Stage~1 put add and remove on the agent tools.
+They stay on \texttt{SessionWorkspace}, off the allowlist.
+A sentence must not change what I hold.
+UC-11, UC-12, UC-14. There is no \texttt{PortfolioTool} class.
 
-\subsection{Checks}
-On 29~October 2026, \texttt{./mvnw test} completed with 207 tests, 0 failures, 0 errors, and 1 skipped. The skipped test is \texttt{GeminiLiveSmokeTest}. It runs only when \texttt{RUN\_GEMINI\_LIVE\_TEST=1} and \texttt{GEMINI\_API\_KEY} are set. The suite uses fake providers and does not call Finnhub, Alpha Vantage, Marketaux, Financial Modeling Prep, Twelve Data, SentiSense, or Gemini.
+\textbf{The window.}
+Stage~1 was a terminal.
+I added the Swing desk, then replaced the command line with a message box so a sentence and a verb share one place.
+Stage~2 asks for both a GUI and a CLI.
+UC-20 is new. UC-16 is how the box talks to the planner.
 
-The owner also ran the Swing desk against live keys. Those sessions found the defects below. They are not a substitute for the automated suite, and the automated suite is not a substitute for a live key.
+\textbf{Statements, history, sentiment.}
+These were not in the Stage~1 use-case set.
+UC-17, UC-18, and UC-19, through \texttt{MarketInsightTool}.
+The free adapters were already there for the provider pattern. The commands are the part a person can see.
+Each one is unavailable when its key is unset. They do not replace a Stage~1 feature.
 
-\subsection{Defects Found and Corrected}
-The country request used a URL that returned HTTP 302. It now calls \url{https://api.finnhub.io/api/v1/etf/country}. HTTP 403 on that report was described as a rejected key. The free plan does not include the report. Quotes still work, and the message says so.
+\textbf{Keys in errors.}
+Stage~1 did not specify this. A live Alpha Vantage key showed up in a rate-limit message.
+\texttt{ProviderText.redact} replaces that notice. I rotated the key. It is not in this report.
 
-An Alpha Vantage notice included the live key. \texttt{ProviderText.redact} replaces that notice. The key was rotated and is not in this report.
+\section{AI tools and collaboration log}
 
-\texttt{gemini-3.8-flash} exceeded the explanation timeout. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. The default is \texttt{gemini-3.5-flash-lite}. Flash-Lite uses minimal thinking. A note that stopped after the price was a token-budget cut, and a cut-off reply is no longer shown as a finished explanation.
-
-A news reply said the articles did not explain the day's move even when they discussed the reasons. A question about a price rising or falling now stays a movement explanation, and the note attributes the move to what the articles say.
-
-\texttt{why did microsoft fall} was parsed as \texttt{WHY DID}. A multi-word why sentence is now a follow-up. \texttt{WHY MSFT} is still the symbol command.
-
-A movement failure was labeled as an action with no follow-up view. The failure text from the tool is shown instead. Conversation tests failed a foreign key until they inserted the user first. The home screen packed the tiles under a tall empty pane. The summary and the tape were given the room, and the note area was shortened.
-
-Full deterministic testing and KUMA validation remain Stage~3 work, as the Stage~2 instructions say.
-
-\section{AI Collaboration}
-
-Exact token counts were not exported from Cursor or from the Gemini console into this repository. No paid Gemini invoice was recorded for this project. The figures below are therefore not recorded. They are not a claim that the cost was zero in every billing system the student might have elsewhere. Cursor was used on the student's IDE subscription.
+I did not export a token total from Cursor or from the Gemini console. I have not received a Gemini invoice. Cursor is on my own subscription. I am not going to invent a dollar figure.
 
 \begin{center}
 \small
-\begin{tabularx}{\textwidth}{@{}p{2.6cm}Xp{2.8cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{2.7cm}Xp{2.6cm}@{}}
 \toprule
-Tool & What it was used for & Cost \\
+Tool and model & What I used it for & Cost \\
 \midrule
-Cursor IDE agent, Grok 4.7 in the Stage~2 sessions. \\
-& Java implementation, tests, UML, the README, and this report. The project owner reviewed the running window and rejected behavior that was wrong. \\
-& Not exported. Included in the Cursor subscription. No separate invoice is stored here. \\
+Cursor. Grok 4.7 in the later sessions. Earlier sessions in the same IDE were not labeled with a model in the repo. &
+Most of the Java, the tests, the diagrams, and the drafts of this report. I ran the window myself and threw out the parts that were wrong. &
+Not exported. It sits inside the Cursor subscription. \\
 \addlinespace
-ChatGPT, model not named in the log for Interactions 001 and 003. \\
-& Stage~1 architecture and the first market-data tool sketch: \texttt{AgentTool}, provider interfaces, and repositories. \\
-& Not recorded. \\
+ChatGPT. The model name was not written down for the early design chats. &
+The Stage~1 split into tools, providers, and repositories. &
+Not written down. \\
 \addlinespace
-Gemini API in the running desk. The default model is Flash-Lite. \\
-& Movement notes and optional follow-up planning and short replies. Not used for quotes, exposure arithmetic, or portfolio edits. \\
-& Not exported. No paid invoice recorded. Development calls used the free tier. \\
+Gemini, inside the running desk. Default \texttt{gemini-3.5-flash-lite}. I tried \texttt{gemini-3.8-flash} and \texttt{gemini-2.5-flash} and stopped using them. &
+The move note, and the optional planning and replies on a sentence. Not quotes, not portfolio math, not add or remove. &
+No invoice. The calls I made were on the free tier. \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
-The longer log is \texttt{docs/ai-collaboration-log.md}. The interactions that changed the implementation are these.
+The longer notes are in \texttt{docs/ai-collaboration-log.md}. The ones that actually changed the desk:
 
-Interactions 001 and 003. ChatGPT proposed the tool and provider split. The project owner added accounts, portfolios, SQLite, and \texttt{BigDecimal}. That split is still the package layout.
+\begin{itemize}
+\item Early on, ChatGPT proposed the tool and provider split. I added accounts, portfolios, SQLite, and \texttt{BigDecimal}. That split is still the package layout.
+\item After Alpha Vantage declined a free educational plan, I asked for one adapter per vendor. That became \texttt{DataProvider} and \texttt{ProviderRouter}.
+\item I saw HTTP 403 on country exposure, and then I saw my Alpha Vantage key in an error. The headquarters fallback and \texttt{ProviderText.redact} came out of that. I rotated the key.
+\item Ordinary questions were missed, Gemini timed out, a new key got HTTP 404 from \texttt{gemini-2.5-flash}, and ``why did microsoft fall'' was read as the ticker DID. Memory, the allowlist, Flash-Lite, and the sentence parser came out of those runs. I checked the Microsoft question in the window.
+\item The message box was still cutting the note off after the price, and a news reply was refusing to use the articles as the reason. The move note now has to finish, and it has to attribute the move to what the articles say.
+\end{itemize}
 
-Interaction 004. After Alpha Vantage declined a free educational plan, the owner required one adapter per vendor. Cursor added \texttt{DataProvider} and \texttt{ProviderRouter}.
+The rule I kept, after the model was wired in, is that Gemini may interpret a question, but the numbers come from a tool. It does not get to edit the portfolio, and a sentence that tells it to ignore the instructions does not run anything.
 
-Interaction 005. The owner saw HTTP 403 on country exposure and then saw an API key in an Alpha Vantage error. The agent added the headquarters fallback and \texttt{ProviderText.redact}. The owner rotated the key.
+\section{Development and verification summary}
 
-Interaction 006. The owner reported that ordinary questions were missed, that Gemini timed out, that a new key received HTTP 404 from \texttt{gemini-2.5-flash}, and that ``why did microsoft fall'' was read as the ticker \texttt{DID}. The agent added memory, the allowlist, \texttt{generateBrief}, Flash-Lite, and the sentence parser. The owner confirmed the Microsoft question in the window.
+Dates are Toronto dates on the public repository. I am not counting a merge commit as the work. The work is the commit that was merged. A report-only edit does not count as one of the five.
 
-Interaction 007. This report and the updated diagrams. Videos with public links remain the owner's work.
+\subsection{Weekly commits}
+Period~1, 20--26 October 2026, has no commits. That misses the minimum of five. The course takes five points off once, not five points per missing commit. Extra commits later do not repair that week. I did not backdate anything.
 
-The owner's instruction was that the model should interpret a question, and the answer should come from the tool result. The implementation does that only for an allowlisted action. A sentence that says to ignore previous instructions does not run a tool. That boundary was a human decision, kept after the model was wired in.
+Period~2, 27 October--2 November 2026, is over the minimum. Five of them:
 
-\section{Demonstration Index}
+\begin{itemize}
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/3770181a71225ac9e9eda009c9513fde0026fbe9}{3770181} -- 28 October. One wiring for the terminal and the window.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/f1034052dedb7e04a8fbc2f5e3812880d99d6e91}{f103405} -- 28 October. The Swing window.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/fcd3877976f4c873dd4e3c91e2056d3fbe8bb585}{fcd3877} -- 29 October. Exposure from price times quantity.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/4da99b3b67d5395e7de4d11336206fa409d15825}{4da99b3} -- 29 October. Free APIs behind adapters.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/c75e138a55b511dfe801579d0429c3fe0558c82c}{c75e138} -- 29 October. Follow-up from the last symbol.
+\end{itemize}
+
+Also that week: \texttt{6843eed} Finnhub quotes, \texttt{9716283} country exposure without printing keys, \texttt{1f4db1c} the home tape, \texttt{04de078} Gemini reading a question, \texttt{4f52ca0} Flash-Lite, and \texttt{931ec38} so ``why did microsoft fall'' stays a question.
+
+Period~3, 3--9 November 2026, also clears five. I am not borrowing Period~2 commits for it.
+
+\begin{itemize}
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/d5d220c}{d5d220c} -- 5 November. Home value, weight, and unpriced names.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/1bcaa63}{1bcaa63} -- 6 November. One in-flight quote shared by the tape and the home book.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/a0838f5}{a0838f5} -- 6 November. A real reason when a holding cannot be priced.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/6eef95e}{6eef95e} -- 8 November. Terminal commands without a required slash.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/f1d9eaf}{f1d9eaf} -- 8 November. The window box became a conversation.
+\item \href{https://github.com/xAssasinSoulx/market-intelligence-agent/commit/9f71542}{9f71542} -- 8 November. The move note uses what the articles say.
+\end{itemize}
+
+\texttt{d7aa5d3} the same day lets a follow-up continue the last reply, and \texttt{1ae3345} stops a note from ending after the price.
+
+\subsection{What I checked}
+\texttt{./mvnw test} does not call the live APIs. \texttt{GeminiLiveSmokeTest} runs only if I set \texttt{RUN\_GEMINI\_LIVE\_TEST=1} and a Gemini key. On 8~November the planner tests, the explanation-prompt tests, and the Gemini client tests passed after the article-explanation change.
+
+I also used the window with real keys. That is how I found the defects below. The test suite does not replace that, and that does not replace the suite.
+
+\subsection{Defects I hit and fixed}
+The country URL returned HTTP 302. It now calls \url{https://api.finnhub.io/api/v1/etf/country}. HTTP 403 on that report is the free plan, not a rejected key. Quotes still work.
+
+An Alpha Vantage error included the live key. \texttt{ProviderText.redact} strips it. I rotated the key.
+
+\texttt{why did microsoft fall} was read as the symbol DID. A full sentence stays a question. \texttt{WHY MSFT} is still the short command.
+
+The move note stopped mid-word after the price, because Flash-Lite was spending the token budget on thinking. Explanations now use minimal thinking and the longer call. A reply cut off by the token limit is not shown as a finished note.
+
+A news answer said the articles did not explain the day's move, even when they discussed the 40\% correction, demand, and guidance. A question about a price rising or falling stays a movement explanation, and the note has to use what the articles say.
+
+\subsection{Still open}
+Period~1 is a missed week. The videos are not public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say.
+
+\section{Demonstration index}
 \label{sec:demos}
 
-No public video link is in this version of the report. Slides are not a demonstration. Before the 10~November 2026 submission, each row needs a public link and a timestamp. Record the running application. Show the window and the terminal across the set. Do not show API keys, a \texttt{.env} file, or a shell line that prints a key.
+I do not have public links in this version. Slides are not a demonstration. Before 10~November I need a public link and a timestamp on every row. Two recordings are enough if each row is a labeled segment. I say the use-case id at the start of the segment. One recording is the window. One is the terminal. I do not show an API key, a \texttt{.env} file, or a shell line that prints a key.
 
-Two recordings are enough if every row below is a labeled segment with its own timestamp. Say the use-case id at the start of each segment. One recording is the window. One is the terminal. The window box is the message field at the bottom. Enter sends.
+The window box is the message field at the bottom. Enter sends. The terminal is \texttt{./mvnw compile exec:java -Dexec.args="--cli"}. No slash.
 
 \begin{center}
 \small
-\begin{tabularx}{\textwidth}{@{}p{1.5cm}Xp{2.6cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{1.6cm}Xp{2.4cm}@{}}
 \toprule
-Feature & What the clip must show & Link \\
+Feature & What I need on screen & Link \\
 \midrule
-UC-01 & Window, Open new account. Type a new username, a password, and the same password again. Show the return to sign-on. Say the user is not signed in yet. & Not public \\
-UC-02 & Sign-on has no confirmation field. Enter a wrong password and show the rejection. Then sign in and show the home desk. & Not public \\
-UC-03 & Choose log out. Show the sign-on screen. In the terminal, run \texttt{logout} and show the authentication menu. & Not public \\
-UC-04 & Window message box: \texttt{quote NVDA}. Terminal: \texttt{quote NVDA}. Both must show last price, previous close, and percent change. & Not public \\
-UC-05 & \texttt{overview NVDA}. Show name, exchange, currency, and industry. Say the free profile has no company description. & Not public \\
-UC-06 & \texttt{sector QQQ}, then \texttt{geo QQQ}. Show sector weights, then headquarters countries and the note that they are not the fund's published report. Then \texttt{geo NVDA} and show that a stock has no country list. & Not public \\
-UC-07 & \texttt{compare NVDA MSFT}. Show both percent changes and the difference. & Not public \\
-UC-08 & \texttt{overlap QQQ SPY}. Show at least one shared holding. & Not public \\
-UC-09 & \texttt{news NVDA}. Show headlines. Say a match is not, by itself, the cause of a price move. & Not public \\
-UC-10 & \texttt{why did microsoft fall}, then \texttt{why is intel up}. The note must name the price and attribute the move to what the articles say. A headline after the last trade must be called later context. Show the not-advice line. & Not public \\
-UC-11 & \texttt{port add NVDA 10 STOCK}, or the Portfolio screen. Show the stored row. & Not public \\
-UC-12 & \texttt{port remove NVDA}, then remove a symbol that is not held. Show the missing-symbol message. & Not public \\
-UC-13 & Terminal \texttt{portfolio} and the Portfolio screen, same user, same rows. & Not public \\
-UC-14 & \texttt{watch add NVDA}, then \texttt{watch remove NVDA}. Show the list after each. & Not public \\
-UC-15 & \texttt{exposure}. Show value as price times quantity. If a position has no price, its name must appear and it must stay out of the total. & Not public \\
-UC-16 & After UC-10, type \texttt{what about its sector exposure} and show the prior symbol. Then \texttt{say that more simply} and show that no new symbol is looked up. Then type a sentence that says to ignore previous instructions and show that no tool runs. & Not public \\
-UC-17 & \texttt{statements NVDA}. Show income, balance sheet, and cash flow, or the unavailable message when the key is unset. & Not public \\
-UC-18 & \texttt{history NVDA}. Show daily bars and the RSI. & Not public \\
-UC-19 & \texttt{sentiment NVDA}. Show the score and the band. Say the band is not advice. & Not public \\
-UC-20 & F1 after sign-on. Show portfolio value, day move, position rows, and the moving tape. This clip is the window only. & Not public \\
+UC-01 Register &
+Create-account screen. Username, password, and the same password again. Then the return to sign-on. I am not signed in yet. &
+Not public \\
+UC-02 Log in &
+Sign-on has no confirmation field. A wrong password, then a real sign-on, then the home desk. &
+Not public \\
+UC-03 Log out &
+Window logout back to sign-on. Terminal \texttt{logout} back to the menu. &
+Not public \\
+UC-04 Quote &
+\texttt{quote NVDA} in the window and in the terminal. Price, previous close, percent change. &
+Not public \\
+UC-05 Overview &
+\texttt{overview NVDA}. Name, exchange, currency, industry. I say the free profile has no description. &
+Not public \\
+UC-06 Exposure &
+\texttt{sector QQQ}, then \texttt{geo QQQ}, then \texttt{geo NVDA}. Sector weights, headquarters countries with the factsheet note, and no country list for the stock. &
+Not public \\
+UC-07 Compare &
+\texttt{compare NVDA MSFT}. Both changes and the difference. &
+Not public \\
+UC-08 Overlap &
+\texttt{overlap QQQ SPY}. At least one shared holding. &
+Not public \\
+UC-09 News &
+\texttt{news NVDA}. Headlines. I say a match is not, by itself, the cause. &
+Not public \\
+UC-10 Move &
+\texttt{why did microsoft fall}, then \texttt{why is intel up}. The note names the price and uses the articles. A later headline is called later context. The not-advice line is visible. &
+Not public \\
+UC-11 Add &
+\texttt{port add NVDA 10 STOCK}. The stored row. &
+Not public \\
+UC-12 Remove &
+\texttt{port remove NVDA}, then a symbol I do not hold. The missing-symbol message. &
+Not public \\
+UC-13 View &
+Terminal \texttt{portfolio} and the Portfolio screen. Same rows. &
+Not public \\
+UC-14 Watchlist &
+\texttt{watch add NVDA}, then \texttt{watch remove NVDA}. The list after each. &
+Not public \\
+UC-15 Exposure &
+\texttt{exposure}. Value is price times quantity. An unpriced name stays out of the total. &
+Not public \\
+UC-16 Follow-up &
+After UC-10: \texttt{what about its sector exposure}, then \texttt{say that more simply}, then a sentence that says to ignore previous instructions. The old symbol is reused. The rephrase does not look up a new one. The injection does not run a tool. &
+Not public \\
+UC-17 Statements &
+\texttt{statements NVDA}, or the unavailable message if the key is unset. &
+Not public \\
+UC-18 History &
+\texttt{history NVDA}. Bars and RSI. &
+Not public \\
+UC-19 Sentiment &
+\texttt{sentiment NVDA}. Score and band. I say the band is not advice. &
+Not public \\
+UC-20 Home &
+F1 after sign-on. Value, day move, position rows, and the tape. Window only. &
+Not public \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
-The terminal segment must include \texttt{quote}, a sentence such as \texttt{why did microsoft fall}, and \texttt{exposure}. The window segment must include sign-on, home, the message box, and at least one research sentence. Together they show both interfaces.
-
-\section{Stage 2 Summary}
-The Stage~1 design is now a running desk. Both interfaces call one gateway. The window message box and the terminal accept a sentence or a verb. Vendor payloads sit behind adapters, and \texttt{ProviderRouter} chooses one adapter per capability by registration order. Deterministic Java code performs authentication, persistence, validation, and exposure arithmetic. Gemini explains a move from the retrieved articles and may name one allowlisted follow-up action. It does not edit the portfolio, and a quote does not call it.
-
-What remains before the 10~November 2026 submission is a public link and a timestamp for every row in Section~\ref{sec:demos}. Period~3 meets its five-commit minimum. Period~1 remains a missed week.
+The terminal segment has to include \texttt{quote}, \texttt{why did microsoft fall}, and \texttt{exposure}. The window segment has to include sign-on, home, the message box, and at least one research sentence. That is both interfaces.
 
 \end{document}
