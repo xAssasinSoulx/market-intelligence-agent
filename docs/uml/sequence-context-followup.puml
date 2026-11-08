@@ -15,15 +15,15 @@ participant ToolManager
 participant MarketExplanationService
 participant ResponseComposer
 
-User -> UI : why did microsoft fall
+User -> UI : message box\nwhy did microsoft fall
 UI -> ResearchGateway : ask(userId, sentence)
 ResearchGateway -> AgentController : handle(userId, sentence)
 AgentController -> ConversationMemory : lastSymbol(userId)
 ConversationMemory -> SQLiteConversationRepository : recent(userId)
 SQLiteConversationRepository --> ConversationMemory : earlier turns for this user
-ConversationMemory --> AgentController : previous symbol
+ConversationMemory --> AgentController : previous symbol and recent turns
 
-AgentController -> RequestPlanner : createPlan(sentence, previous)
+AgentController -> RequestPlanner : createPlan(sentence, previous, recent)
 RequestPlanner -> RequestPlanner : keyword plan\nMICROSOFT -> MSFT\nFALL -> MARKET_MOVEMENT
 
 opt Gemini is configured and the sentence is not rejected
@@ -35,30 +35,36 @@ opt Gemini is configured and the sentence is not rejected
     end
 end
 
-RequestPlanner --> AgentController : RUN MARKET_MOVEMENT MSFT
-AgentController -> ConversationMemory : remember(user, sentence, MSFT)
-AgentController -> ToolManager : execute(MARKET_MOVEMENT, MSFT)
-ToolManager --> AgentController : quote and news
-AgentController -> MarketExplanationService : explain(context)
-MarketExplanationService -> GeminiLLMClient : generateBrief(evidence prompt)
-GeminiLLMClient --> MarketExplanationService : short answer
-MarketExplanationService --> AgentController : short answer
-AgentController -> ResponseComposer : composeMovement
-ResponseComposer --> AgentController : answer, evidence, not-investment-advice line
+alt The plan runs a tool
+    RequestPlanner --> AgentController : RUN MARKET_MOVEMENT MSFT
+    AgentController -> ConversationMemory : remember(user, sentence, MSFT)
+    AgentController -> ToolManager : execute(MARKET_MOVEMENT, MSFT)
+    ToolManager --> AgentController : quote and news
+    AgentController -> MarketExplanationService : explain(context)
+    MarketExplanationService -> GeminiLLMClient : generate(evidence prompt)
+    note right of MarketExplanationService
+      The note attributes the move to what
+      the articles say. An article after the
+      last trade is later context, not proof
+      it caused that print.
+    end note
+    GeminiLLMClient --> MarketExplanationService : finished explanation
+    MarketExplanationService --> AgentController : explanation
+    AgentController -> ResponseComposer : composeMovement
+    ResponseComposer --> AgentController : answer and evidence
+else The plan is DISCUSS
+    RequestPlanner --> AgentController : DISCUSS
+    AgentController -> GeminiLLMClient : generateBrief(conversation prompt)
+    note right of AgentController
+      "Say that more simply" uses the stored
+      exchange and does not run a tool.
+      Portfolio figures are left out.
+    end note
+    GeminiLLMClient --> AgentController : rephrased reply
+end
 AgentController -> ConversationMemory : remember(assistant, reply, MSFT)
 AgentController --> ResearchGateway : reply
 ResearchGateway --> UI : reply
-UI --> User : answer and evidence
-
-note right of RequestPlanner
-  Hidden instructions such as "ignore previous"
-  or SQL are rejected and do not run a tool.
-  "its" uses the stored symbol for this user only.
-  Compare and overlap need two symbols.
-  Portfolio exposure is not narrated by the model.
-  "Say that more simply" continues from the
-  last reply and does not run a tool.
-  Portfolio figures are left out of that prompt.
-end note
+UI --> User : the reply stays in the chat
 
 @enduml

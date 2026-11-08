@@ -38,7 +38,7 @@
 \textbf{Student:} & [Erdem Calikoglu] \\
 \textbf{Student Number:} & [218188771] \\
 \textbf{Instructor:} & [Song Wang] \\
-\textbf{Date:} & [November 5, 2026] \\
+\textbf{Date:} & [November 8, 2026] \\
 \end{tabular}
 \vfill
 \end{titlepage}
@@ -58,23 +58,23 @@ Stage~1 described this system as a design. This report describes the application
 
 Market data comes from free provider plans. \texttt{ProviderRouter} selects the first adapter registered for a capability. A later adapter is used only when an earlier one was not registered. A failed call does not try the next adapter. Keys are environment variables. The process does not read a \texttt{.env} file. \texttt{.env.example} contains placeholders only.
 
-Gemini participates in two places. \texttt{MarketExplanationService} writes a short note from a quote and up to three headlines. \texttt{RequestPlanner} may ask Gemini to name one allowlisted action for a sentence, and \texttt{AgentController} may ask it for a short reply from the tool result. A direct command such as \texttt{QUOTE NVDA} does not call the model. Portfolio weights are calculated in Java and are not sent to Gemini. If the model returns bad JSON, a disallowed action, or a word that is not a ticker, the keyword plan is used.
+Gemini participates in two places. \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate} and writes the move from what the retrieved articles say. An article published after the last trade is still summarized, and it is labeled as later context rather than proof it caused that print. \texttt{RequestPlanner} may ask Gemini to name one allowlisted action for a sentence, and \texttt{AgentController} may ask it for a reply from the tool result. A direct quote does not call the model. A question about why a price rose or fell stays \texttt{MARKET\_MOVEMENT} and is not turned into a headline list. Portfolio weights are calculated in Java and are not sent to Gemini. If the model returns bad JSON, a disallowed action, or a word that is not a ticker, the keyword plan is used. ``Say that more simply'' continues from the stored exchange and does not run a tool.
 
-The default model is \texttt{gemini-3.5-flash-lite}. \texttt{GEMINI\_MODEL} overrides it. \texttt{gemini-3.8-flash} thought too long for a short note. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. Those names stay unset.
+The default model is \texttt{gemini-3.5-flash-lite}. \texttt{GEMINI\_MODEL} overrides it. Flash-Lite requests use minimal thinking so a note can finish. \texttt{gemini-3.8-flash} thought too long for a short note. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. Those names stay unset.
 
 The project is not a brokerage and it does not place orders. Its scope is financial-information retrieval, ETF and portfolio analysis, news retrieval, and an explanation grounded in the quote and the headlines that were retrieved.
 
 \section{Implementation Status}
 
-The following behavior is in the repository on 5~November 2026.
+The following behavior is in the repository on 8~November 2026.
 
 \begin{itemize}
 \item Register, sign in, and sign out, on separate GUI screens and in the terminal.
 \item Quotes, company overviews, security comparison, news, ETF sector weights, ETF overlap, portfolio view, portfolio edits, and watchlists.
 \item Country exposure: the published Finnhub report when the plan allows it, otherwise the headquarters country of at most 25 holdings.
 \item Portfolio exposure as price times quantity, with currencies kept apart.
-\item A movement explanation from the quote and the news, with a Gemini note when the key is set.
-\item Follow-up questions that remember the last symbol for that user only.
+\item A movement explanation from the quote and the news. The note attributes the move to what the articles say.
+\item Follow-up questions in the window message box and at the terminal. The last symbol for that user is remembered. ``Say that more simply'' continues the last reply.
 \item Annual statements, daily bars with a 14-day RSI, and one sentiment score, when those keys are set.
 \item A home screen with portfolio value, day move, position chips, and a quote and news tape.
 \end{itemize}
@@ -83,7 +83,7 @@ The following limits are part of the implementation.
 
 \begin{itemize}
 \item Period~1 (20--26 October 2026) has no commits in this repository. That week cannot be repaired by later commits, and those commits were not backdated.
-\item Period~3 (3--9 November 2026) has six non-merge commits. Five of them change the desk and meet the minimum of five meaningful code commits. They are listed under Weekly Commits.
+\item Period~3 (3--9 November 2026) meets the minimum of five meaningful code commits. The 8~November commits for the message box and the article-based explanation are included under Weekly Commits.
 \item Demonstration videos do not yet have public links. Section~\ref{sec:demos} is the index. Recordings of the flows that do not call a vendor were captured with this report. Live provider clips still need the student's keys and a public link.
 \item Country weights on the free plan are headquarters of reported holdings. They are not the fund's published country report and they are not revenue exposure. Unknown and unassigned weight is named. It is not filled in.
 \item Finnhub's free plan prices US listings. A symbol such as \texttt{XEQT.TO} stays unpriced and is named.
@@ -102,10 +102,10 @@ The desk supports account registration, login, and logout. Passwords are not sto
 Each user has a portfolio and a watchlist in SQLite. Conversation turns are stored for that user id. Logging out clears the in-memory session. The rows remain under the previous user. The next person must sign in.
 
 \subsection{Natural-Language Follow-Up}
-A sentence that is not a slash command is a follow-up. \texttt{RequestPlanner} maps it to one allowlisted action. Pronouns use the last symbol stored for this user. \texttt{why did microsoft fall} stays a sentence: Microsoft maps to \texttt{MSFT}, and the word ``did'' is a stop word, so it cannot become the ticker. Compare and overlap still require two symbols. Portfolio edits are not on the allowlist.
+The box at the bottom of the window is a message field. Enter sends. Shift+Enter adds a line. The letters stay as typed. The reply stays in the conversation on screen 5. The terminal accepts the same sentence without a leading slash. \texttt{RequestPlanner} maps it to one allowlisted action. Pronouns use the last symbol stored for this user. \texttt{why did microsoft fall} stays a sentence: Microsoft maps to \texttt{MSFT}, and the word ``did'' is a stop word, so it cannot become the ticker. \texttt{why is intel up} is a movement explanation, not a headline list. Compare and overlap still require two symbols. Portfolio edits are not on the allowlist.
 
 \subsection{Terminal and Window Commands}
-The terminal accepts slash commands. The window accepts the same verbs, with or without a leading slash, and the research buttons. Both call \texttt{ResearchGateway}. A successful lookup stores the symbol for a later follow-up.
+The terminal accepts the verbs without a leading slash. A slash still works. The window message box accepts the same verbs and ordinary sentences. Both call \texttt{ResearchGateway}. A successful lookup stores the symbol for a later follow-up. \texttt{PORT ADD} and \texttt{PORT REMOVE} still open the portfolio screen. They are not sent to the model.
 
 \subsection{Market Data}
 Quotes and company profiles come from Finnhub when \texttt{FINNHUB\_API\_KEY} is set. Twelve Data is the quote fallback and the source of daily bars and RSI. Alpha Vantage is the last quote fallback and the source of ETF holdings. A quote shows last price, previous close, and percent change. A direct quote does not call Gemini.
@@ -114,10 +114,10 @@ Quotes and company profiles come from Finnhub when \texttt{FINNHUB\_API\_KEY} is
 Sector weights come from the ETF profile. Country exposure tries Finnhub's published report. On HTTP 403 the desk reads holdings and the headquarters country of at most 25 names. Overlap is the shared holdings of two ETFs. The calculations are in Java.
 
 \subsection{News, Movement, Statements, History, and Sentiment}
-News prefers Marketaux when its token is set, and otherwise uses Finnhub company news. A movement explanation needs a quote and news. Gemini writes the note from that evidence. Statements come from Financial Modeling Prep. History and RSI come from Twelve Data. The sentiment score comes from SentiSense. The display band is this desk's label for the score.
+News prefers Marketaux when its token is set, and otherwise uses Finnhub company news. A question about why a price rose or fell gathers the quote and the news, then Gemini explains the move from what the articles say. Statements come from Financial Modeling Prep. History and RSI come from Twelve Data. The sentiment score comes from SentiSense. The display band is this desk's label for the score.
 
 \subsection{Portfolio, Watchlist, and Home Desk}
-A position stores a symbol, a quantity, and a type of \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. Exposure values each position as price times quantity. Currencies stay in separate books. The home screen shows that value, the day move, one chip per position, and a tape. The terminal lists the same positions with \texttt{/portfolio} and does not show a sliding tape.
+A position stores a symbol, a quantity, and a type of \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. Exposure values each position as price times quantity. Currencies stay in separate books. The home screen shows that value, the day move, one chip per position, and a tape. The terminal lists the same positions with \texttt{portfolio} and does not show a sliding tape.
 
 \section{Major User Interactions}
 The implementation supports twenty user-facing interactions. Login, logout, and registration are included because Stage~1 specified them. They are not counted toward the ten meaningful features. The meaningful features are UC-04 through UC-20.
@@ -346,21 +346,21 @@ The implementation supports twenty user-facing interactions. Login, logout, and 
 \subsection{UC-10 -- Explain Recent Market Movement}
 \textbf{Primary Actor:} Authenticated user.
 
-\textbf{Goal:} Show the quote, the news, and a short note grounded in that evidence.
+\textbf{Goal:} Show the quote, the news, and an explanation of the move taken from those articles.
 
 \textbf{Preconditions:} A quote provider and a news provider are registered.
 
-\textbf{Trigger:} \texttt{WHY MSFT}, or a follow-up sentence that plans \texttt{MARKET\_MOVEMENT}.
+\textbf{Trigger:} The message box, for example \texttt{why did microsoft fall} or \texttt{why is intel up}. \texttt{WHY MSFT} is the short form. \texttt{nasdaq} is read as \texttt{QQQ}.
 
 \textbf{Main Success Scenario:}
 \begin{enumerate}
 \item \texttt{MarketMovementTool} gathers the quote and the news.
 \item \texttt{NewsTiming} marks an article published after the last trade when the quote has a trade time.
-\item \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generateBrief}.
-\item The prompt contains the quote and short article text. It does not ask for a buy or sell decision.
-\item The screen shows the evidence, the note, and the line that this is not investment advice.
+\item \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate}. Flash-Lite uses minimal thinking so the note can finish.
+\item The note names the symbol, the price, and the percent change. It attributes the move to what the articles say. An article after the last trade is still described, and labeled as later context rather than proof it caused that print.
+\item The screen shows that note first, then the quote and the sources, and the line that this is not investment advice.
 \end{enumerate}
-\textbf{Alternative/Exception Flows:} If Gemini is unset, times out, or returns an error, the quote and the news still appear with the failure note.
+\textbf{Alternative/Exception Flows:} If Gemini is unset, times out, or the reply is cut off by the token limit, the quote and the news still appear with the failure note. The desk does not invent a reason that is not in the articles.
 
 \textbf{Postconditions:} The user receives the evidence and either a note or an explicit explanation failure.
 
@@ -415,7 +415,7 @@ The implementation supports twenty user-facing interactions. Login, logout, and 
 
 \textbf{Preconditions:} The user is signed in.
 
-\textbf{Trigger:} \texttt{/portfolio} or the Portfolio screen.
+\textbf{Trigger:} \texttt{portfolio} or the Portfolio screen.
 
 \textbf{Main Success Scenario:}
 \begin{enumerate}
@@ -441,7 +441,7 @@ The implementation supports twenty user-facing interactions. Login, logout, and 
 \begin{enumerate}
 \item \texttt{WatchlistService} validates the symbol.
 \item \texttt{SQLiteWatchlistRepository} stores or deletes it for this user.
-\item The watchlist screen and \texttt{/watchlist} show the result.
+\item The watchlist screen and \texttt{watchlist} show the result.
 \end{enumerate}
 \textbf{Alternative/Exception Flows:} The watchlist has no quantity and is not a portfolio. Stage~1 had a \texttt{WatchlistTool} on the agent. The implementation uses the session workspace, as it does for portfolio edits.
 
@@ -456,7 +456,7 @@ The implementation supports twenty user-facing interactions. Login, logout, and 
 
 \textbf{Preconditions:} The user is signed in and a quote provider is registered.
 
-\textbf{Trigger:} \texttt{EXPOSURE} or \texttt{/portfolio exposure}.
+\textbf{Trigger:} \texttt{EXPOSURE} or \texttt{portfolio exposure}.
 
 \textbf{Main Success Scenario:}
 \begin{enumerate}
@@ -479,16 +479,16 @@ The implementation supports twenty user-facing interactions. Login, logout, and 
 
 \textbf{Preconditions:} The user is signed in. A pronoun requires an earlier lookup for this user.
 
-\textbf{Trigger:} A sentence in the window follow-up field or at the terminal prompt, for example \texttt{what about its sector exposure}.
+\textbf{Trigger:} A sentence in the window message box or at the terminal prompt, for example \texttt{what about its sector exposure} or \texttt{say that more simply}.
 
 \textbf{Main Success Scenario:}
 \begin{enumerate}
-\item \texttt{ResearchGateway.ask} calls \texttt{AgentController.handle}.
-\item \texttt{ConversationMemory.lastSymbol} reads recent turns for this user only.
-\item \texttt{RequestPlanner.createPlan} builds a keyword plan. When Gemini is configured, it may replace that plan with one allowlisted JSON action.
-\item \texttt{ToolManager} runs the action. \texttt{ResponseComposer} formats the tool result.
-\item A second short model call may prepend a sentence. Both turns are stored.
-\item The reply says that this is not investment advice.
+\item The window shows the user's line in the conversation, then \texttt{ResearchGateway.ask} calls \texttt{AgentController.handle}.
+\item \texttt{ConversationMemory} reads recent turns for this user only, including the last symbol.
+\item \texttt{RequestPlanner.createPlan} builds a keyword plan. When Gemini is configured and the sentence is not a greeting or a request to rephrase, it may replace that plan with one allowlisted JSON action.
+\item If the plan runs a tool, \texttt{ToolManager} executes it and \texttt{ResponseComposer} formats the result. A movement plan explains the move from the articles.
+\item If the plan is \texttt{DISCUSS}, no tool runs. Gemini rephrases the stored exchange. Portfolio figures are left out of that prompt.
+\item Both turns are stored. The reply says that this is not investment advice.
 \end{enumerate}
 \textbf{Alternative/Exception Flows:}
 \begin{itemize}
@@ -623,7 +623,7 @@ UC-06 geographic exposure is the fund's published country weights, then an LLM e
 & The free plan returns 403 for the published report. Guessing the rest would present invented exposure. \\
 \addlinespace
 Every research use case is planned and narrated by the LLM. \\
-& A slash command or function key runs one tool. Gemini is on UC-10 and, optionally, UC-16. \\
+& The window message box and the terminal send a sentence to the follow-up. A verb such as \texttt{QUOTE} runs one tool. Gemini is on UC-10 and, when a sentence needs a tool or a rephrase, on UC-16. \\
 & A quote does not need a model, and a model on that path could invent a sentence around a number the tool already had. \\
 \addlinespace
 The planner may add or remove a portfolio position. \\
@@ -660,13 +660,13 @@ The diagrams in this section match the running desk. Gemini is associated with m
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.62\textheight,keepaspectratio]{sequence-context-followup.png}
-\caption{UC-16. A sentence is planned against the allowlist, then one tool runs.}
+\caption{UC-16. A sentence is planned against the allowlist. A rephrase does not run a tool.}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\textwidth,height=0.48\textheight,keepaspectratio]{sequence-market-movement.png}
-\caption{UC-10. The quote and the news are gathered first. Gemini writes from that evidence.}
+\caption{UC-10. The quote and the news are gathered first. Gemini explains the move from the articles.}
 \end{figure}
 
 The remaining PlantUML sources are the class diagrams for the agent, the domain, and persistence, and the sequence diagrams for ETF analysis, country exposure, portfolio analysis, and market insight. Rendered copies are in \texttt{docs/uml/rendered/}.
@@ -690,15 +690,19 @@ Period~2, 27 October--2 November 2026, has more than five meaningful code commit
 
 Also in Period~2: \texttt{6843eed} Finnhub quotes, \texttt{9716283} country exposure without echoing keys, \texttt{cc386c7} last-trade time, \texttt{1f4db1c} home summary and tape, \texttt{04de078} Gemini interpretation of questions, \texttt{4f52ca0} Flash-Lite, and \texttt{931ec38} so that ``why did microsoft fall'' stays a question.
 
-Period~3, 3--9 November 2026, has six non-merge commits. Five of them change the desk and meet the minimum of five meaningful code commits. This report does not count Period~2 commits toward that week.
+Period~3, 3--9 November 2026, meets the minimum of five meaningful code commits. The week also includes the conversation, the message box, and the article-based explanation. This report does not count Period~2 commits toward that week.
 
 \begin{itemize}
-\item \texttt{44080fd} -- 5 November. Stage 2 report set in the Stage 1 layout.
 \item \texttt{d5d220c} -- 5 November. Home-desk view of value, weight, and unpriced names.
 \item \texttt{cfe059e} -- 5 November. Holdings in the center of the home desk.
 \item \texttt{9fff4a7} -- 6 November. Background quote refresh keeps the follow-up symbol.
 \item \texttt{1bcaa63} -- 6 November. One in-flight quote shared by the tape and the home book.
 \item \texttt{a0838f5} -- 6 November. Provider or database reason for an unpriced or unsaved holding.
+\item \texttt{6eef95e} -- 8 November. Terminal commands without a required leading slash.
+\item \texttt{d7aa5d3} -- 8 November. A follow-up can continue the last reply.
+\item \texttt{f1d9eaf} -- 8 November. The window box is a conversation.
+\item \texttt{1ae3345} -- 8 November. A movement note can finish instead of stopping after the price.
+\item \texttt{9f71542} -- 8 November. A move is explained from what the articles say.
 \end{itemize}
 
 \subsection{Checks}
@@ -711,7 +715,9 @@ The country request used a URL that returned HTTP 302. It now calls \url{https:/
 
 An Alpha Vantage notice included the live key. \texttt{ProviderText.redact} replaces that notice. The key was rotated and is not in this report.
 
-\texttt{gemini-3.8-flash} exceeded the explanation timeout. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. The default is \texttt{gemini-3.5-flash-lite}, with a short token cap and low thinking.
+\texttt{gemini-3.8-flash} exceeded the explanation timeout. \texttt{gemini-2.5-flash} returned HTTP 404 for a new key. The default is \texttt{gemini-3.5-flash-lite}. Flash-Lite uses minimal thinking. A note that stopped after the price was a token-budget cut, and a cut-off reply is no longer shown as a finished explanation.
+
+A news reply said the articles did not explain the day's move even when they discussed the reasons. A question about a price rising or falling now stays a movement explanation, and the note attributes the move to what the articles say.
 
 \texttt{why did microsoft fall} was parsed as \texttt{WHY DID}. A multi-word why sentence is now a follow-up. \texttt{WHY MSFT} is still the symbol command.
 
@@ -761,51 +767,45 @@ The owner's instruction was that the model should interpret a question, and the 
 \section{Demonstration Index}
 \label{sec:demos}
 
-No public video link is in this version of the report. Slides are not a demonstration. Before the 10~November 2026 submission, each row that the course requires needs a public link and a timestamp. Record the running application. Show the GUI and the terminal across the set. Do not show API keys, a \texttt{.env} file, or a shell line that prints a key. If a provider error appears, confirm the key is not on screen.
+No public video link is in this version of the report. Slides are not a demonstration. Before the 10~November 2026 submission, each row needs a public link and a timestamp. Record the running application. Show the window and the terminal across the set. Do not show API keys, a \texttt{.env} file, or a shell line that prints a key.
 
-On 5~November 2026 two recordings were made on this machine, with no provider keys set. They are not public links, and they do not show live vendor data.
-
-The window recording creates account \texttt{erdem}, returns to sign-on, rejects the password \texttt{wrong-pass} with ``Invalid username or password.'', signs in, opens the home desk, saves \texttt{NVDA} as 10 shares of type \texttt{STOCK}, adds \texttt{MSFT} to the monitor, runs \texttt{QUOTE NVDA}, and logs off. The quote result names \texttt{FINNHUB\_API\_KEY}, \texttt{TWELVE\_DATA\_API\_KEY}, and \texttt{ALPHA\_VANTAGE\_API\_KEY}. No price is shown.
-
-The terminal recording signs in as \texttt{erdem}, runs \texttt{/portfolio} (the \texttt{NVDA} row), \texttt{/watchlist} (\texttt{MSFT}), and \texttt{/quote NVDA}. The quote says no tool is registered for \texttt{MARKET\_QUOTE}. The sentence \texttt{why did microsoft fall} is labeled \texttt{FOLLOW-UP MSFT} and reports that the movement tool is not registered. It does not use \texttt{DID} as a ticker. \texttt{/logout} returns to the authentication menu.
-
-Live quote, news, movement, statement, history, and sentiment clips still need the student's keys and a public link.
+Two recordings are enough if every row below is a labeled segment with its own timestamp. Say the use-case id at the start of each segment. One recording is the window. One is the terminal. The window box is the message field at the bottom. Enter sends.
 
 \begin{center}
 \small
-\begin{tabularx}{\textwidth}{@{}p{1.5cm}Xp{3.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{1.5cm}Xp{2.6cm}@{}}
 \toprule
-Feature & What to show & Link \\
+Feature & What the clip must show & Link \\
 \midrule
-UC-01 & GUI create-account screen, confirmation present, then return to sign-on. & Local window recording. No public link. \\
-UC-02 & Sign-on screen with no confirmation field. Wrong password, then a successful sign-on. & Local window recording. No public link. \\
-UC-03 & Log out and show that the next command requires sign-on. & Local window and terminal recordings. No public link. \\
-UC-04 & \texttt{QUOTE NVDA} in the window and \texttt{/quote NVDA} in the terminal. Both show the missing provider. No price. & Local recordings. No public link. \\
-UC-05 & \texttt{OVERVIEW NVDA}. Name, exchange, currency, industry. Say that a description is not on the free profile. & Not recorded \\
-UC-06 & \texttt{SECTOR QQQ}, then \texttt{GEO QQQ}. Headquarters note, and a stock such as \texttt{NVDA} producing no country list. & Not recorded \\
-UC-07 & \texttt{COMPARE NVDA MSFT}. Difference of percent changes. & Not recorded \\
-UC-08 & \texttt{OVERLAP QQQ SPY}. Shared holdings. & Not recorded \\
-UC-09 & \texttt{NEWS NVDA}. Say that a match is not a cause. & Not recorded \\
-UC-10 & \texttt{WHY MSFT}. Quote, news, Gemini note, and the not-advice line. & Not recorded \\
-UC-11 & \texttt{PORT ADD NVDA 10 STOCK} or the Portfolio screen. & Local window recording. No public link. \\
-UC-12 & Remove a symbol that exists, then one that does not. & Not recorded \\
-UC-13 & \texttt{/portfolio} and the Portfolio screen for the same user. & Local terminal recording. No public link. \\
-UC-14 & \texttt{WATCH ADD} and \texttt{WATCH REMOVE}. & Add recorded. Remove not recorded. \\
-UC-15 & \texttt{EXPOSURE}. Value as price times quantity. Name an unpriced position if one exists. & Not recorded \\
-UC-16 & After a lookup, ask ``what about its sector exposure.'' Then ``why did microsoft fall,'' and show \texttt{MSFT}, not \texttt{DID}. Then a sentence that says to ignore previous instructions. & The Microsoft sentence is in the local terminal recording. The other two sentences are not recorded. \\
-UC-17 & \texttt{STATEMENTS NVDA}, or the unavailable message when the key is unset. & Not recorded \\
-UC-18 & \texttt{HISTORY NVDA}. Bars and RSI. & Not recorded \\
-UC-19 & \texttt{SENTIMENT NVDA}. Score and band. Say the band is not advice. & Not recorded \\
-UC-20 & F1 after sign-on. Portfolio value, day move, chips, and the tape. GUI only. & Home appears after sign-on in the local window recording. The tape has no quotes. \\
+UC-01 & Window, Open new account. Type a new username, a password, and the same password again. Show the return to sign-on. Say the user is not signed in yet. & Not public \\
+UC-02 & Sign-on has no confirmation field. Enter a wrong password and show the rejection. Then sign in and show the home desk. & Not public \\
+UC-03 & Choose log out. Show the sign-on screen. In the terminal, run \texttt{logout} and show the authentication menu. & Not public \\
+UC-04 & Window message box: \texttt{quote NVDA}. Terminal: \texttt{quote NVDA}. Both must show last price, previous close, and percent change. & Not public \\
+UC-05 & \texttt{overview NVDA}. Show name, exchange, currency, and industry. Say the free profile has no company description. & Not public \\
+UC-06 & \texttt{sector QQQ}, then \texttt{geo QQQ}. Show sector weights, then headquarters countries and the note that they are not the fund's published report. Then \texttt{geo NVDA} and show that a stock has no country list. & Not public \\
+UC-07 & \texttt{compare NVDA MSFT}. Show both percent changes and the difference. & Not public \\
+UC-08 & \texttt{overlap QQQ SPY}. Show at least one shared holding. & Not public \\
+UC-09 & \texttt{news NVDA}. Show headlines. Say a match is not, by itself, the cause of a price move. & Not public \\
+UC-10 & \texttt{why did microsoft fall}, then \texttt{why is intel up}. The note must name the price and attribute the move to what the articles say. A headline after the last trade must be called later context. Show the not-advice line. & Not public \\
+UC-11 & \texttt{port add NVDA 10 STOCK}, or the Portfolio screen. Show the stored row. & Not public \\
+UC-12 & \texttt{port remove NVDA}, then remove a symbol that is not held. Show the missing-symbol message. & Not public \\
+UC-13 & Terminal \texttt{portfolio} and the Portfolio screen, same user, same rows. & Not public \\
+UC-14 & \texttt{watch add NVDA}, then \texttt{watch remove NVDA}. Show the list after each. & Not public \\
+UC-15 & \texttt{exposure}. Show value as price times quantity. If a position has no price, its name must appear and it must stay out of the total. & Not public \\
+UC-16 & After UC-10, type \texttt{what about its sector exposure} and show the prior symbol. Then \texttt{say that more simply} and show that no new symbol is looked up. Then type a sentence that says to ignore previous instructions and show that no tool runs. & Not public \\
+UC-17 & \texttt{statements NVDA}. Show income, balance sheet, and cash flow, or the unavailable message when the key is unset. & Not public \\
+UC-18 & \texttt{history NVDA}. Show daily bars and the RSI. & Not public \\
+UC-19 & \texttt{sentiment NVDA}. Show the score and the band. Say the band is not advice. & Not public \\
+UC-20 & F1 after sign-on. Show portfolio value, day move, position rows, and the moving tape. This clip is the window only. & Not public \\
 \bottomrule
 \end{tabularx}
 \end{center}
 
-The terminal segment should include \texttt{/quote}, \texttt{/why} or a follow-up sentence, and \texttt{/portfolio exposure}. The window segment should include sign-on, home, and at least one research command. Together they show both interfaces.
+The terminal segment must include \texttt{quote}, a sentence such as \texttt{why did microsoft fall}, and \texttt{exposure}. The window segment must include sign-on, home, the message box, and at least one research sentence. Together they show both interfaces.
 
 \section{Stage 2 Summary}
-The Stage~1 design is now a running desk. Both interfaces call one gateway. Research actions are commands. Vendor payloads sit behind adapters, and \texttt{ProviderRouter} chooses one adapter per capability by registration order. Deterministic Java code performs authentication, persistence, validation, and exposure arithmetic. Gemini writes a movement note from retrieved evidence and may name one allowlisted follow-up action. It does not edit the portfolio, and a quote does not call it.
+The Stage~1 design is now a running desk. Both interfaces call one gateway. The window message box and the terminal accept a sentence or a verb. Vendor payloads sit behind adapters, and \texttt{ProviderRouter} chooses one adapter per capability by registration order. Deterministic Java code performs authentication, persistence, validation, and exposure arithmetic. Gemini explains a move from the retrieved articles and may name one allowlisted follow-up action. It does not edit the portfolio, and a quote does not call it.
 
-What remains before the 10~November 2026 submission is public demonstration links for the rows in Section~\ref{sec:demos}. Period~3 has the six non-merge commits listed under Weekly Commits. Period~1 remains a missed week.
+What remains before the 10~November 2026 submission is a public link and a timestamp for every row in Section~\ref{sec:demos}. Period~3 meets its five-commit minimum. Period~1 remains a missed week.
 
 \end{document}

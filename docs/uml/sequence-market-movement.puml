@@ -11,12 +11,10 @@ participant ProviderRouter
 participant MarketExplanationService
 participant GeminiLLMClient
 
-User -> Entry : WHY MSFT
-alt Direct command
-    Entry -> ResearchGateway : explainMovement(userId, MSFT)
+User -> Entry : message box\nwhy did microsoft fall
+alt Sentence or WHY MSFT
+    Entry -> ResearchGateway : ask(userId, sentence)
     ResearchGateway -> MarketMovementTool : execute(MARKET_MOVEMENT)
-else Follow-up sentence
-    Entry -> MarketMovementTool : execute(MARKET_MOVEMENT)
 end
 
 MarketMovementTool -> ProviderRouter : getQuote(MSFT)
@@ -27,18 +25,20 @@ MarketMovementTool --> Entry : MarketMovementContext
 
 alt Gemini is configured and evidence exists
     Entry -> MarketExplanationService : explain(context)
-    MarketExplanationService -> GeminiLLMClient : generateBrief(prompt)
-    GeminiLLMClient --> Entry : short note grounded in the quote and news
+    MarketExplanationService -> GeminiLLMClient : generate(prompt)
+    GeminiLLMClient --> Entry : explanation from the articles
 else Gemini is missing or the call fails
     Entry --> User : quote and news, plus the failure note
 end
 
 note right of MarketExplanationService
-  The prompt contains the quote and up to
-  three article summaries. It does not ask
-  for a buy or sell recommendation.
-  Articles after the last trade are flagged
-  before they reach this prompt.
+  The note names the price and the percent change,
+  then attributes the move to what the articles say.
+  An article after the last trade is later context,
+  not proof it caused that print.
+  Nasdaq is read as QQQ, and the note says it is an ETF.
+  Flash-Lite uses minimal thinking so the note can finish.
+  The note does not recommend a buy or a sell.
 end note
 
 @enduml
