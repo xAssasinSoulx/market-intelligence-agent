@@ -28,6 +28,31 @@ class CommandParserTest {
     }
 
     @Test
+    void acceptsACommandWithoutASlash() {
+
+        assertTrue(parser.isCommand("quote NVDA"));
+
+        ParsedCommand command = parser.parse("quote NVDA");
+
+        assertEquals("quote", command.getCommand());
+        assertEquals("NVDA", command.getArguments().getFirst());
+    }
+
+    @Test
+    void keepsAWhySentenceAsAQuestion() {
+
+        assertFalse(parser.isCommand("why did microsoft fall"));
+        assertFalse(parser.isCommand("why did"));
+    }
+
+    @Test
+    void stillAcceptsWhyWithOnlyASymbol() {
+
+        assertTrue(parser.isCommand("why MSFT"));
+        assertTrue(parser.isCommand("/why MSFT"));
+    }
+
+    @Test
     void parsesCommandName() {
 
         ParsedCommand command =

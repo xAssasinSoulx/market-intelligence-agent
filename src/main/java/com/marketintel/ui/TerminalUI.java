@@ -436,57 +436,57 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/quote",
-                "/quote NVDA"
+                "quote",
+                "quote NVDA"
         );
 
         TerminalComponents.row(
-                "/compare",
-                "/compare NVDA MSFT"
+                "compare",
+                "compare NVDA MSFT"
         );
 
         TerminalComponents.row(
-                "/news",
-                "/news NVDA"
+                "news",
+                "news NVDA"
         );
 
         TerminalComponents.row(
-                "/statements",
-                "/statements NVDA"
+                "statements",
+                "statements NVDA"
         );
 
         TerminalComponents.row(
-                "/history",
-                "/history NVDA"
+                "history",
+                "history NVDA"
         );
 
         TerminalComponents.row(
-                "/sentiment",
-                "/sentiment NVDA"
+                "sentiment",
+                "sentiment NVDA"
         );
 
         TerminalComponents.row(
-                "/sector",
-                "/sector QQQ"
+                "sector",
+                "sector QQQ"
         );
 
         TerminalComponents.row(
-                "/geography",
-                "/geography QQQ"
+                "geography",
+                "geography QQQ"
         );
 
         TerminalComponents.row(
-                "/overlap",
-                "/overlap QQQ VGT"
+                "overlap",
+                "overlap QQQ VGT"
         );
 
         TerminalComponents.row(
-                "/why",
-                "/why NVDA"
+                "why",
+                "why NVDA"
         );
 
         TerminalComponents.row(
-                "/help",
+                "help",
                 "Show all commands"
         );
 
@@ -615,21 +615,21 @@ public class TerminalUI
                 case "statements", "statement" ->
                         handleInsightCommand(
                                 parsed,
-                                "Usage: /statements SYMBOL",
+                                "Usage: statements SYMBOL",
                                 ActionType.FINANCIAL_STATEMENTS
                         );
 
                 case "history" ->
                         handleInsightCommand(
                                 parsed,
-                                "Usage: /history SYMBOL",
+                                "Usage: history SYMBOL",
                                 ActionType.PRICE_HISTORY
                         );
 
                 case "sentiment" ->
                         handleInsightCommand(
                                 parsed,
-                                "Usage: /sentiment SYMBOL",
+                                "Usage: sentiment SYMBOL",
                                 ActionType.NEWS_SENTIMENT
                         );
 
@@ -662,7 +662,7 @@ public class TerminalUI
 
                 default ->
                         displayError(
-                                "Unknown command: /"
+                                "Unknown command: "
                                         + parsed
                                         .getCommand()
                         );
@@ -726,11 +726,11 @@ public class TerminalUI
 
             default ->
                     displayError(
-                            "Usage: /portfolio, "
-                                    + "/portfolio exposure, "
-                                    + "/portfolio add "
+                            "Usage: portfolio, "
+                                    + "portfolio exposure, "
+                                    + "portfolio add "
                                     + "SYMBOL QUANTITY TYPE, "
-                                    + "or /portfolio remove "
+                                    + "or portfolio remove "
                                     + "SYMBOL"
                     );
         }
@@ -829,7 +829,7 @@ public class TerminalUI
                 .size() != 4) {
 
             displayError(
-                    "Usage: /portfolio add "
+                    "Usage: portfolio add "
                             + "SYMBOL QUANTITY TYPE"
             );
 
@@ -894,7 +894,7 @@ public class TerminalUI
                 .size() != 2) {
 
             displayError(
-                    "Usage: /portfolio "
+                    "Usage: portfolio "
                             + "remove SYMBOL"
             );
 
@@ -982,9 +982,9 @@ public class TerminalUI
 
             default ->
                     displayError(
-                            "Usage: /watchlist, "
-                                    + "/watchlist add SYMBOL, "
-                                    + "or /watchlist remove "
+                            "Usage: watchlist, "
+                                    + "watchlist add SYMBOL, "
+                                    + "or watchlist remove "
                                     + "SYMBOL"
                     );
         }
@@ -1044,7 +1044,7 @@ public class TerminalUI
                 .size() != 2) {
 
             displayError(
-                    "Usage: /watchlist "
+                    "Usage: watchlist "
                             + "add SYMBOL"
             );
 
@@ -1085,7 +1085,7 @@ public class TerminalUI
                 .size() != 2) {
 
             displayError(
-                    "Usage: /watchlist "
+                    "Usage: watchlist "
                             + "remove SYMBOL"
             );
 
@@ -1142,7 +1142,7 @@ public class TerminalUI
                 .size() != 1) {
 
             displayError(
-                    "Usage: /quote SYMBOL"
+                    "Usage: quote SYMBOL"
             );
 
             return;
@@ -1330,7 +1330,7 @@ public class TerminalUI
                 .size() != 1) {
 
             displayError(
-                    "Usage: /overview SYMBOL"
+                    "Usage: overview SYMBOL"
             );
 
             return;
@@ -1459,7 +1459,7 @@ public class TerminalUI
                 .size() != 2) {
 
             displayError(
-                    "Usage: /compare "
+                    "Usage: compare "
                             + "SYMBOL1 SYMBOL2"
             );
 
@@ -1613,7 +1613,7 @@ public class TerminalUI
                 .size() != 1) {
 
             displayError(
-                    "Usage: /news SYMBOL"
+                    "Usage: news SYMBOL"
             );
 
             return;
@@ -1858,7 +1858,7 @@ public class TerminalUI
             return;
         }
         if (command.getArguments().isEmpty()) {
-            displayError("Usage: /ask why did NVDA move");
+            displayError("Usage: ask why did NVDA move");
             return;
         }
         String question = String.join(" ", command.getArguments());
@@ -1871,7 +1871,7 @@ public class TerminalUI
         if (command.getArguments().size() != 1) {
 
             displayError(
-                    "Usage: /why SYMBOL"
+                    "Usage: why SYMBOL"
             );
 
             return;
@@ -2204,7 +2204,7 @@ public class TerminalUI
                 .size() != 1) {
 
             displayError(
-                    "Usage: /sector ETF_SYMBOL"
+                    "Usage: sector ETF_SYMBOL"
             );
 
             return;
@@ -2344,7 +2344,7 @@ public class TerminalUI
                 .size() != 1) {
 
             displayError(
-                    "Usage: /geography ETF_SYMBOL"
+                    "Usage: geography ETF_SYMBOL"
             );
 
             return;
@@ -2519,7 +2519,7 @@ public class TerminalUI
                 .size() != 2) {
 
             displayError(
-                    "Usage: /overlap "
+                    "Usage: overlap "
                             + "ETF1 ETF2"
             );
 
@@ -2907,37 +2907,37 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/quote SYMBOL",
+                "quote SYMBOL",
                 "Current market quote"
         );
 
         TerminalComponents.row(
-                "/overview SYMBOL",
+                "overview SYMBOL",
                 "Company/security overview"
         );
 
         TerminalComponents.row(
-                "/compare A B",
+                "compare A B",
                 "Compare daily performance"
         );
 
         TerminalComponents.row(
-                "/news SYMBOL",
+                "news SYMBOL",
                 "Latest financial news"
         );
 
         TerminalComponents.row(
-                "/statements SYMBOL",
+                "statements SYMBOL",
                 "Annual financial statements"
         );
 
         TerminalComponents.row(
-                "/history SYMBOL",
+                "history SYMBOL",
                 "Daily prices and RSI"
         );
 
         TerminalComponents.row(
-                "/sentiment SYMBOL",
+                "sentiment SYMBOL",
                 "News sentiment score"
         );
 
@@ -2948,17 +2948,17 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/sector ETF",
+                "sector ETF",
                 "Sector exposure"
         );
 
         TerminalComponents.row(
-                "/geography ETF",
+                "geography ETF",
                 "Country exposure"
         );
 
         TerminalComponents.row(
-                "/overlap A B",
+                "overlap A B",
                 "ETF holdings overlap"
         );
 
@@ -2969,22 +2969,22 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/portfolio",
+                "portfolio",
                 "View portfolio"
         );
 
         TerminalComponents.row(
-                "/portfolio add",
+                "portfolio add",
                 "Add position"
         );
 
         TerminalComponents.row(
-                "/portfolio remove",
+                "portfolio remove",
                 "Remove position"
         );
 
         TerminalComponents.row(
-                "/portfolio exposure",
+                "portfolio exposure",
                 "Sector weights by market value"
         );
 
@@ -2995,28 +2995,33 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/watchlist",
+                "watchlist",
                 "View watchlist"
         );
 
         TerminalComponents.row(
-                "/watchlist add",
+                "watchlist add",
                 "Add symbol"
         );
 
         TerminalComponents.row(
-                "/watchlist remove",
+                "watchlist remove",
                 "Remove symbol"
         );
 
         TerminalComponents.row(
-                "/why SYMBOL",
+                "why SYMBOL",
                 "AI market movement explanation"
         );
 
         TerminalComponents.row(
-                "/ask ...",
+                "ask ...",
                 "Follow-up using the last symbol"
+        );
+
+        TerminalComponents.row(
+                "why did microsoft fall",
+                "A sentence is a follow-up, not a ticker"
         );
 
         TerminalComponents.endSection();
@@ -3026,17 +3031,17 @@ public class TerminalUI
         );
 
         TerminalComponents.row(
-                "/whoami",
+                "whoami",
                 "Current session"
         );
 
         TerminalComponents.row(
-                "/logout",
+                "logout",
                 "Log out"
         );
 
         TerminalComponents.row(
-                "/exit",
+                "exit",
                 "Exit terminal"
         );
 

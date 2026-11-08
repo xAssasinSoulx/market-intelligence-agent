@@ -72,9 +72,9 @@ The call budgets below come from the vendors' public pages and should be confirm
 | --- | --- |
 | Finnhub | About 60 requests a minute. Quotes, profiles, and company news. |
 | Alpha Vantage | About 25 requests a day. ETF profile and holdings. Company overview is a premium endpoint. |
-| Financial Modeling Prep | About 250 requests a day. `/statements` uses three of them. |
-| Twelve Data | About 800 requests a day and 8 a minute. `/history` uses two when RSI is included. |
-| SentiSense | About 1,000 requests a month and 30 a minute. `/sentiment` uses one. |
+| Financial Modeling Prep | About 250 requests a day. `statements` uses three of them. |
+| Twelve Data | About 800 requests a day and 8 a minute. `history` uses two when RSI is included. |
+| SentiSense | About 1,000 requests a month and 30 a minute. `sentiment` uses one. |
 | Marketaux | Existing news token. Article sentiment stays on the article. |
 
 ### What each plan actually returns
@@ -90,9 +90,9 @@ Financial Modeling Prep returns up to four annual periods. A line the filing did
 | No `FINNHUB_API_KEY` | Quotes use Twelve Data when that key is set, otherwise Alpha Vantage. Overviews use Alpha Vantage when that key is set. Otherwise those actions are unavailable |
 | No `ALPHA_VANTAGE_API_KEY` | Sector, overlap, and ETF holdings are unavailable. ETF positions in a portfolio are reported as unknown |
 | No `MARKETAUX_API_TOKEN` | News uses Finnhub company news when `FINNHUB_API_KEY` is set. Otherwise news is unavailable. Movement analysis needs both a quote and news |
-| No `FMP_API_KEY` | `/statements` is unavailable |
-| No `TWELVE_DATA_API_KEY` | `/history` is unavailable. Quotes are unaffected while Finnhub or Alpha Vantage is set |
-| No `SENTISENSE_API_KEY` | `/sentiment` is unavailable. Article sentiment from Marketaux is unchanged |
+| No `FMP_API_KEY` | `statements` is unavailable |
+| No `TWELVE_DATA_API_KEY` | `history` is unavailable. Quotes are unaffected while Finnhub or Alpha Vantage is set |
+| No `SENTISENSE_API_KEY` | `sentiment` is unavailable. Article sentiment from Marketaux is unchanged |
 | No `GEMINI_API_KEY` | Movement analysis still shows the quote and the news, and states that the explanation is unavailable. Follow-up questions use the keyword planner and show the tool result without a model sentence |
 
 ## Run
@@ -110,36 +110,51 @@ With no arguments, the process starts the command-line interface. The window doe
 Sign in, then:
 
 ```text
-/help
-/whoami
-/quote NVDA
-/overview NVDA
-/compare NVDA MSFT
-/sector QQQ
-/geography QQQ
-/overlap QQQ SPY
-/news NVDA
-/statements NVDA
-/history NVDA
-/sentiment NVDA
-/why NVDA
-/ask why did NVDA move
-/ask what about its sector exposure
-/portfolio
-/portfolio add NVDA 10 STOCK
-/portfolio remove NVDA
-/portfolio exposure
-/watchlist
-/watchlist add NVDA
-/watchlist remove NVDA
-/logout
-/exit
+help
+whoami
+quote NVDA
+overview NVDA
+compare NVDA MSFT
+sector QQQ
+geography QQQ
+overlap QQQ SPY
+news NVDA
+statements NVDA
+history NVDA
+sentiment NVDA
+why NVDA
+why did microsoft fall
+ask what about its sector exposure
+portfolio
+portfolio add NVDA 10 STOCK
+portfolio remove NVDA
+portfolio exposure
+watchlist
+watchlist add NVDA
+watchlist remove NVDA
+logout
+exit
 ```
+
+A leading slash still works. A sentence that is not one of these verbs is a follow-up.
 
 Portfolio asset types are `STOCK`, `ETF`, and `OTHER`.
 
 | Command | Result |
 | --- | --- |
+| `quote` | Last price, previous close, and percent change |
+| `overview` | Name, exchange, currency, and industry label |
+| `compare` | Difference between two percent changes |
+| `sector` | Provider sector weights for one ETF |
+| `geography` | Country weights for one ETF. See below |
+| `overlap` | Shared holdings of two ETFs |
+| `news` | Recent articles that mention the symbol |
+| `statements` | Annual income, balance sheet, and cash flow from Financial Modeling Prep |
+| `history` | Recent daily bars and the latest 14-day RSI from Twelve Data |
+| `sentiment` | Latest SentiSense score. The label is this desk's band for that score |
+| `why` | Quote, news, and a short Gemini note grounded in that evidence. `why MSFT` is the symbol form. A sentence such as `why did microsoft fall` is a follow-up, not a ticker |
+| `ask` | Follow-up. With `GEMINI_API_KEY`, Gemini may choose one allowed action and write a short reply from the tool result. A bad or disallowed model reply falls back to keywords. Without the key, keywords are used. A pronoun such as "its" uses the last symbol stored for this user. Home and tape refreshes do not replace that symbol. Portfolio exposure is calculated in Java and is not narrated by the model |
+| `portfolio exposure` | Sector weights of the signed-in portfolio by market value |
 | `/quote` | Last price, previous close, and percent change |
 | `/overview` | Name, exchange, currency, and industry label |
 | `/compare` | Difference between two percent changes |
@@ -197,11 +212,11 @@ LOGOUT
 
 ## Country and portfolio exposure
 
-`/geography QQQ` and `GEO QQQ` ask Finnhub for the fund's published country weights. The free plan refuses that report. The command then reads the ETF's holdings from Alpha Vantage and the headquarters country of each company from Finnhub, for at most the 25 largest reported holdings. Both keys are required for that fallback.
+`geography QQQ` and `GEO QQQ` ask Finnhub for the fund's published country weights. The free plan refuses that report. The command then reads the ETF's holdings from Alpha Vantage and the headquarters country of each company from Finnhub, for at most the 25 largest reported holdings. Both keys are required for that fallback.
 
 The weights are headquarters countries of those holdings. A holding with no profile is `Unknown`. Weight the provider did not assign is left unassigned and named in the note. A single stock such as `NVDA` has no holdings list, so it produces no country breakdown.
 
-`/portfolio exposure` and `EXPOSURE` value each signed-in position as quantity times the latest price. Currencies stay in separate books. A position with no price is excluded and named. ETF holdings are reported as look-through when the holding list is available.
+`portfolio exposure` and `EXPOSURE` value each signed-in position as quantity times the latest price. Currencies stay in separate books. A position with no price is excluded and named. ETF holdings are reported as look-through when the holding list is available.
 
 ## Limits
 
