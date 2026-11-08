@@ -216,13 +216,14 @@ public final class MarketExplanationService {
                 END OF EVIDENCE
                 ========================================
 
-                Explain the price move. Write four complete sentences and finish every one.
-                Do not stop after the price.
+                Explain the price move from the articles. Write four complete sentences and finish every one.
+                Do not stop after the price. Do not say the articles fail to explain the move when they give a reason.
 
                 First sentence: name the symbol, say if it is an ETF, and state the reported price and percent change.
-                Second sentence: give the reason the evidence can support. Only an article published at or before the last trade can be relevant to this move. If none qualify, say the evidence does not establish a cause.
-                Third sentence: for each article marked AFTER the last trade, say it cannot explain this move, then say what that headline is about.
-                Fourth sentence: state what still cannot be concluded. Do not give a buy or sell recommendation.
+                Second and third sentences: explain the move from what the articles say. Attribute each reason to the article, for example "one article attributes the move to".
+                If an article is marked AFTER the last trade, still give what it claims, and add that it was published after the trade so it is later context rather than proof it caused that print.
+                If no article states a reason, say the evidence does not establish a cause.
+                Last sentence: do not give a buy or sell recommendation.
                 Do not use numbered headings.
                 """);
 

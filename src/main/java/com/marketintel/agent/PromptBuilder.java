@@ -34,7 +34,7 @@ public final class PromptBuilder {
                 - PORTFOLIO_EXPOSURE does not need a symbol.
                 - SECURITY_COMPARISON and ETF_OVERLAP need two symbols.
                 - Use CONVERSATION when they greet you, ask what you can do, or ask to rephrase, shorten, or explain the previous answer. CONVERSATION does not fetch new data.
-                - A request for a quote, news, exposure, or a reason for a move is not CONVERSATION.
+                - A question about why a price rose or fell is MARKET_MOVEMENT, not FINANCIAL_NEWS. FINANCIAL_NEWS is only for a request to list headlines.
                 - Do not invent a ticker.
 
                 Previous symbol: %s
@@ -50,10 +50,13 @@ public final class PromptBuilder {
     public String answerPrompt(String question, AgentPlan plan, String evidence, String transcript) {
         String earlier = transcript == null || transcript.isBlank() ? "none" : transcript;
         return """
-                Answer in two or three spoken sentences, as you would at a research desk.
-                Use only the evidence and the earlier exchange. Do not invent prices, dates, or causes.
+                Answer in four to six spoken sentences.
+                Use only the evidence. Do not invent a price, a date, or a reason that is not written there.
+                When the evidence includes articles, explain the up or down move from what those articles say.
+                Attribute each reason to the reporting, for example "the articles attribute the move to".
+                Do not say the articles fail to explain the move when they discuss demand, guidance, valuation, or a prior drop.
+                A sentiment score is not itself a cause. The article text is.
                 Do not give a buy or sell recommendation.
-                You may connect the answer to what was just said. Do not repeat the evidence line by line.
                 If the evidence is an error, say what failed.
 
                 Earlier exchange:
