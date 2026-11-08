@@ -15,17 +15,20 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JTextField;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.WindowConstants;
+import javax.swing.text.DefaultEditorKit;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -55,7 +58,8 @@ public final class MarketIntelFrame extends JFrame {
     private final JLabel statusLabel = UiTheme.text("SIGN ON TO CONTINUE", true);
     private final JLabel clockLabel = UiTheme.fieldLabel("");
     private final JLabel feedLabel = UiTheme.text("", true);
-    private final JTextField commandField = UiTheme.textField(48);
+    private final JTextArea composer = composerField();
+    private final JButton sendButton = UiTheme.button("Send", true);
     private final AuthenticationPanel authenticationPanel;
     private final DashboardPanel dashboardPanel;
     private final MarketResearchPanel researchPanel;
@@ -103,7 +107,7 @@ public final class MarketIntelFrame extends JFrame {
         researchPanel = new MarketResearchPanel(workspace, gateway, statusLabel);
         portfolioPanel = new PortfolioPanel(workspace, gateway, statusLabel);
         watchlistPanel = new WatchlistPanel(workspace, statusLabel);
-        agentPanel = new AgentPanel(workspace, gateway, statusLabel);
+        agentPanel = new AgentPanel(workspace, gateway, statusLabel, composer, sendButton);
 
         sectionPanel.setBackground(Color.BLACK);
         sectionPanel.add(dashboardPanel, "Dashboard");
@@ -193,7 +197,7 @@ public final class MarketIntelFrame extends JFrame {
         addKey(keys, "Research", "2  DES");
         addKey(keys, "Portfolio", "3  PORT");
         addKey(keys, "Watchlist", "4  MON");
-        addKey(keys, "Explain", "5  WHY");
+        addKey(keys, "Explain", "5  CHAT");
 
         JButton logout = UiTheme.button("LOG OFF");
         logout.setForeground(UiTheme.DANGER);
@@ -231,23 +235,48 @@ public final class MarketIntelFrame extends JFrame {
                 UiTheme.padding(8)
         ));
 
-        JLabel prompt = UiTheme.fieldLabel(">");
-        UiTheme.uppercase(commandField);
-        commandField.addActionListener(event -> runCommand());
-        JButton go = UiTheme.button("<GO>", true);
-        go.addActionListener(event -> runCommand());
+        composer.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "send-message");
+        composer.getActionMap().put("send-message", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent event) {
+                runCommand();
+            }
+        });
+        composer.getInputMap().put(
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
+                DefaultEditorKit.insertBreakAction
+        );
+        sendButton.addActionListener(event -> runCommand());
 
-        JLabel hint = UiTheme.text("QUOTE NVDA     WHY NVDA     PORT     HELP", true);
+        JLabel hint = UiTheme.text("Message the desk. Enter sends. Shift+Enter adds a line.", true);
+
+        JScrollPane composerScroll = new JScrollPane(composer);
+        composerScroll.setBorder(javax.swing.BorderFactory.createLineBorder(UiTheme.ACCENT_DARK));
+        composerScroll.getViewport().setBackground(Color.BLACK);
+        composerScroll.setPreferredSize(new Dimension(480, 58));
 
         JPanel fieldRow = new JPanel(new BorderLayout(8, 0));
         fieldRow.setBackground(Color.BLACK);
-        fieldRow.add(prompt, BorderLayout.WEST);
-        fieldRow.add(commandField, BorderLayout.CENTER);
-        fieldRow.add(go, BorderLayout.EAST);
+        fieldRow.add(composerScroll, BorderLayout.CENTER);
+        fieldRow.add(sendButton, BorderLayout.EAST);
 
         bar.add(hint, BorderLayout.NORTH);
         bar.add(fieldRow, BorderLayout.CENTER);
         return bar;
+    }
+
+    private static JTextArea composerField() {
+        JTextArea area = new JTextArea(2, 48);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setFont(UiTheme.UI_FONT.deriveFont(15f));
+        area.setBackground(Color.BLACK);
+        area.setForeground(UiTheme.ACCENT);
+        area.setCaretColor(UiTheme.ACCENT);
+        area.setSelectionColor(UiTheme.SELECTED);
+        area.setSelectedTextColor(UiTheme.TEXT);
+        area.setMargin(new java.awt.Insets(8, 10, 8, 10));
+        return area;
     }
 
     private JPanel footer() {
@@ -290,7 +319,7 @@ public final class MarketIntelFrame extends JFrame {
         showSection("Dashboard");
         statusLabel.setText("SIGNED IN  " + workspace.currentUser().getUsername());
         rootCards.show(rootCardsPanel, "app");
-        commandField.requestFocusInWindow();
+        composer.requestFocusInWindow();
         marketTape.start();
         loadTape();
         if (tapeRefresh == null) {
@@ -401,75 +430,34 @@ public final class MarketIntelFrame extends JFrame {
             return;
         }
 
-        String typed = commandField.getText();
-        commandField.setText("");
+        String typed = composer.getText().trim();
+        composer.setText("");
+        if (typed.isEmpty()) {
+            return;
+        }
         DeskCommand command = DeskCommand.parse(typed);
 
         switch (command.action()) {
-            case EMPTY, INVALID ->
-                    statusLabel.setText(command.message());
+            case EMPTY -> {
+            }
             case HELP -> {
-                showSection("Dashboard");
-                dashboardPanel.showHelp(command.message());
-                statusLabel.setText("HELP");
+                showSection("Explain");
+                agentPanel.ask("what can you do");
             }
             case HOME -> showSection("Dashboard");
             case RESEARCH -> showSection("Research");
             case PORTFOLIO -> showSection("Portfolio");
             case EXPOSURE -> {
-                showSection("Portfolio");
-                portfolioPanel.loadExposure();
+                showSection("Explain");
+                agentPanel.ask(typed);
             }
             case WATCHLIST -> showSection("Watchlist");
             case EXPLAIN -> showSection("Explain");
             case LOGOUT -> logout();
-            case QUOTE -> {
-                showSection("Research");
-                researchPanel.loadQuote(command.argument(0));
-            }
-            case OVERVIEW -> {
-                showSection("Research");
-                researchPanel.loadOverview(command.argument(0));
-            }
-            case COMPARE -> {
-                showSection("Research");
-                researchPanel.loadComparison(command.argument(0), command.argument(1));
-            }
-            case SECTOR -> {
-                showSection("Research");
-                researchPanel.loadSector(command.argument(0));
-            }
-            case GEOGRAPHY -> {
-                showSection("Research");
-                researchPanel.loadGeography(command.argument(0));
-            }
-            case OVERLAP -> {
-                showSection("Research");
-                researchPanel.loadOverlap(command.argument(0), command.argument(1));
-            }
-            case NEWS -> {
-                showSection("Research");
-                researchPanel.loadNews(command.argument(0));
-            }
-            case STATEMENTS -> {
-                showSection("Research");
-                researchPanel.loadStatements(command.argument(0));
-            }
-            case HISTORY -> {
-                showSection("Research");
-                researchPanel.loadHistory(command.argument(0));
-            }
-            case SENTIMENT -> {
-                showSection("Research");
-                researchPanel.loadSentiment(command.argument(0));
-            }
-            case WHY -> {
+            case QUOTE, OVERVIEW, COMPARE, SECTOR, GEOGRAPHY, OVERLAP, NEWS,
+                    STATEMENTS, HISTORY, SENTIMENT, WHY, ASK, INVALID -> {
                 showSection("Explain");
-                agentPanel.explainSymbol(command.argument(0));
-            }
-            case ASK -> {
-                showSection("Explain");
-                agentPanel.ask(String.join(" ", command.arguments()));
+                agentPanel.ask(typed);
             }
             case PORTFOLIO_ADD -> {
                 showSection("Portfolio");
@@ -507,7 +495,7 @@ public final class MarketIntelFrame extends JFrame {
         watchlistPanel.clear();
         agentPanel.clear();
         dashboardPanel.refresh();
-        commandField.setText("");
+        composer.setText("");
         statusLabel.setText("SIGNED OUT");
         rootCards.show(rootCardsPanel, "auth");
     }

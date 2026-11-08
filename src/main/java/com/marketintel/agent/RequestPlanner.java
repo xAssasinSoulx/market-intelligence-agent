@@ -391,6 +391,7 @@ public final class RequestPlanner {
 
     private static final java.util.Map<String, String> NAMES = java.util.Map.ofEntries(
             java.util.Map.entry("NVIDIA", "NVDA"),
+            java.util.Map.entry("NASDAQ", "QQQ"),
             java.util.Map.entry("APPLE", "AAPL"),
             java.util.Map.entry("MICROSOFT", "MSFT"),
             java.util.Map.entry("GOOGLE", "GOOGL"),

@@ -77,11 +77,10 @@ class MarketExplanationServiceTest {
                 )
         );
 
-        assertTrue(
-                prompt.contains(
-                        "Do not invent prices"
-                )
-        );
+        assertTrue(prompt.contains("Do not invent prices"));
+        assertTrue(prompt.contains("complete sentences"));
+        assertFalse(prompt.contains("PRICE MOVEMENT"));
+        assertFalse(prompt.contains("250 words"));
     }
 
     @Test

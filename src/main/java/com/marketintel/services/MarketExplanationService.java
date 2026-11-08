@@ -33,7 +33,7 @@ public final class MarketExplanationService {
 
         String prompt = buildPrompt(context);
 
-        String explanation = llmProvider.generateBrief(prompt);
+        String explanation = llmProvider.generate(prompt);
 
         if (explanation == null
                 || explanation.isBlank()) {
@@ -216,33 +216,15 @@ public final class MarketExplanationService {
                 END OF EVIDENCE
                 ========================================
 
-                Produce a concise financial explanation using
-                the following structure:
-
-                1. PRICE MOVEMENT
-                   State the reported price and change.
-
-                2. RELEVANT NEWS
-                   Summarize available related headlines.
-                   Include article references such as [1].
-
-                3. POSSIBLE DRIVERS
-                   Discuss plausible market context, but
-                   never present speculation as confirmed cause.
-
-                4. LIMITATIONS
-                   State what cannot be concluded from the data,
-                   especially timing and causation limitations.
-
-                Keep the response factual and professional.
-                Prefer clarity over unnecessary financial jargon.
-                
-                FORMATTING REQUIREMENTS:
-                Use plain text only.
-                Do not use Markdown headings, asterisks, or tables.
-                Use short paragraphs with numbered section titles.
-                Limit your explanation to approximately 250 words.
-                Avoid repeating information.
+                Produce a short spoken explanation.
+                Write three or four complete sentences and then stop.
+                Start by naming the symbol, the reported price, and the percent change.
+                If this symbol is an ETF, say so. Do not call an ETF the exchange or the index.
+                Say whether any article was published in time to bear on the last trade.
+                An article marked AFTER the last trade cannot explain that trade.
+                Do not use numbered headings.
+                Do not stop in the middle of a word.
+                Do not give a buy or sell recommendation.
                 """);
 
         return prompt.toString();

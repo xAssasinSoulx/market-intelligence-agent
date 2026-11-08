@@ -27,7 +27,7 @@ public final class GeminiLLMClient implements LLMProvider {
     private static final Duration BRIEF_TIMEOUT = Duration.ofSeconds(25);
     private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(60);
 
-    private static final int EXPLANATION_TOKENS = 400;
+    private static final int EXPLANATION_TOKENS = 1024;
     private static final int BRIEF_TOKENS = 160;
 
     private final String apiKey;
