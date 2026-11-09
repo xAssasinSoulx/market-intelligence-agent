@@ -41,9 +41,8 @@ class GeminiLLMClientTest {
 
         assertEquals(prompt, submittedPrompt);
 
-        assertEquals(2048, root.path("generationConfig").path("maxOutputTokens").asInt());
+        assertEquals(768, root.path("generationConfig").path("maxOutputTokens").asInt());
         assertEquals("MINIMAL", root.path("generationConfig").path("thinkingConfig").path("thinkingLevel").asText());
-
         assertEquals(
                 "user",
                 root.path("contents")
@@ -51,6 +50,14 @@ class GeminiLLMClientTest {
                         .path("role")
                         .asText()
         );
+    }
+
+    @Test
+    void usesFlashLiteWhenTheConfiguredModelIsSlow() {
+        assertEquals("gemini-3.5-flash-lite", GeminiLLMClient.resolveModel(null));
+        assertEquals("gemini-3.5-flash-lite", GeminiLLMClient.resolveModel("gemini-3.8-flash"));
+        assertEquals("gemini-3.5-flash-lite", GeminiLLMClient.resolveModel("gemini-2.5-flash"));
+        assertEquals("gemini-3.5-flash-lite", GeminiLLMClient.resolveModel("gemini-3.5-flash-lite"));
     }
 
     @Test

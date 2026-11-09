@@ -25,15 +25,26 @@ public final class GeminiLLMClient implements LLMProvider {
             "gemini-3.5-flash-lite";
 
     private static final Duration BRIEF_TIMEOUT = Duration.ofSeconds(25);
-    private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration EXPLANATION_TIMEOUT = Duration.ofSeconds(90);
 
-    private static final int EXPLANATION_TOKENS = 2048;
+    private static final int EXPLANATION_TOKENS = 768;
     private static final int BRIEF_TOKENS = 160;
 
     private final String apiKey;
     private final String model;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+
+    public static String resolveModel(String configured) {
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_MODEL;
+        }
+        String name = configured.trim();
+        if (name.toLowerCase(java.util.Locale.ROOT).contains("flash-lite")) {
+            return name;
+        }
+        return DEFAULT_MODEL;
+    }
 
     public GeminiLLMClient(String apiKey) {
         this(apiKey, DEFAULT_MODEL);
