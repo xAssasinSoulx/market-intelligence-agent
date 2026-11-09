@@ -1872,49 +1872,29 @@ public class TerminalUI
             ParsedCommand command) {
 
         if (command.getArguments().size() != 1) {
-
-            displayError(
-                    "Usage: why SYMBOL"
-            );
-
+            displayError("Usage: why SYMBOL");
             return;
         }
 
-        String symbol =
-                command.getArguments().getFirst();
+        String question = "why did " + command.getArguments().getFirst() + " move";
+        System.out.println();
+        System.out.println(TerminalTheme.bold("You"));
+        System.out.println(question);
+        System.out.println();
+        System.out.println(TerminalTheme.bold("Desk"));
 
-        ToolRequest request =
-                new ToolRequest(
-                        sessionManager.getCurrentUserId(),
-                        ActionType.MARKET_MOVEMENT,
-                        Map.of("symbol", symbol)
-                );
-
-        ToolResult result =
-                toolManager.execute(request);
-
-        if (!result.isSuccess()) {
-
-            displayError(
-                    result.getErrorMessage()
-            );
-
+        if (followUp == null) {
+            System.out.println(TerminalTheme.yellow(
+                    "Gemini is not configured. The quote and news evidence are still available with the news command."
+            ));
             return;
         }
 
-        if (!(result.getData()
-                instanceof MarketMovementContext context)) {
-
-            displayError(
-                    "Unexpected market movement response."
-            );
-
-            return;
-        }
-
-        displayMarketMovementContext(context);
-
-        displayGeneratedExplanation(context);
+        System.out.println(followUp.handle(
+                sessionManager.getCurrentUserId(),
+                question
+        ));
+        System.out.println();
     }
 
 

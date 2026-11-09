@@ -311,15 +311,19 @@ public final class ApplicationContext {
         if (geminiApiKey != null && !geminiApiKey.isBlank()) {
 
             String geminiModel = System.getenv("GEMINI_MODEL");
-
-            if (geminiModel == null || geminiModel.isBlank()) {
-                llmProvider = new GeminiLLMClient(geminiApiKey);
-            } else {
-                llmProvider = new GeminiLLMClient(
-                        geminiApiKey,
-                        geminiModel.trim()
+            String resolved = GeminiLLMClient.resolveModel(geminiModel);
+            if (geminiModel != null
+                    && !geminiModel.isBlank()
+                    && !resolved.equals(geminiModel.trim())) {
+                System.err.println(
+                        "Warning: GEMINI_MODEL="
+                                + geminiModel.trim()
+                                + " is slow or unavailable for a new key. Using "
+                                + resolved
+                                + "."
                 );
             }
+            llmProvider = new GeminiLLMClient(geminiApiKey, resolved);
 
             marketExplanationService =
                     new MarketExplanationService(llmProvider);
