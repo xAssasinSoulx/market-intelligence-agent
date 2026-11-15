@@ -185,7 +185,7 @@ Stage 2 instructions.
 
 The agent rewrote the class, use-case, and sequence diagrams so that
 Gemini is only on movement explanation and follow-up, and wrote
-`docs/stage2-report.pdf`.
+`docs/stage2/stage2-report.pdf`.
 
 ### Human Contribution
 

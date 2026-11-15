@@ -241,9 +241,9 @@ src/main/java/com/marketintel/
   tools/           research tools
   gui/             Swing desk
   ui/              terminal
-docs/uml/          Stage 2 PlantUML sources
+docs/stage2/uml/     Stage 2 PlantUML sources and rendered figures
 docs/Stage1-pdfs/  rendered Stage 1 diagrams, kept for comparison
-docs/stage2-report.pdf
+docs/stage2/stage2-report.pdf
 ```
 
-The Stage 2 implementation report is `docs/stage2-report.pdf`. Diagram sources are in `docs/uml/`. Rendered Stage 2 figures are in `docs/uml/rendered/`.
+The Stage 2 implementation report is `docs/stage2/stage2-report.pdf`. Diagram sources are in `docs/stage2/uml/`. Rendered Stage 2 figures are in `docs/stage2/uml/rendered/`.
