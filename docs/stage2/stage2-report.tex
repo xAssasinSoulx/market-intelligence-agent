@@ -69,7 +69,7 @@ What works today, when the matching key is set:
 What I am not going to dress up:
 
 \begin{itemize}
-\item The demonstration videos are not public yet. Section~\ref{sec:demos} is the shot list.
+\item The demonstration is one public recording. The timestamps are in Section~\ref{sec:demos}.
 \item On the free Finnhub plan, country weights are headquarters of the holdings I could look up. They are not the fund's factsheet and they are not revenue. Anything unknown stays unknown.
 \item Finnhub's free quotes are US listings. \texttt{XEQT.TO} stays unpriced, and the screen says so.
 \item Alpha Vantage company overview is a paid endpoint. I use Alpha Vantage for ETF holdings.
@@ -90,7 +90,7 @@ I open the create-account screen, which asks me to type the password twice. \tex
 \field{Classes}{\texttt{AuthenticationPanel} collects the form. \texttt{SessionWorkspace.register} is what the screen calls. \texttt{AuthService} owns the rules.}
 \field{Methods}{\texttt{AuthService.register}, \texttt{PasswordHasher.hash}, \texttt{UserRepository.save}.}
 \field{Patterns}{Strategy for the hasher, Repository for the user row.}
-\field{Video}{Not public. Clip in Section~\ref{sec:demos}.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=53}{00:53}.}
 
 \subsection{UC-02 Log in}
 \field{Stage 1}{UC-02. Implemented.}
@@ -98,7 +98,7 @@ Sign-on does not ask me to confirm the password. \texttt{AuthService.authenticat
 \field{Classes}{\texttt{AuthenticationPanel} or \texttt{TerminalUI}, \texttt{AuthService}, \texttt{SessionManager}.}
 \field{Methods}{\texttt{authenticate}, \texttt{PasswordHasher.verify}, \texttt{startSession}.}
 \field{Patterns}{Strategy, Repository.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=133}{02:13}.}
 
 \subsection{UC-03 Log out}
 \field{Stage 1}{UC-03. Implemented.}
@@ -106,7 +106,7 @@ Logout clears the in-memory session. The next command asks me to sign in again. 
 \field{Classes}{\texttt{SessionWorkspace.logout}, \texttt{SessionManager.endSession}.}
 \field{Methods}{\texttt{endSession}.}
 \field{Patterns}{Facade, through \texttt{SessionWorkspace}.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1815}{30:15}.}
 
 \subsection{UC-04 Get a market quote}
 \field{Stage 1}{UC-04. Modified. I took the model off this path.}
@@ -115,7 +115,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Methods}{\texttt{ResearchGateway.execute}, \texttt{MarketDataTool.execute}, \texttt{ProviderRouter.getQuote}.}
 \field{Patterns}{Command, Facade, Composite, Adapter.}
 \field{Kind}{Deterministic.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=221}{03:41}.}
 
 \subsection{UC-05 Get a security overview}
 \field{Stage 1}{UC-05. Modified the same way as the quote.}
@@ -123,7 +123,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Classes}{Same gateway and \texttt{MarketDataTool}.}
 \field{Methods}{\texttt{ProviderRouter.getSecurityOverview}.}
 \field{Patterns}{Command, Facade, Composite, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=293}{04:53}.}
 
 \subsection{UC-06 Analyze ETF exposure}
 \field{Stage 1}{UC-06. Modified. Country weights are headquarters when the free plan refuses the factsheet. I do not ask Gemini to narrate the weights.}
@@ -132,7 +132,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Methods}{\texttt{ETFExposureTool.execute}, \texttt{calculateSectorExposure}, \texttt{HoldingCountryResolver.apply}, \texttt{calculateGeographicExposure}.}
 \field{Patterns}{Command, Adapter, Composite.}
 \field{Kind}{Deterministic.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=364}{06:04}.}
 
 \subsection{UC-07 Compare securities}
 \field{Stage 1}{UC-07. Modified. No model on the direct command.}
@@ -140,7 +140,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Classes}{\texttt{ComparisonTool}, \texttt{SecurityComparisonCalculator}, \texttt{ProviderRouter}.}
 \field{Methods}{\texttt{ComparisonTool.execute}.}
 \field{Patterns}{Command, Composite, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=539}{08:59}.}
 
 \subsection{UC-08 Analyze ETF overlap}
 \field{Stage 1}{UC-08. Modified. No model on the direct command.}
@@ -148,7 +148,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Classes}{\texttt{ComparisonTool}, \texttt{ExposureCalculator}, \texttt{AlphaVantageAdapter} through the router.}
 \field{Methods}{\texttt{calculateOverlap}.}
 \field{Patterns}{Command, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=606}{10:06}.}
 
 \subsection{UC-09 Retrieve financial news}
 \field{Stage 1}{UC-09. Modified.}
@@ -156,7 +156,7 @@ I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the 
 \field{Classes}{\texttt{NewsTool}, \texttt{MarketauxAdapter}, \texttt{FinnhubAdapter}.}
 \field{Methods}{\texttt{NewsTool.execute}, \texttt{ProviderRouter.getNews}.}
 \field{Patterns}{Command, Composite, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=698}{11:38}.}
 
 \subsection{UC-10 Explain a recent move}
 \field{Stage 1}{UC-10. Modified. The note is written from the articles, and it has to finish.}
@@ -167,7 +167,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Methods}{\texttt{MarketMovementTool.execute}, \texttt{explain}, \texttt{LLMProvider.generate}.}
 \field{Patterns}{Command, Adapter, Strategy (\texttt{LLMProvider}).}
 \field{Kind}{Hybrid. The evidence is deterministic. The note is the model.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=760}{12:40}.}
 
 \subsection{UC-11 Add a portfolio position}
 \field{Stage 1}{UC-11. Modified. This is no longer a tool the model can call.}
@@ -175,7 +175,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Classes}{\texttt{PortfolioPanel}, \texttt{DeskCommand}, \texttt{PortfolioService}.}
 \field{Methods}{\texttt{addPosition}, \texttt{PortfolioRepository.saveForUser}.}
 \field{Patterns}{Command, Repository, Facade.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1133}{18:53}.}
 
 \subsection{UC-12 Remove a portfolio position}
 \field{Stage 1}{UC-12. Modified for the same reason.}
@@ -183,7 +183,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Classes}{\texttt{PortfolioService}, \texttt{SQLitePortfolioRepository}.}
 \field{Methods}{\texttt{removePosition}.}
 \field{Patterns}{Command, Repository.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1564}{26:04}.}
 
 \subsection{UC-13 View the portfolio}
 \field{Stage 1}{UC-13. Implemented.}
@@ -191,7 +191,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Classes}{\texttt{PortfolioPanel}, \texttt{TerminalUI}, \texttt{SessionWorkspace}.}
 \field{Methods}{\texttt{PortfolioService.getPortfolio}, \texttt{loadForUser}.}
 \field{Patterns}{Repository, Facade.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1243}{20:43}.}
 
 \subsection{UC-14 Manage the watchlist}
 \field{Stage 1}{UC-14. Modified. There is no \texttt{WatchlistTool} on the agent.}
@@ -199,7 +199,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Classes}{\texttt{WatchlistPanel}, \texttt{WatchlistService}.}
 \field{Methods}{\texttt{addSymbol}, \texttt{removeSymbol}.}
 \field{Patterns}{Repository, Command.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1473}{24:33}.}
 
 \subsection{UC-15 Analyze portfolio exposure}
 \field{Stage 1}{UC-15. Modified. Java does the arithmetic, and Gemini does not narrate it.}
@@ -208,7 +208,7 @@ The note names the symbol, the price, and the percent change. It then explains t
 \field{Methods}{\texttt{PortfolioAnalysisTool.execute}, \texttt{calculate}.}
 \field{Patterns}{Command, Composite, Adapter.}
 \field{Kind}{Deterministic.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1364}{22:44}.}
 
 \subsection{UC-16 Ask a follow-up}
 \field{Stage 1}{UC-16. Modified. The model may only name an allowed action, and a rephrase does not run a tool.}
@@ -221,7 +221,7 @@ A sentence that says to ignore previous instructions, or that looks like SQL, is
 \field{Methods}{\texttt{AgentController.handle}, \texttt{createPlan}, \texttt{remember}, \texttt{lastSymbol}.}
 \field{Patterns}{Command, Strategy, Facade, Repository.}
 \field{Kind}{Hybrid when Gemini is set. Keyword-only when it is not.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=952}{15:52}.}
 
 \subsection{UC-17 Read financial statements}
 \field{Stage 1}{New.}
@@ -229,7 +229,7 @@ A sentence that says to ignore previous instructions, or that looks like SQL, is
 \field{Classes}{\texttt{MarketInsightTool}, \texttt{FinancialModelingPrepAdapter}, \texttt{ProviderRouter}.}
 \field{Methods}{\texttt{getFinancialStatements}.}
 \field{Patterns}{Command, Adapter, Composite.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1631}{27:11}.}
 
 \subsection{UC-18 Read price history}
 \field{Stage 1}{New.}
@@ -237,7 +237,7 @@ A sentence that says to ignore previous instructions, or that looks like SQL, is
 \field{Classes}{\texttt{MarketInsightTool}, \texttt{TwelveDataAdapter}.}
 \field{Methods}{\texttt{getPriceHistory}.}
 \field{Patterns}{Command, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1692}{28:12}.}
 
 \subsection{UC-19 Read sentiment}
 \field{Stage 1}{New.}
@@ -245,7 +245,7 @@ A sentence that says to ignore previous instructions, or that looks like SQL, is
 \field{Classes}{\texttt{MarketInsightTool}, \texttt{SentiSenseAdapter}, \texttt{SentimentBands}.}
 \field{Methods}{\texttt{getSentiment}.}
 \field{Patterns}{Command, Adapter.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1759}{29:19}.}
 
 \subsection{UC-20 View the home desk}
 \field{Stage 1}{New. Window only.}
@@ -253,7 +253,7 @@ After sign-on, F1 shows market value, the day move, one row per position, and a 
 \field{Classes}{\texttt{DashboardPanel}, \texttt{PortfolioBook}, \texttt{TapeLine}, \texttt{BackgroundWork}.}
 \field{Methods}{The panel's book load, \texttt{TapeLine.pieces}.}
 \field{Patterns}{Facade. The panel calls the gateway rather than a vendor.}
-\field{Video}{Not public.}
+\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1298}{21:38}.}
 
 \section{Implemented design patterns}
 
@@ -282,7 +282,7 @@ Which adapters exist depends on which keys I exported. \texttt{ApplicationContex
 \texttt{PasswordHasher} with \texttt{BCryptPasswordHasher}, and \texttt{LLMProvider} with \texttt{GeminiLLMClient}, are Strategy. The keyword plan is what I use when the model is missing or its answer is rejected. The four repository interfaces each have one SQLite class, so the services do not write SQL.
 
 \subsection{Diagrams}
-These match the code as of 8~November. The old Stage~1 renders are still in \texttt{docs/Stage1-pdfs/}. They show an LLM call on a quote, and classes I never built, including \texttt{UserPreferences} and \texttt{ConversationSession}.
+These match the code as of 8~November. The old Stage~1 renders are still in \texttt{docs/Stage1-pdfs/}. They show an LLM call on a quote, and classes I never built, including \texttt{UserPreferences} and \texttt{ConversationSession}. The Stage~2 sources are in \texttt{docs/stage2/uml/}.
 
 \begin{figure}[ht]
 \centering
@@ -320,7 +320,7 @@ These match the code as of 8~November. The old Stage~1 renders are still in \tex
 \caption{UC-10. Quote and news first. Gemini explains the move from the articles.}
 \end{figure}
 
-The other sources, for ETF analysis, country exposure, portfolio exposure, and the insight commands, are in \texttt{docs/uml/}. Rendered copies are in \texttt{docs/uml/rendered/}.
+The other sources, for ETF analysis, country exposure, portfolio exposure, and the insight commands, are in \texttt{docs/stage2/uml/}. Rendered copies are in \texttt{docs/stage2/uml/rendered/}.
 
 \section{Changes and rationale}
 
@@ -403,7 +403,7 @@ Free tier. No invoice. \\
 \end{tabularx}
 \end{center}
 
-The longer notes are in \texttt{docs/ai-collaboration-log.md}. The ones that actually changed the desk:
+The longer notes are in \texttt{docs/stage2/ai-collaboration-log.md}. The ones that actually changed the desk:
 
 \begin{itemize}
 \item Early on, ChatGPT proposed the tool and provider split. I added accounts, portfolios, SQLite, and \texttt{BigDecimal}. That split is still the package layout.
@@ -464,85 +464,65 @@ The move note stopped mid-word after the price, because Flash-Lite was spending 
 A news answer said the articles did not explain the day's move, even when they discussed the 40\% correction, demand, and guidance. A question about a price rising or falling stays a movement explanation, and the note has to use what the articles say.
 
 \subsection{Still open}
-The videos are not public yet. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say.
+The recording is public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say.
 
 \section{Demonstration index}
 \label{sec:demos}
 
-I do not have public links in this version. Slides are not a demonstration. Before 10~November I need a public link and a timestamp on every row. Two recordings are enough if each row is a labeled segment. I say the use-case id at the start of the segment. One recording is the window. One is the terminal. I do not show an API key, a \texttt{.env} file, or a shell line that prints a key.
-
-The window box is the message field at the bottom. Enter sends. The terminal is \texttt{./mvnw compile exec:java -Dexec.args="--cli"}. No slash.
+One recording shows the window and the terminal together. I say the use-case id at the start of each segment. The link is \url{https://www.youtube.com/watch?v=J7uWTaclC8k}.
 
 \begin{center}
 \small
-\begin{tabularx}{\textwidth}{@{}p{1.6cm}Xp{2.4cm}@{}}
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}Xp{2.2cm}@{}}
 \toprule
-Feature & What I need on screen & Link \\
+Feature & What is on screen & Timestamp \\
 \midrule
-UC-01 Register &
-Create-account screen. Username, password, and the same password again. Then the return to sign-on. I am not signed in yet. &
-Not public \\
-UC-02 Log in &
-Sign-on has no confirmation field. A wrong password, then a real sign-on, then the home desk. &
-Not public \\
-UC-03 Log out &
-Window logout back to sign-on. Terminal \texttt{logout} back to the menu. &
-Not public \\
-UC-04 Quote &
-\texttt{quote NVDA} in the window and in the terminal. Price, previous close, percent change. &
-Not public \\
-UC-05 Overview &
-\texttt{overview NVDA}. Name, exchange, currency, industry. I say the free profile has no description. &
-Not public \\
-UC-06 Exposure &
-\texttt{sector QQQ}, then \texttt{geo QQQ}, then \texttt{geo NVDA}. Sector weights, headquarters countries with the factsheet note, and no country list for the stock. &
-Not public \\
-UC-07 Compare &
-\texttt{compare NVDA MSFT}. Both changes and the difference. &
-Not public \\
-UC-08 Overlap &
-\texttt{overlap QQQ SPY}. At least one shared holding. &
-Not public \\
-UC-09 News &
-\texttt{news NVDA}. Headlines. I say a match is not, by itself, the cause. &
-Not public \\
-UC-10 Move &
-\texttt{why did microsoft fall}, then \texttt{why is intel up}. The note names the price and uses the articles. A later headline is called later context. The not-advice line is visible. &
-Not public \\
-UC-11 Add &
-\texttt{port add NVDA 10 STOCK}. The stored row. &
-Not public \\
-UC-12 Remove &
-\texttt{port remove NVDA}, then a symbol I do not hold. The missing-symbol message. &
-Not public \\
-UC-13 View &
-Terminal \texttt{portfolio} and the Portfolio screen. Same rows. &
-Not public \\
-UC-14 Watchlist &
-\texttt{watch add NVDA}, then \texttt{watch remove NVDA}. The list after each. &
-Not public \\
-UC-15 Exposure &
-\texttt{exposure}. Value is price times quantity. An unpriced name stays out of the total. &
-Not public \\
-UC-16 Follow-up &
-After UC-10: \texttt{what about its sector exposure}, then \texttt{say that more simply}, then a sentence that says to ignore previous instructions. The old symbol is reused. The rephrase does not look up a new one. The injection does not run a tool. &
-Not public \\
-UC-17 Statements &
-\texttt{statements NVDA}, or the unavailable message if the key is unset. &
-Not public \\
-UC-18 History &
-\texttt{history NVDA}. Bars and RSI. &
-Not public \\
-UC-19 Sentiment &
-\texttt{sentiment NVDA}. Score and band. I say the band is not advice. &
-Not public \\
-UC-20 Home &
-F1 after sign-on. Value, day move, position rows, and the tape. Window only. &
-Not public \\
+Intro & What the desk is, window and terminal side by side. &
+\href{https://youtu.be/J7uWTaclC8k?t=0}{00:00} \\
+UC-01 Register & Create-account screen, password confirmed, back to sign-on. &
+\href{https://youtu.be/J7uWTaclC8k?t=53}{00:53} \\
+UC-02 Log in & Wrong password, then a real sign-on. &
+\href{https://youtu.be/J7uWTaclC8k?t=133}{02:13} \\
+UC-04 Quote & \texttt{quote NVDA} on both. Price, previous close, percent change. &
+\href{https://youtu.be/J7uWTaclC8k?t=221}{03:41} \\
+UC-05 Overview & \texttt{overview NVDA}. Name, exchange, currency, industry. &
+\href{https://youtu.be/J7uWTaclC8k?t=293}{04:53} \\
+UC-06 Exposure & \texttt{sector QQQ}, \texttt{geo QQQ}, \texttt{geo NVDA}. &
+\href{https://youtu.be/J7uWTaclC8k?t=364}{06:04} \\
+UC-07 Compare & \texttt{compare NVDA MSFT}. &
+\href{https://youtu.be/J7uWTaclC8k?t=539}{08:59} \\
+UC-08 Overlap & \texttt{overlap QQQ SPY}. &
+\href{https://youtu.be/J7uWTaclC8k?t=606}{10:06} \\
+UC-09 News & \texttt{news NVDA}. A match is not, by itself, the cause. &
+\href{https://youtu.be/J7uWTaclC8k?t=698}{11:38} \\
+UC-10 Move & \texttt{why did microsoft fall} and \texttt{why is intel up}. &
+\href{https://youtu.be/J7uWTaclC8k?t=760}{12:40} \\
+UC-16 Follow-up & Sector of the last symbol, a simpler wording, then a rejected instruction. &
+\href{https://youtu.be/J7uWTaclC8k?t=952}{15:52} \\
+UC-11 Add & \texttt{port add NVDA 10 STOCK}. &
+\href{https://youtu.be/J7uWTaclC8k?t=1133}{18:53} \\
+UC-13 View & The stored portfolio on both screens. &
+\href{https://youtu.be/J7uWTaclC8k?t=1243}{20:43} \\
+UC-20 Home & Value, day move, the position row, and the tape. &
+\href{https://youtu.be/J7uWTaclC8k?t=1298}{21:38} \\
+UC-15 Exposure & \texttt{exposure}. Price times quantity. &
+\href{https://youtu.be/J7uWTaclC8k?t=1364}{22:44} \\
+UC-14 Watchlist & Add AAPL, then remove it. &
+\href{https://youtu.be/J7uWTaclC8k?t=1473}{24:33} \\
+UC-12 Remove & Remove NVDA, then a symbol that is not held. &
+\href{https://youtu.be/J7uWTaclC8k?t=1564}{26:04} \\
+UC-17 Statements & \texttt{statements NVDA}. &
+\href{https://youtu.be/J7uWTaclC8k?t=1631}{27:11} \\
+UC-18 History & \texttt{history NVDA}. Bars and RSI. &
+\href{https://youtu.be/J7uWTaclC8k?t=1692}{28:12} \\
+UC-19 Sentiment & \texttt{sentiment NVDA}. Score and band. &
+\href{https://youtu.be/J7uWTaclC8k?t=1759}{29:19} \\
+UC-03 Log out & Window back to sign-on. Terminal back to the menu. &
+\href{https://youtu.be/J7uWTaclC8k?t=1815}{30:15} \\
+Close & Both interfaces, same features. &
+\href{https://youtu.be/J7uWTaclC8k?t=1876}{31:16} \\
 \bottomrule
 \end{tabularx}
 \end{center}
-
-The terminal segment has to include \texttt{quote}, \texttt{why did microsoft fall}, and \texttt{exposure}. The window segment has to include sign-on, home, the message box, and at least one research sentence. That is both interfaces.
 
 \end{document}
