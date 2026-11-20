@@ -9,6 +9,7 @@
 \usepackage{tabularx}
 \usepackage{enumitem}
 \usepackage{xurl}
+\usepackage{fancyvrb}
 \usepackage{hyperref}
 
 \hypersetup{hidelinks}
@@ -21,6 +22,23 @@
 \urlstyle{same}
 
 \newcommand{\field}[2]{\textbf{#1.} #2\par}
+\newcommand{\todofig}[2]{%
+  \begin{figure}[ht]
+  \centering
+  \fbox{\begin{minipage}{0.92\textwidth}
+  \centering
+  \vspace{1.15em}
+  {\large\bfseries TODO --- screenshot still required}\\[0.8em]
+  #1\\[0.55em]
+  {\small #2}
+  \vspace{1.15em}
+  \end{minipage}}
+  \caption{#1}
+  \end{figure}
+}
+\newcommand{\batchlines}[2]{%
+  \VerbatimInput[fontsize=\footnotesize,firstline=#1,lastline=#2]{cli-batch-stdout.txt}
+}
 
 \begin{document}
 
@@ -37,6 +55,7 @@
 \textbf{Student Number:} & 218188771 \\
 \textbf{Instructor:} & Song Wang \\
 \textbf{Date:} & November 8, 2026 \\
+\textbf{Revised:} & November 20, 2026 \\
 \end{tabular}
 \vfill
 \end{titlepage}
@@ -64,6 +83,7 @@ What works today, when the matching key is set:
 \item A move note that uses the articles, then the quote and the sources underneath.
 \item Statements, daily bars with RSI, and one sentiment score.
 \item A home screen with portfolio value, the day move, one row per position, and a sliding tape.
+\item A non-interactive command line. \texttt{java -jar target/Agent.jar -LLMAPI -input task.txt} runs \texttt{task.txt} and exits. Section~\ref{sec:batch-cli}.
 \end{itemize}
 
 What I am not going to dress up:
@@ -79,181 +99,390 @@ What I am not going to dress up:
 \end{itemize}
 
 \section{Feature to implementation mapping}
+\label{sec:features}
 
-Stage~1 had UC-01 through UC-16. I kept all of them. UC-17, UC-18, and UC-19 are the statement, history, and sentiment commands I added once those free APIs were wired in. UC-20 is the home screen. Login, logout, and registration work, but I am not counting them toward the ten meaningful features.
+Stage~1 had UC-01 through UC-16. I kept all of them. UC-17, UC-18, and UC-19 are the statement, history, and sentiment commands I added once those free APIs were wired in. UC-20 is the home screen. The batch command line in Section~\ref{sec:batch-cli} is the Stage~2 update that Stage~3 will call.
 
-For each one I say how you get from the sentence to the result, whether Gemini is involved, and where the clip will go. The video cell is empty until the recordings are public.
+Each feature below states the original requirement, how this desk implements it, and where the running code differs. Where I could run the command with no provider key, the listing is standard output from this command, captured on 20~November 2026:
+
+\begin{quote}
+\texttt{java -jar target/Agent.jar -LLMAPI -input task.txt}
+\end{quote}
+
+The process used a fresh SQLite file and no API keys. The terminal draws boxes and a bullet between quantity and type. This PDF replaces those characters so pdfLaTeX can embed the same text. The unmodified capture is \texttt{docs/stage2/cli-batch-transcript.txt}. Standard error from that run is included with the batch-CLI feature.
+
+A boxed TODO is a shot I still have to take. It names the screen or the command. The Swing window and every command that needs a live key are in that list. Replacing the box is the remaining work. The checklist is Section~\ref{sec:shots}.
 
 \subsection{UC-01 Register account}
-\field{Stage 1}{UC-01. Implemented.}
-I open the create-account screen, which asks me to type the password twice. \texttt{AuthService.register} checks the length, \texttt{BCryptPasswordHasher} hashes the password, and \texttt{SQLiteUserRepository.save} stores the row. The window then sends me back to sign-on. I am not logged in yet. A taken username or a short password is rejected, and the password never lands in the status line. This does not call Gemini.
-\field{Classes}{\texttt{AuthenticationPanel} collects the form. \texttt{SessionWorkspace.register} is what the screen calls. \texttt{AuthService} owns the rules.}
-\field{Methods}{\texttt{AuthService.register}, \texttt{PasswordHasher.hash}, \texttt{UserRepository.save}.}
-\field{Patterns}{Strategy for the hasher, Repository for the user row.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=53}{00:53}.}
+\label{uc01}
+
+\paragraph{Original requirement.}
+Stage~1 UC-01. The user chooses registration. The system asks for a username and a password, validates both, rejects a name that is already registered or input that fails the rules, hashes the password, stores the hash with the new user, and confirms success. If saving fails, the account is not created. Afterward a new account exists.
+
+\paragraph{Implementation.}
+The create-account screen is separate from sign-on. \texttt{AuthenticationPanel} collects the form and asks for the password twice. \texttt{SessionWorkspace.register} calls \texttt{AuthService.register}. The username must be 3 to 30 characters from \texttt{A-Z}, \texttt{a-z}, digits, and \texttt{.\_-}. The password must be at least 8 characters. \texttt{BCryptPasswordHasher} hashes it. \texttt{SQLiteUserRepository.save} stores the row. The window then returns to sign-on. The new user is not logged in yet. A taken name or a short password is rejected, and the password is not written to the status line. This path does not call Gemini.
+
+Batch mode uses the same \texttt{AuthService}. \texttt{BatchSession} creates the local demo account when it is missing, and \texttt{--register} creates the account named by \texttt{--user}. The confirmation line is \texttt{Created local account \ldots}.
+
+\paragraph{Deviation.}
+Stage~1 described one registration flow and did not describe a second interface. The window still matches that flow: confirm, then go back to sign-on, still signed out. The batch path creates the account and signs in immediately, because a task file has to run without a second prompt. The password is the local demo password or the one passed to \texttt{--register}. It is not printed. A name that already exists is still rejected, and a wrong password on a later sign-in does not reveal which field failed.
+
+\paragraph{Evidence.}
+\batchlines{1}{1}
+
+\todofig{Swing create-account screen}{Launch \texttt{java -jar target/Agent.jar --gui}. Open the create-account screen, enter a new username, type the password twice, and show the return to sign-on. The password must not appear in a status line.}
 
 \subsection{UC-02 Log in}
-\field{Stage 1}{UC-02. Implemented.}
-Sign-on does not ask me to confirm the password. \texttt{AuthService.authenticate} loads the user and checks the hash. \texttt{SessionManager.startSession} starts the session. A wrong password stays on that screen and does not say which field failed. Deterministic.
-\field{Classes}{\texttt{AuthenticationPanel} or \texttt{TerminalUI}, \texttt{AuthService}, \texttt{SessionManager}.}
-\field{Methods}{\texttt{authenticate}, \texttt{PasswordHasher.verify}, \texttt{startSession}.}
-\field{Patterns}{Strategy, Repository.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=133}{02:13}.}
+\label{uc02}
+
+\paragraph{Original requirement.}
+Stage~1 UC-02. The user submits a username and a password. \texttt{AuthService} loads the user and checks the hash. \texttt{SessionManager} starts a session. The user's portfolio, watchlist, preferences, and memory become available, and the terminal shows the authenticated home screen. A failed sign-in does not say whether the name or the password was wrong.
+
+\paragraph{Implementation.}
+Sign-on does not ask the user to type the password twice. \texttt{AuthenticationPanel} and \texttt{TerminalUI.login} call \texttt{AuthService.authenticate} and \texttt{PasswordHasher.verify}, then \texttt{SessionManager.startSession}. A wrong password stays on that screen with \texttt{Invalid username or password.} Batch mode does not prompt. \texttt{BatchSession.signIn} opens the session, and the next line of output names the account. \texttt{whoami} prints the user id and the login time from \texttt{UserSession}.
+
+\paragraph{Deviation.}
+There is no \texttt{UserPreferences} class. Conversation rows are stored per user and are read on a follow-up, not dumped at login. The interactive menu is unchanged when the jar is started with no batch flag. Batch mode skips the menu. With no \texttt{--user} and no \texttt{MI\_USERNAME}, it signs in as the local demo account \texttt{guest} so \texttt{-input task.txt} runs without typing. \texttt{--user} and \texttt{--password}, or \texttt{MI\_USERNAME} and \texttt{MI\_PASSWORD}, select another account. \texttt{--guest} and \texttt{MI\_GUEST=1} force the demo account.
+
+\paragraph{Evidence.}
+\batchlines{2}{12}
+
+\todofig{Swing sign-on screen}{On \texttt{--gui}, submit a wrong password and show the rejection, then sign in with a real account and show the desk. The message must not say which of the two fields was wrong.}
 
 \subsection{UC-03 Log out}
-\field{Stage 1}{UC-03. Implemented.}
-Logout clears the in-memory session. The next command asks me to sign in again. The old conversation rows stay in SQLite under that user. Deterministic.
-\field{Classes}{\texttt{SessionWorkspace.logout}, \texttt{SessionManager.endSession}.}
-\field{Methods}{\texttt{endSession}.}
-\field{Patterns}{Facade, through \texttt{SessionWorkspace}.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1815}{30:15}.}
+\label{uc03}
+
+\paragraph{Original requirement.}
+Stage~1 UC-03. An authenticated user requests logout. Required user state is persisted, the session is invalidated, in-memory session state is cleared, and the application returns to the login screen. Afterward no session is active.
+
+\paragraph{Implementation.}
+\texttt{TerminalUI.logout} and \texttt{SessionWorkspace.logout} call \texttt{endSession} on \texttt{SessionManager}. The portfolio and watchlist rows stay in SQLite under that user. The next interactive command asks for sign-in again. In batch mode the logout line is printed and \texttt{runBatch} stops, so later lines in the file are not run.
+
+\paragraph{Deviation.}
+Portfolio and watchlist writes are persisted when the command runs, not again at logout. There is no separate session row to flush. The interactive terminal still returns to the auth menu, and the window still returns to sign-on. Batch mode exits instead of drawing that menu, because waiting for a key would block a non-interactive run.
+
+\paragraph{Evidence.}
+\batchlines{69}{73}
+
+\todofig{Swing window after logout}{From a signed-in \texttt{--gui} session, run \texttt{LOGOUT} and show the sign-on screen again.}
 
 \subsection{UC-04 Get a market quote}
-\field{Stage 1}{UC-04. Modified. I took the model off this path.}
-I type \texttt{quote NVDA}. \texttt{ResearchGateway} checks that I am still the signed-in user. \texttt{MarketDataTool} checks the symbol and asks \texttt{ProviderRouter} for a quote. Finnhub answers if that key is set. Twelve Data, then Alpha Vantage, are used only when an earlier adapter was not registered. A failed call does not hop to the next one. The screen shows price, previous close, and percent change, and NVDA is remembered so I can say ``it'' later. Gemini is not called.
-\field{Classes}{\texttt{DeskCommand} or \texttt{CommandParser} reads the verb. \texttt{MarketDataTool} does the lookup. \texttt{FinnhubAdapter} is the usual adaptee.}
-\field{Methods}{\texttt{ResearchGateway.execute}, \texttt{MarketDataTool.execute}, \texttt{ProviderRouter.getQuote}.}
-\field{Patterns}{Command, Facade, Composite, Adapter.}
-\field{Kind}{Deterministic.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=221}{03:41}.}
+\label{uc04}
+
+\paragraph{Original requirement.}
+Stage~1 UC-04. An authenticated user requests a quote by a command or by natural language. The symbol is validated, the market-data tool is selected, the provider is queried, a \texttt{MarketQuote} is built, and the price is displayed. An invalid symbol is rejected before the call. If the provider is unavailable, the failure is explicit.
+
+\paragraph{Implementation.}
+\texttt{quote NVDA}, or \texttt{QUOTE NVDA} in the window, is parsed by \texttt{CommandParser} or \texttt{DeskCommand}. \texttt{TerminalUI} builds a \texttt{ToolRequest} for \texttt{ActionType.MARKET\_QUOTE}. \texttt{MarketDataTool} checks the symbol and calls \texttt{ProviderRouter.getQuote}. Finnhub is registered first when \texttt{FINNHUB\_API\_KEY} is set. Twelve Data, then Alpha Vantage, are used only when an earlier adapter was never registered. A failed call does not hop to the next vendor. The screen shows price, previous close, and percent change. The symbol is remembered so a later ``it'' can use it. Gemini is not called. Batch mode runs this same handler and prints the result without clearing the screen.
+
+\paragraph{Deviation.}
+Stage~1 sent the research use cases through the model. A direct quote no longer does. The router is not a failover chain. On the free Finnhub plan a non-US symbol such as \texttt{XEQT.TO} stays unpriced and the screen says so. With no quote key, the tool is not registered and the command reports that, which is what the standard-error listing in Section~\ref{sec:batch-cli} shows. That line is not a successful quote.
+
+\paragraph{Evidence.}
+\todofig{quote NVDA with a live price}{Run \texttt{quote NVDA} in the terminal or type \texttt{QUOTE NVDA} in the Swing desk. The shot must show the symbol, the price, the previous close, and the percent change. Export a quote key first.}
 
 \subsection{UC-05 Get a security overview}
-\field{Stage 1}{UC-05. Modified the same way as the quote.}
-\texttt{overview NVDA} follows the quote path, but it calls \texttt{getSecurityOverview}. Finnhub's free profile gives me the name, exchange, currency, and an industry label. It does not give a company description, and the screen says that. An ETF often has no profile at all. Deterministic.
-\field{Classes}{Same gateway and \texttt{MarketDataTool}.}
-\field{Methods}{\texttt{ProviderRouter.getSecurityOverview}.}
-\field{Patterns}{Command, Facade, Composite, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=293}{04:53}.}
+\label{uc05}
+
+\paragraph{Original requirement.}
+Stage~1 UC-05. The user asks for an overview. The symbol is validated, \texttt{MarketDataTool} requests security metadata, the provider result is mapped to a \texttt{SecurityOverview}, and the response is displayed.
+
+\paragraph{Implementation.}
+\texttt{overview NVDA} follows the quote path and calls \texttt{getSecurityOverview} on \texttt{ProviderRouter}. Finnhub's free profile supplies the name, exchange, currency, and an industry label. The screen says when the profile has no company description. An ETF often has no profile. The same command works in batch mode. Gemini is not called.
+
+\paragraph{Deviation.}
+Same as the quote: the model is not on this command. Alpha Vantage company overview is a premium endpoint, so it is not the source I rely on. If neither Finnhub nor Alpha Vantage is configured, the command says the overview is unavailable.
+
+\paragraph{Evidence.}
+\todofig{overview NVDA}{Run \texttt{overview NVDA} and show the name, exchange, currency, and industry label. Include the line that says the free profile has no company description, if that is what the provider returned.}
 
 \subsection{UC-06 Analyze ETF exposure}
-\field{Stage 1}{UC-06. Modified. Country weights are headquarters when the free plan refuses the factsheet. I do not ask Gemini to narrate the weights.}
-\texttt{sector QQQ} loads the ETF profile and \texttt{ExposureCalculator} reports the provider's sector weights. \texttt{geo QQQ} tries Finnhub's published country report. On HTTP 403, \texttt{HoldingCountryResolver} looks up the headquarters of at most 25 holdings. A holding with no profile stays Unknown. Weight the provider left blank stays unassigned. \texttt{geo NVDA} has nothing to break down, because a stock has no holdings list. Provider errors go through \texttt{ProviderText.redact} so a key cannot leak into the window.
-\field{Classes}{\texttt{ETFExposureTool} decides sector versus country. \texttt{AlphaVantageAdapter} supplies holdings. \texttt{FinnhubMarketDataClient} is the country source and the headquarters lookup.}
-\field{Methods}{\texttt{ETFExposureTool.execute}, \texttt{calculateSectorExposure}, \texttt{HoldingCountryResolver.apply}, \texttt{calculateGeographicExposure}.}
-\field{Patterns}{Command, Adapter, Composite.}
-\field{Kind}{Deterministic.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=364}{06:04}.}
+\label{uc06}
+
+\paragraph{Original requirement.}
+Stage~1 UC-06. The user asks for the sector or geographic composition of an ETF. The symbol is validated, \texttt{ETFExposureTool} retrieves holdings, \texttt{ExposureCalculator} produces an \texttt{ExposureResult}, and the LLM explains that result. If the holdings are not sufficient, the system says the exposure cannot be calculated.
+
+\paragraph{Implementation.}
+\texttt{sector QQQ} loads the ETF profile and reports the provider's sector weights. \texttt{geography QQQ} and \texttt{geo QQQ} try Finnhub's published country report. On HTTP 403, \texttt{HoldingCountryResolver} maps at most 25 holdings to headquarters countries from Finnhub profiles. A holding with no profile stays Unknown. Weight the provider left blank stays unassigned and is named in the note. \texttt{geography NVDA} has nothing to break down, because a stock has no holdings list. \texttt{ProviderText.redact} strips a key if a vendor echoes one. Gemini is not asked to narrate the weights.
+
+\paragraph{Deviation.}
+Stage~1 ended this use case with an LLM explanation. I show the weights and stop. Country weights on the free plan are headquarters of the holdings I could look up. They are not the fund's factsheet and they are not revenue. Sector weights come from the provider's sector breakdown on the profile, not from a second invented allocation. Both \texttt{ALPHA\_VANTAGE\_API\_KEY} and \texttt{FINNHUB\_API\_KEY} are required for the headquarters fallback.
+
+\paragraph{Evidence.}
+\todofig{sector QQQ and geography QQQ}{Run \texttt{sector QQQ}, then \texttt{geography QQQ}. If the free country report is refused, the shot should show the headquarters note. Also run \texttt{geography NVDA} so the empty stock case is visible.}
 
 \subsection{UC-07 Compare securities}
-\field{Stage 1}{UC-07. Modified. No model on the direct command.}
-\texttt{compare NVDA MSFT} loads two quotes. \texttt{SecurityComparisonCalculator} subtracts the percent changes. One symbol is not enough, and the desk asks for the second. Deterministic.
-\field{Classes}{\texttt{ComparisonTool}, \texttt{SecurityComparisonCalculator}, \texttt{ProviderRouter}.}
-\field{Methods}{\texttt{ComparisonTool.execute}.}
-\field{Patterns}{Command, Composite, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=539}{08:59}.}
+\label{uc07}
+
+\paragraph{Original requirement.}
+Stage~1 UC-07. The user names two symbols. The planner decides what to fetch, the tools run, \texttt{ComparisonTool} builds the comparison, and the composer presents it. If one symbol cannot be retrieved, the other is not silently substituted.
+
+\paragraph{Implementation.}
+\texttt{compare NVDA MSFT} loads two quotes through \texttt{ComparisonTool} and \texttt{ProviderRouter}. \texttt{SecurityComparisonCalculator} subtracts the percent changes. The screen shows each price, each previous close, each percent change, and the gap in percentage points. One symbol is not enough, and the desk asks for the second. Gemini is not called.
+
+\paragraph{Deviation.}
+The direct command does not go through \texttt{RequestPlanner} or the model. Stage~1 had the planner choose the tools. Here the verb selects \texttt{ActionType.SECURITY\_COMPARISON} itself. A follow-up sentence can still reach the same tool through UC-16, and that path still requires two symbols.
+
+\paragraph{Evidence.}
+\todofig{compare NVDA MSFT}{Run \texttt{compare NVDA MSFT} and show both quotes and the change gap.}
 
 \subsection{UC-08 Analyze ETF overlap}
-\field{Stage 1}{UC-08. Modified. No model on the direct command.}
-\texttt{overlap QQQ SPY} loads both holding lists. \texttt{ExposureCalculator.calculateOverlap} reports the names they share. Deterministic.
-\field{Classes}{\texttt{ComparisonTool}, \texttt{ExposureCalculator}, \texttt{AlphaVantageAdapter} through the router.}
-\field{Methods}{\texttt{calculateOverlap}.}
-\field{Patterns}{Command, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=606}{10:06}.}
+\label{uc08}
+
+\paragraph{Original requirement.}
+Stage~1 UC-08. The user names two ETFs. Holdings are loaded for each, \texttt{ExposureCalculator} finds the common names and the overlap percentage, an \texttt{OverlapResult} is produced, and the result is explained and displayed. If either holding list is missing, the overlap is not calculated.
+
+\paragraph{Implementation.}
+\texttt{overlap QQQ SPY} loads both lists through \texttt{AlphaVantageAdapter} and the router. \texttt{ExposureCalculator.calculateOverlap} reports the shared weight and up to 15 common holdings. Gemini is not called.
+
+\paragraph{Deviation.}
+Stage~1 said the result is explained. I display the overlap and the shared names, and I do not send them to the model. The holding source is Alpha Vantage, because Finnhub's fund datasets are not on the free plan this desk uses.
+
+\paragraph{Evidence.}
+\todofig{overlap QQQ SPY}{Run \texttt{overlap QQQ SPY} and show the overlap percent and the shared holdings.}
 
 \subsection{UC-09 Retrieve financial news}
-\field{Stage 1}{UC-09. Modified.}
-\texttt{news NVDA} asks \texttt{NewsTool}, which asks the router. Marketaux is used when its token is set. Otherwise Finnhub company news is used. I left Alpha Vantage news unregistered because that free plan is about 25 calls a day. A headline match means the ticker was attached to the article. It does not, by itself, mean the article caused a move. If I ask why the price moved, that is UC-10, not this list. Deterministic for the list itself. A spoken reply on top of the list, when Gemini is set, is hybrid and has to stick to the article text.
-\field{Classes}{\texttt{NewsTool}, \texttt{MarketauxAdapter}, \texttt{FinnhubAdapter}.}
-\field{Methods}{\texttt{NewsTool.execute}, \texttt{ProviderRouter.getNews}.}
-\field{Patterns}{Command, Composite, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=698}{11:38}.}
+\label{uc09}
+
+\paragraph{Original requirement.}
+Stage~1 UC-09. The user asks for recent news. \texttt{NewsTool} validates the symbol, \texttt{NewsProvider} returns articles, they are mapped to \texttt{NewsArticle}, the LLM summarizes them, and the article metadata is included. If nothing qualifies, the system says so.
+
+\paragraph{Implementation.}
+\texttt{news NVDA} calls \texttt{NewsTool} and \texttt{ProviderRouter.getNews}. Marketaux is used when \texttt{MARKETAUX\_API\_TOKEN} is set. Otherwise Finnhub company news is used. Alpha Vantage news is not registered, because that free plan is about 25 calls a day. The list shows title, source, time, URL, and Marketaux sentiment when the article has it. A headline match means the ticker was attached to the article. It does not, by itself, mean the article caused a move. Asking why the price moved is UC-10.
+
+\paragraph{Deviation.}
+The news command does not ask Gemini to summarize the list. Stage~1 put a summary on this use case. A spoken reply on top of the articles, when the user types a sentence and Gemini is configured, is UC-16 and has to stick to the article text. With no news key the command says news is unavailable.
+
+\paragraph{Evidence.}
+\todofig{news NVDA}{Run \texttt{news NVDA} and show several headlines with source, published time, and URL.}
 
 \subsection{UC-10 Explain a recent move}
-\field{Stage 1}{UC-10. Modified. The note is written from the articles, and it has to finish.}
-I type \texttt{why did microsoft fall} or \texttt{why is intel up}. \texttt{nasdaq} is read as \texttt{QQQ}, and the note has to say QQQ is an ETF. \texttt{MarketMovementTool} loads the quote and up to three articles. \texttt{NewsTiming} marks anything published after the last trade. \texttt{MarketExplanationService.explain} calls \texttt{generate}, not the short call, and Flash-Lite is told to think as little as possible so the note is not cut off after the price.
+\label{uc10}
 
-The note names the symbol, the price, and the percent change. It then explains the move from what the articles say, and it attributes each reason to the reporting. An article that came out after the last trade is still summarized, but it is labeled as later context, not as proof it caused that print. If no article states a reason, the note says the evidence does not establish a cause. It does not recommend a buy or a sell. The answer is shown first. The quote and the sources follow.
-\field{Classes}{\texttt{MarketMovementTool} gathers evidence. \texttt{MarketExplanationService} writes the prompt. \texttt{GeminiLLMClient} calls the API. \texttt{ResponseComposer} lays out the screen.}
-\field{Methods}{\texttt{MarketMovementTool.execute}, \texttt{explain}, \texttt{LLMProvider.generate}.}
-\field{Patterns}{Command, Adapter, Strategy (\texttt{LLMProvider}).}
-\field{Kind}{Hybrid. The evidence is deterministic. The note is the model.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=760}{12:40}.}
+\paragraph{Original requirement.}
+Stage~1 UC-10. The user asks why a price moved. The planner fetches a quote and recent news, both results are validated, and the LLM writes an explanation constrained to that data. If one source fails, the reply says what is missing. The system must not invent a cause when the supporting information was not retrieved.
+
+\paragraph{Implementation.}
+\texttt{why NVDA} and a sentence such as \texttt{why did microsoft fall} both land on this path. \texttt{why MSFT} is the symbol form. A longer sentence is a follow-up, not a ticker. \texttt{MarketMovementTool} loads the quote and up to three articles. \texttt{NewsTiming} marks anything published after the last trade. \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate}, not the short call, and Flash-Lite is told to think as little as possible so the note is not cut off after the price. The note names the symbol, the price, and the percent change, then explains the move from what the articles say and attributes each reason to the reporting. An article after the last trade is later context, not proof it caused that print. If no article states a reason, the note says the evidence does not establish a cause. It does not recommend a buy or a sell. The answer is shown first. The quote and the sources follow. \texttt{nasdaq} is read as \texttt{QQQ}, and the note has to say QQQ is an ETF.
+
+\paragraph{Deviation.}
+Stage~1 had the composer ask the model even when evidence was missing. I load the quote and the news first, and I do not show a note that was cut off by the token limit. The shipped model is \texttt{gemini-3.5-flash-lite}. If \texttt{GEMINI\_MODEL} is set to \texttt{gemini-3.8-flash} or \texttt{gemini-2.5-flash}, unset it. The \texttt{-LLMAPI} flag records that this run expects the model. It does not carry the key. With no \texttt{GEMINI\_API\_KEY} the quote and the news still show, and the desk says the explanation is unavailable. This capture had no key, so it is not a picture of a finished note.
+
+\paragraph{Evidence.}
+\todofig{why NVDA, or why did microsoft fall}{With quote, news, and \texttt{GEMINI\_API\_KEY} set, run \texttt{why NVDA} or \texttt{why did microsoft fall}. Show the note, the quote under it, and the source URLs. The note has to mention the articles.}
 
 \subsection{UC-11 Add a portfolio position}
-\field{Stage 1}{UC-11. Modified. This is no longer a tool the model can call.}
-\texttt{port add NVDA 10 STOCK} goes to \texttt{SessionWorkspace.addPosition}, then \texttt{PortfolioService}, then \texttt{SQLitePortfolioRepository}. The type is \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. A sentence cannot add a position. Deterministic.
-\field{Classes}{\texttt{PortfolioPanel}, \texttt{DeskCommand}, \texttt{PortfolioService}.}
-\field{Methods}{\texttt{addPosition}, \texttt{PortfolioRepository.saveForUser}.}
-\field{Patterns}{Command, Repository, Facade.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1133}{18:53}.}
+\label{uc11}
+
+\paragraph{Original requirement.}
+Stage~1 UC-11. The user asks to add a position. The symbol and quantity are validated, a \texttt{PortfolioPosition} is created, \texttt{PortfolioService} loads that user's portfolio, the position is added, \texttt{PortfolioRepository} persists it, and the system confirms the change. The position belongs to the authenticated user.
+
+\paragraph{Implementation.}
+\texttt{portfolio add NVDA 10 STOCK}, and \texttt{PORT ADD NVDA 10 STOCK} in the window, call \texttt{SessionWorkspace.addPosition}, then \texttt{PortfolioService}, then \texttt{SQLitePortfolioRepository}. The type is \texttt{STOCK}, \texttt{ETF}, or \texttt{OTHER}. The confirmation is the line \texttt{NVDA added to portfolio.} A sentence cannot add a position. The planner allowlist does not include this action.
+
+\paragraph{Deviation.}
+Stage~1 put add on the agent tools. I moved it off the model so a sentence cannot change what I hold. The terminal form also requires the asset type, which Stage~1's step list did not name. Batch mode runs the same command and prints the confirmation without a prompt.
+
+\paragraph{Evidence.}
+\batchlines{20}{35}
+
+\todofig{Swing Portfolio screen after an add}{In \texttt{--gui}, run \texttt{PORT ADD NVDA 10 STOCK} and show the Portfolio screen with that row. The terminal lines above are the batch run of the same command.}
 
 \subsection{UC-12 Remove a portfolio position}
-\field{Stage 1}{UC-12. Modified for the same reason.}
-\texttt{port remove NVDA} deletes that symbol for me. If it was not there, the screen says so and leaves the rest alone. The model cannot do this. Deterministic.
-\field{Classes}{\texttt{PortfolioService}, \texttt{SQLitePortfolioRepository}.}
-\field{Methods}{\texttt{removePosition}.}
-\field{Patterns}{Command, Repository.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1564}{26:04}.}
+\label{uc12}
+
+\paragraph{Original requirement.}
+Stage~1 UC-12. The user names a symbol. The portfolio is loaded, the matching position is removed, the update is persisted, and the system confirms it. If the position is not there, the portfolio is unchanged and the user is told.
+
+\paragraph{Implementation.}
+\texttt{portfolio remove NVDA} and \texttt{PORT REMOVE NVDA} call \texttt{removePosition} on \texttt{PortfolioService}. A missing symbol prints that it is not in the portfolio and leaves the other rows. The model cannot do this.
+
+\paragraph{Deviation.}
+Same reason as add: removal is not an agent tool. Batch mode stops the file after \texttt{logout}, so a remove has to appear before that line. The capture below removes NVDA, which was held, and the next listing shows only QQQ.
+
+\paragraph{Evidence.}
+\batchlines{47}{57}
+
+\todofig{Swing Portfolio screen after a remove}{In \texttt{--gui}, remove a symbol that is held, then remove one that is not. Show both messages and the remaining rows.}
 
 \subsection{UC-13 View the portfolio}
-\field{Stage 1}{UC-13. Implemented.}
-\texttt{portfolio}, or the Portfolio screen, lists what is stored. No network call is required just to list the rows. Prices show up when something else quotes them. Deterministic.
-\field{Classes}{\texttt{PortfolioPanel}, \texttt{TerminalUI}, \texttt{SessionWorkspace}.}
-\field{Methods}{\texttt{PortfolioService.getPortfolio}, \texttt{loadForUser}.}
-\field{Patterns}{Repository, Facade.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1243}{20:43}.}
+\label{uc13}
+
+\paragraph{Original requirement.}
+Stage~1 UC-13. \texttt{SessionManager} identifies the user, \texttt{PortfolioService} loads that portfolio, the positions are formatted, and the portfolio is displayed. The stored rows do not change.
+
+\paragraph{Implementation.}
+\texttt{portfolio} with no arguments, or the Portfolio screen, lists the stored symbol, quantity, and type. No network call is required just to list the rows. Prices show up on the home screen and on \texttt{portfolio exposure} when a quote is available. Batch mode prints the same table.
+
+\paragraph{Deviation.}
+Stage~1 described the terminal list. The window shows the same rows and, when quotes exist, the market value. Listing the rows still does not require a provider. An empty portfolio says \texttt{No positions}, which is the first portfolio block in the capture.
+
+\paragraph{Evidence.}
+\batchlines{14}{18}
+\batchlines{28}{35}
+
+\todofig{Swing Portfolio screen listing stored positions}{Open the Portfolio screen (F3) while at least one position is stored and show the rows. The terminal listing above is the batch run.}
 
 \subsection{UC-14 Manage the watchlist}
-\field{Stage 1}{UC-14. Modified. There is no \texttt{WatchlistTool} on the agent.}
-\texttt{watch add NVDA} and \texttt{watch remove NVDA} go through \texttt{WatchlistService} and \texttt{SQLiteWatchlistRepository}. A watchlist item has no quantity. Deterministic.
-\field{Classes}{\texttt{WatchlistPanel}, \texttt{WatchlistService}.}
-\field{Methods}{\texttt{addSymbol}, \texttt{removeSymbol}.}
-\field{Patterns}{Repository, Command.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1473}{24:33}.}
+\label{uc14}
+
+\paragraph{Original requirement.}
+Stage~1 UC-14. The user adds, removes, or views watchlist symbols. The symbol is validated when one is required, \texttt{WatchlistService} loads that user's list, the change is persisted when there is one, and the current list is displayed.
+
+\paragraph{Implementation.}
+\texttt{watchlist}, \texttt{watchlist add AAPL}, and \texttt{watchlist remove AAPL} go through \texttt{WatchlistService} and \texttt{SQLiteWatchlistRepository}. The window accepts \texttt{WATCH ADD} and \texttt{WATCH REMOVE}. A watchlist item has no quantity. A missing symbol on remove is reported and the other symbols stay.
+
+\paragraph{Deviation.}
+There is no \texttt{WatchlistTool} on the agent. A sentence cannot add or remove a symbol. Stage~1 did not require a quantity, and the implementation does not add one.
+
+\paragraph{Evidence.}
+\batchlines{37}{45}
+\batchlines{59}{67}
+
+\todofig{Swing Watchlist screen}{In \texttt{--gui}, add AAPL, show the Watchlist screen (F4), then remove it and show the empty list.}
 
 \subsection{UC-15 Analyze portfolio exposure}
-\field{Stage 1}{UC-15. Modified. Java does the arithmetic, and Gemini does not narrate it.}
-\texttt{exposure} loads my positions, quotes each one, and sets value to price times quantity. Day move is the price change times quantity. Currencies stay in separate books. A position with no price is named and left out of the total. ETF sector weights are look-through when the holding list exists. If a sentence selects this action, the numbers still are not sent to the model.
-\field{Classes}{\texttt{PortfolioAnalysisTool}, \texttt{PortfolioExposureCalculator}, \texttt{PortfolioBook} for the home summary.}
-\field{Methods}{\texttt{PortfolioAnalysisTool.execute}, \texttt{calculate}.}
-\field{Patterns}{Command, Composite, Adapter.}
-\field{Kind}{Deterministic.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1364}{22:44}.}
+\label{uc15}
+
+\paragraph{Original requirement.}
+Stage~1 UC-15. The user's portfolio is loaded, stock and ETF positions are identified, ETF holdings are retrieved where required, quantities and weights are combined, \texttt{ExposureCalculator} produces an aggregate result, and the LLM explains it. If an ETF cannot be retrieved, the missing position is named and the analysis is not presented as complete.
+
+\paragraph{Implementation.}
+\texttt{portfolio exposure} and \texttt{EXPOSURE} call \texttt{PortfolioAnalysisTool} and \texttt{PortfolioExposureCalculator}. Value is price times quantity. Day move is the price change times quantity. Currencies stay in separate books. A position with no price is named and left out of the total. ETF sector weights are look-through when the holding list exists. If a sentence selects this action, the numbers still are not sent to the model. \texttt{PortfolioBook} is the home-screen summary of the same figures.
+
+\paragraph{Deviation.}
+Stage~1 had the model explain the exposure. The figure is arithmetic, and narrating it invited a recommendation, so Gemini does not see these numbers. The capture in this report has no quote key, so it cannot show a priced exposure. The command is local until it asks for quotes.
+
+\paragraph{Evidence.}
+\todofig{portfolio exposure with priced weights}{Hold at least two positions, export a quote key, and run \texttt{portfolio exposure} or \texttt{EXPOSURE}. Show the sector weights, the currency books, and any position that could not be priced.}
 
 \subsection{UC-16 Ask a follow-up}
-\field{Stage 1}{UC-16. Modified. The model may only name an allowed action, and a rephrase does not run a tool.}
-I type in the message box, for example \texttt{what about its sector exposure}, or at the terminal with no slash. The window shows my line, then \texttt{ResearchGateway.ask} calls \texttt{AgentController.handle}. \texttt{ConversationMemory} reads my recent turns and the last symbol. \texttt{RequestPlanner} always builds a keyword plan first. If Gemini is configured, it may replace that plan with one allowed JSON action. A bad reply falls back to the keywords.
+\label{uc16}
 
-If the plan is a lookup, \texttt{ToolManager} runs it. A move plan then explains the move from the articles. If I say ``say that more simply'', the plan is \texttt{DISCUSS}: nothing is fetched, and Gemini rewrites the stored exchange. Portfolio figures are left out of that prompt. Both sides of the exchange are stored for me only. Another user's rows are never read.
+\paragraph{Original requirement.}
+Stage~1 UC-16. The user continues a conversation without repeating the entity. Recent context is loaded, the previous entity is identified, \texttt{RequestPlanner} builds a plan, the tools run, a response is generated, and both sides are stored. If the reference is ambiguous, the system asks instead of guessing.
 
-A sentence that says to ignore previous instructions, or that looks like SQL, is rejected and does not run a tool. Compare and overlap still need two symbols.
-\field{Classes}{\texttt{AgentPanel} is the conversation. \texttt{TerminalUI} is the other door. \texttt{RequestPlanner}, \texttt{PromptBuilder}, \texttt{ConversationMemory}, \texttt{ResponseComposer}.}
-\field{Methods}{\texttt{AgentController.handle}, \texttt{createPlan}, \texttt{remember}, \texttt{lastSymbol}.}
-\field{Patterns}{Command, Strategy, Facade, Repository.}
-\field{Kind}{Hybrid when Gemini is set. Keyword-only when it is not.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=952}{15:52}.}
+\paragraph{Implementation.}
+The window's message box and a non-verb line in the terminal both call \texttt{ResearchGateway.ask} and \texttt{AgentController.handle}. \texttt{ConversationMemory} reads recent turns and the last symbol for that user. \texttt{RequestPlanner} always builds a keyword plan first. If Gemini is configured, it may replace that plan with one allowed JSON action. A bad reply falls back to the keywords. A lookup runs through \texttt{ToolManager}. A move plan then uses UC-10. ``Say that more simply'' is \texttt{DISCUSS}: nothing is fetched, and Gemini rewrites the stored exchange. Portfolio figures are left out of that prompt. Another user's rows are never read. A sentence that says to ignore previous instructions, or that looks like SQL, is rejected and does not run a tool. Compare and overlap still need two symbols. Home and tape refreshes do not replace the remembered symbol.
+
+\paragraph{Deviation.}
+The class is \texttt{ConversationMemory}, not a type named \texttt{MemoryService}. The model may only name an allowed action. Add, remove, and watchlist edits are not on that list. A rephrase does not run a tool. Stage~1 had the model more free to choose the next step. Keyword planning still works when \texttt{GEMINI\_API\_KEY} is unset. This capture did not type a sentence, because a useful reply needs a live tool result.
+
+\paragraph{Evidence.}
+\todofig{F5 chat follow-up}{Sign in, run \texttt{QUOTE NVDA}, then on F5 type \texttt{what about its sector exposure}. Show the reply. Then type a request to say that more simply, and show that no new quote was fetched. Then type a sentence that tells the desk to ignore its instructions, and show that no tool ran.}
 
 \subsection{UC-17 Read financial statements}
-\field{Stage 1}{New.}
-\texttt{statements NVDA} goes through \texttt{MarketInsightTool} to \texttt{FinancialModelingPrepAdapter}. I show up to four annual periods. A line the filing omitted stays blank. Without \texttt{FMP\_API\_KEY} the command says it is unavailable. Deterministic.
-\field{Classes}{\texttt{MarketInsightTool}, \texttt{FinancialModelingPrepAdapter}, \texttt{ProviderRouter}.}
-\field{Methods}{\texttt{getFinancialStatements}.}
-\field{Patterns}{Command, Adapter, Composite.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1631}{27:11}.}
+\label{uc17}
+
+\paragraph{Original requirement.}
+This was not a Stage~1 use case. I added it so the Financial Modeling Prep adapter is something a person can run, not only a class behind the router.
+
+\paragraph{Implementation.}
+\texttt{statements NVDA} goes through \texttt{MarketInsightTool}.\\
+The adapter is \texttt{FinancialModelingPrepAdapter}.
+The method is \texttt{getFinancialStatements}. I show up to four annual periods of the income statement, the balance sheet, and the cash-flow statement. A line the filing omitted stays blank. Without \texttt{FMP\_API\_KEY} the command says it is unavailable. Gemini is not called.
+
+\paragraph{Deviation.}
+There was no Stage~1 requirement to depart from. The command does not replace a Stage~1 feature. It uses three provider calls on a plan of about 250 requests a day.
+
+\paragraph{Evidence.}
+\todofig{statements NVDA}{Export \texttt{FMP\_API\_KEY} and run \texttt{statements NVDA}. Show the annual income, balance sheet, and cash-flow lines.}
 
 \subsection{UC-18 Read price history}
-\field{Stage 1}{New.}
-\texttt{history NVDA} asks Twelve Data for recent daily bars and the latest 14-day RSI. Quotes still work from Finnhub if this key is missing. Deterministic.
-\field{Classes}{\texttt{MarketInsightTool}, \texttt{TwelveDataAdapter}.}
-\field{Methods}{\texttt{getPriceHistory}.}
-\field{Patterns}{Command, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1692}{28:12}.}
+\label{uc18}
+
+\paragraph{Original requirement.}
+This was not a Stage~1 use case. I added it so the Twelve Data adapter is visible as a command.
+
+\paragraph{Implementation.}
+\texttt{history NVDA} asks Twelve Data for recent daily bars and the latest 14-day RSI through \texttt{MarketInsightTool} and \texttt{TwelveDataAdapter}. The screen shows the eight newest bars. Quotes still work from Finnhub if this key is missing. Gemini is not called.
+
+\paragraph{Deviation.}
+There was no Stage~1 requirement to depart from. \texttt{history} is unavailable when \texttt{TWELVE\_DATA\_API\_KEY} is unset, and that does not remove quotes.
+
+\paragraph{Evidence.}
+\todofig{history NVDA}{Export \texttt{TWELVE\_DATA\_API\_KEY} and run \texttt{history NVDA}. Show the daily bars and the RSI.}
 
 \subsection{UC-19 Read sentiment}
-\field{Stage 1}{New.}
-\texttt{sentiment NVDA} asks SentiSense for the latest score, from $-1$ to $1$, and shows my own band label for that score. The band is a label, not advice. I did not buy the paid SentiSense plan. Deterministic.
-\field{Classes}{\texttt{MarketInsightTool}, \texttt{SentiSenseAdapter}, \texttt{SentimentBands}.}
-\field{Methods}{\texttt{getSentiment}.}
-\field{Patterns}{Command, Adapter.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1759}{29:19}.}
+\label{uc19}
+
+\paragraph{Original requirement.}
+This was not a Stage~1 use case. I added it so the SentiSense adapter is visible as a command.
+
+\paragraph{Implementation.}
+\texttt{sentiment NVDA} asks SentiSense for the latest score, from $-1$ to $1$, through \texttt{MarketInsightTool} and \texttt{SentiSenseAdapter}. \texttt{SentimentBands} supplies the label for that score. The band is a label, not advice. Article sentiment from Marketaux is a different field and stays on the article. Gemini is not called.
+
+\paragraph{Deviation.}
+There was no Stage~1 requirement to depart from. I did not buy a paid SentiSense plan. Without \texttt{SENTISENSE\_API\_KEY} the command says it is unavailable.
+
+\paragraph{Evidence.}
+\todofig{sentiment NVDA}{Export \texttt{SENTISENSE\_API\_KEY} and run \texttt{sentiment NVDA}. Show the score and the band label.}
 
 \subsection{UC-20 View the home desk}
-\field{Stage 1}{New. Window only.}
-After sign-on, F1 shows market value, the day move, one row per position, and a tape of index quotes, portfolio quotes, and a few headlines. \texttt{DashboardPanel} asks \texttt{PortfolioBook} for the figures and \texttt{TapeLine} for the tape. Network calls run off the Swing thread. The terminal has no tape. The same positions are on \texttt{portfolio}. Deterministic.
-\field{Classes}{\texttt{DashboardPanel}, \texttt{PortfolioBook}, \texttt{TapeLine}, \texttt{BackgroundWork}.}
-\field{Methods}{The panel's book load, \texttt{TapeLine.pieces}.}
-\field{Patterns}{Facade. The panel calls the gateway rather than a vendor.}
-\field{Video}{\href{https://youtu.be/J7uWTaclC8k?t=1298}{21:38}.}
+\label{uc20}
+
+\paragraph{Original requirement.}
+This was not a Stage~1 use case. Stage~1 was a terminal. I added the home screen so the window can show the book and a tape after sign-on.
+
+\paragraph{Implementation.}
+After sign-on, F1 shows market value, the day move, one row per position sorted by market value, a stacked allocation bar, and a tape of index quotes, portfolio quotes, and a few headlines. \texttt{DashboardPanel} asks \texttt{PortfolioBook} for the figures and \texttt{TapeLine} for the tape. Network calls run off the Swing thread through \texttt{BackgroundWork}. Unpriced positions stay named and are left out of the total. Holdings refresh on the same 90-second cadence as the tape. A later refresh keeps the last totals until the new quotes return. The terminal has no tape. The same positions are listed by \texttt{portfolio}.
+
+\paragraph{Deviation.}
+Stage~1 had no window, so this screen is new rather than a change to a specified flow. The terminal batch run cannot show it. F1 is the shot.
+
+\paragraph{Evidence.}
+\todofig{F1 home desk}{Sign in on \texttt{--gui} with a portfolio that has at least one priced position. Show F1: market value, day move, the position rows, the allocation bar, and the tape.}
+
+\section{Non-interactive command line}
+\label{sec:batch-cli}
+
+\paragraph{Original requirement.}
+The Stage~2 update says: provide a version of the agent that users can run directly from a terminal. For example, \texttt{java -jar Agent.jar -LLMAPI -input task.txt} should run the agent on the task specified in \texttt{task.txt}. Document the supported options and provide a working example in the README. The CLI must accept input from a file, standard input, an API call, or another supported method. The CLI is required for Stage~3.
+
+\paragraph{Implementation.}
+\texttt{./mvnw -DskipTests package} builds \texttt{target/Agent.jar}. The Maven Shade plugin puts the dependencies in that jar and sets \texttt{Main-Class} to \texttt{com.marketintel.Main}. \texttt{CliOptions} accepts \texttt{-input}, \texttt{-c} or \texttt{--command}, \texttt{--batch}, \texttt{-LLMAPI}, \texttt{--guest}, \texttt{--user}, \texttt{--password}, \texttt{--register}, \texttt{--database}, \texttt{--cli}, and \texttt{--gui}. \texttt{StdinProbe} treats a pipe as batch input and leaves \texttt{./mvnw exec:java} interactive, because that launch often has no Java console. \texttt{BatchRunner} reads the lines, \texttt{BatchSession} signs in, and \texttt{TerminalUI.runBatch} runs the same verbs as the interactive terminal. Blank lines and lines that start with \texttt{\#} are skipped. Results go to standard output. The process then exits. \texttt{logout} and \texttt{exit} stop the file. A command that fails sets status 1 and the rest of the file still runs. Status 2 means the arguments, the file, or the sign-in could not be used.
+
+The interactive menu and the Swing window are the same paths as before when no batch flag is present and standard input is a terminal.
+
+\paragraph{Deviation.}
+The jar is \texttt{target/Agent.jar}, not a file named \texttt{Agent.jar} dropped in the working directory. The command to build it, and the working example, are in the README. \texttt{-LLMAPI} does not take a key on the command line. A key in the process list would be a secret, so the Gemini key stays in \texttt{GEMINI\_API\_KEY}. If the flag is set and the key is missing, the run says so and continues. There is no HTTP endpoint on this desk, so ``an API call'' is not a fourth transport. The supported inputs are a file, standard input, and one inline command. Batch mode cannot stop at the login menu. When no account is given, it signs in as the local demo user \texttt{guest} with password \texttt{guest-demo}, creating that row in SQLite if needed. That password is a local demo password, not an API key. \texttt{--user} or \texttt{MI\_USERNAME} overrides it.
+
+\paragraph{Evidence.}
+The listing is the run named above. Standard error is the provider warnings from the same process. No key value is in either listing.
+
+\VerbatimInput[fontsize=\footnotesize]{cli-batch-stdout.txt}
+
+\VerbatimInput[fontsize=\footnotesize]{cli-batch-stderr.txt}
+
+\section{Screenshots still required}
+\label{sec:shots}
+
+The listings above are the runs I could capture without a provider key and without the Swing window. Each box in Section~\ref{sec:features} still has to be replaced with a screenshot of the screen or command named in that box.
+
+\begin{itemize}
+\item UC-01. Swing create-account screen, password entered twice, then back on sign-on.
+\item UC-02. Swing sign-on: a rejected password, then a successful sign-in.
+\item UC-03. Swing window after \texttt{LOGOUT}, back on sign-on.
+\item UC-04. \texttt{quote NVDA} with price, previous close, and percent change.
+\item UC-05. \texttt{overview NVDA} with name, exchange, currency, and industry.
+\item UC-06. \texttt{sector QQQ} and \texttt{geography QQQ}, plus \texttt{geography NVDA}.
+\item UC-07. \texttt{compare NVDA MSFT} with both quotes and the gap.
+\item UC-08. \texttt{overlap QQQ SPY} with the shared holdings.
+\item UC-09. \texttt{news NVDA} with headlines, sources, times, and URLs.
+\item UC-10. \texttt{why NVDA} or \texttt{why did microsoft fall}, with the note and the sources.
+\item UC-11. Swing Portfolio screen after \texttt{PORT ADD NVDA 10 STOCK}.
+\item UC-12. Swing Portfolio screen after a real remove and a missing symbol.
+\item UC-13. Swing Portfolio screen listing the stored positions.
+\item UC-14. Swing Watchlist screen after an add and a remove.
+\item UC-15. \texttt{portfolio exposure} with priced weights.
+\item UC-16. F5 chat: sector of the last symbol, a simpler wording, then a rejected instruction.
+\item UC-17. \texttt{statements NVDA}.
+\item UC-18. \texttt{history NVDA}, bars and RSI.
+\item UC-19. \texttt{sentiment NVDA}, score and band.
+\item UC-20. F1 home desk: value, day move, position rows, and the tape.
+\end{itemize}
+
+The batch transcript does not need to be photographed again. It is already in Section~\ref{sec:batch-cli}.
 
 \section{Implemented design patterns}
 
@@ -368,6 +597,14 @@ I added the Swing desk, then replaced the command line with a message box so a s
 Stage~2 asks for both a GUI and a CLI.
 UC-20 is new. UC-16 is how the box talks to the planner.
 
+\textbf{Non-interactive command line.}
+The Stage~2 update asks for a program a terminal can run on a task file, for example \texttt{java -jar Agent.jar -LLMAPI -input task.txt}, because Stage~3 will call it that way.
+I added a shaded jar, \texttt{target/Agent.jar}, and a batch path that reads \texttt{-input}, a pipe, or \texttt{-c}.
+The interactive menu and the window are unchanged when those flags are absent and standard input is a terminal.
+Batch mode cannot stop and ask for a password, so a missing account uses the local demo user \texttt{guest}.
+\texttt{-LLMAPI} does not take a key. Keys stay in the environment.
+Section~\ref{sec:batch-cli}.
+
 \textbf{Statements, history, sentiment.}
 These were not in the Stage~1 use-case set.
 UC-17, UC-18, and UC-19, through \texttt{MarketInsightTool}.
@@ -464,7 +701,7 @@ The move note stopped mid-word after the price, because Flash-Lite was spending 
 A news answer said the articles did not explain the day's move, even when they discussed the 40\% correction, demand, and guidance. A question about a price rising or falling stays a movement explanation, and the note has to use what the articles say.
 
 \subsection{Still open}
-The recording is public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say.
+The recording is public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say. The boxed TODO figures in Section~\ref{sec:shots} are the screenshots that still need a live window or a provider key. The batch transcript is already in the report.
 
 \section{Demonstration index}
 \label{sec:demos}

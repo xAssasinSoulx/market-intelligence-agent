@@ -448,7 +448,18 @@ public final class ApplicationContext {
     }
 
     public UserInterface createTerminalInterface() {
+        return newTerminal();
+    }
 
+    /**
+     * Runs already-authenticated terminal commands and returns
+     * 0 when every command succeeded, or 1 when any failed.
+     */
+    public int runBatch(java.util.List<String> lines) {
+        return newTerminal().runBatch(lines);
+    }
+
+    private TerminalUI newTerminal() {
         return new TerminalUI(
                 authService,
                 sessionManager,
