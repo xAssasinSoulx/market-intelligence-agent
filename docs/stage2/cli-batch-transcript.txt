@@ -1,0 +1,86 @@
+Standard output
+
+Created local account guest.
+Signed in as guest (local demo account). Pass --user and --password to use another account.
+LLM: -LLMAPI was set, but GEMINI_API_KEY is unset. Movement notes stay unavailable.
+
+> whoami
+
+┌─ CURRENT SESSION ────────────────────────────────────────────┐
+│ USERNAME               guest                                 │
+│ USER ID                1                                     │
+│ STATUS                 ● CONNECTED                           │
+│ LOGIN                  2026-11-20T22:40:27.112765279         │
+└──────────────────────────────────────────────────────────────┘
+
+> portfolio
+
+┌─ PORTFOLIO ──────────────────────────────────────────────────┐
+│ STATUS                 No positions                          │
+└──────────────────────────────────────────────────────────────┘
+
+> portfolio add NVDA 10 STOCK
+
+✓ NVDA added to portfolio.
+
+> portfolio add QQQ 5 ETF
+
+✓ QQQ added to portfolio.
+
+> portfolio
+
+┌─ PORTFOLIO ──────────────────────────────────────────────────┐
+│ SYMBOL                 QUANTITY • TYPE                       │
+├──────────────────────────────────────────────────────────────┤
+│ NVDA                   10 • STOCK                            │
+│ QQQ                    5 • ETF                               │
+└──────────────────────────────────────────────────────────────┘
+
+> watchlist add AAPL
+
+✓ AAPL added to watchlist.
+
+> watchlist
+
+┌─ WATCHLIST ──────────────────────────────────────────────────┐
+│ 01                     AAPL                                  │
+└──────────────────────────────────────────────────────────────┘
+
+> portfolio remove NVDA
+
+✓ NVDA removed from portfolio.
+
+> portfolio
+
+┌─ PORTFOLIO ──────────────────────────────────────────────────┐
+│ SYMBOL                 QUANTITY • TYPE                       │
+├──────────────────────────────────────────────────────────────┤
+│ QQQ                    5 • ETF                               │
+└──────────────────────────────────────────────────────────────┘
+
+> watchlist remove AAPL
+
+✓ AAPL removed from watchlist.
+
+> watchlist
+
+┌─ WATCHLIST ──────────────────────────────────────────────────┐
+│ STATUS                 No symbols                            │
+└──────────────────────────────────────────────────────────────┘
+
+> logout
+
+✓ Logged out guest.
+
+Market Intelligence Agent closed.
+
+Standard error
+
+Warning: No quote provider is configured. Set FINNHUB_API_KEY, TWELVE_DATA_API_KEY, or ALPHA_VANTAGE_API_KEY.
+Warning: ALPHA_VANTAGE_API_KEY is not configured. ETF holdings are unavailable.
+Warning: No news provider is configured. Set MARKETAUX_API_TOKEN or FINNHUB_API_KEY.
+Warning: FMP_API_KEY is not configured. Financial statements are unavailable.
+Warning: TWELVE_DATA_API_KEY is not configured. Price history is unavailable.
+Warning: SENTISENSE_API_KEY is not configured. News sentiment scores are unavailable.
+Warning: Market movement analysis requires both API providers.
+Warning: GEMINI_API_KEY is not configured. AI explanations will be unavailable.

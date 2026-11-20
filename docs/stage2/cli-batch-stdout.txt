@@ -1,0 +1,73 @@
+Created local account guest.
+Signed in as guest (local demo account). Pass --user and --password to use another account.
+LLM: -LLMAPI was set, but GEMINI_API_KEY is unset. Movement notes stay unavailable.
+
+> whoami
+
++- CURRENT SESSION --------------------------------------------+
+| USERNAME               guest                                 |
+| USER ID                1                                     |
+| STATUS                 * CONNECTED                           |
+| LOGIN                  2026-11-20T22:40:27.112765279         |
++--------------------------------------------------------------+
+
+> portfolio
+
++- PORTFOLIO --------------------------------------------------+
+| STATUS                 No positions                          |
++--------------------------------------------------------------+
+
+> portfolio add NVDA 10 STOCK
+
+[ok] NVDA added to portfolio.
+
+> portfolio add QQQ 5 ETF
+
+[ok] QQQ added to portfolio.
+
+> portfolio
+
++- PORTFOLIO --------------------------------------------------+
+| SYMBOL                 QUANTITY * TYPE                       |
++--------------------------------------------------------------+
+| NVDA                   10 * STOCK                            |
+| QQQ                    5 * ETF                               |
++--------------------------------------------------------------+
+
+> watchlist add AAPL
+
+[ok] AAPL added to watchlist.
+
+> watchlist
+
++- WATCHLIST --------------------------------------------------+
+| 01                     AAPL                                  |
++--------------------------------------------------------------+
+
+> portfolio remove NVDA
+
+[ok] NVDA removed from portfolio.
+
+> portfolio
+
++- PORTFOLIO --------------------------------------------------+
+| SYMBOL                 QUANTITY * TYPE                       |
++--------------------------------------------------------------+
+| QQQ                    5 * ETF                               |
++--------------------------------------------------------------+
+
+> watchlist remove AAPL
+
+[ok] AAPL removed from watchlist.
+
+> watchlist
+
++- WATCHLIST --------------------------------------------------+
+| STATUS                 No symbols                            |
++--------------------------------------------------------------+
+
+> logout
+
+[ok] Logged out guest.
+
+Market Intelligence Agent closed.

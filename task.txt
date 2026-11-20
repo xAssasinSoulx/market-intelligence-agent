@@ -1,0 +1,35 @@
+# Batch task for the Market Intelligence Agent.
+# Run from the repository root, after ./mvnw -DskipTests package:
+#   java -jar target/Agent.jar -LLMAPI -input task.txt
+#
+# Blank lines and lines that start with # are ignored.
+# The commands below use the local SQLite account only.
+# They do not call a market-data API.
+
+whoami
+portfolio
+portfolio add NVDA 10 STOCK
+portfolio add QQQ 5 ETF
+portfolio
+watchlist add AAPL
+watchlist
+portfolio remove NVDA
+portfolio
+watchlist remove AAPL
+watchlist
+logout
+
+# Uncomment these when the matching API keys are exported.
+# quote NVDA
+# overview NVDA
+# compare NVDA MSFT
+# news NVDA
+# statements NVDA
+# history NVDA
+# sentiment NVDA
+# sector QQQ
+# geography QQQ
+# overlap QQQ SPY
+# portfolio exposure
+# why NVDA
+# why did microsoft fall
