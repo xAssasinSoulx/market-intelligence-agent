@@ -5,6 +5,7 @@
 \usepackage{lmodern}
 \usepackage{microtype}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{booktabs}
 \usepackage{tabularx}
 \usepackage{enumitem}
@@ -14,7 +15,7 @@
 
 \hypersetup{hidelinks}
 \setlist{itemsep=2pt,parsep=0pt,topsep=4pt,partopsep=0pt}
-\graphicspath{{uml/rendered/}}
+\graphicspath{{uml/rendered/}{screenshots/}}
 \setlength{\parskip}{6pt plus 1pt minus 1pt}
 \setlength{\parindent}{0pt}
 \setlength{\emergencystretch}{5em}
@@ -22,18 +23,11 @@
 \urlstyle{same}
 
 \newcommand{\field}[2]{\textbf{#1.} #2\par}
-\newcommand{\todofig}[2]{%
-  \begin{figure}[ht]
+\newcommand{\shot}[2]{%
+  \begin{figure}[H]
   \centering
-  \fbox{\begin{minipage}{0.92\textwidth}
-  \centering
-  \vspace{1.15em}
-  {\large\bfseries TODO --- screenshot still required}\\[0.8em]
-  #1\\[0.55em]
-  {\small #2}
-  \vspace{1.15em}
-  \end{minipage}}
-  \caption{#1}
+  \includegraphics[width=\textwidth]{#1}
+  \caption{#2}
   \end{figure}
 }
 \newcommand{\batchlines}[2]{%
@@ -55,7 +49,7 @@
 \textbf{Student Number:} & 218188771 \\
 \textbf{Instructor:} & Song Wang \\
 \textbf{Date:} & November 8, 2026 \\
-\textbf{Revised:} & November 20, 2026 \\
+\textbf{Revised:} & November 22, 2026 \\
 \end{tabular}
 \vfill
 \end{titlepage}
@@ -111,7 +105,7 @@ Each feature below states the original requirement, how this desk implements it,
 
 The process used a fresh SQLite file and no API keys. The terminal draws boxes and a bullet between quantity and type. This PDF replaces those characters so pdfLaTeX can embed the same text. The unmodified capture is \texttt{docs/stage2/cli-batch-transcript.txt}. Standard error from that run is included with the batch-CLI feature.
 
-A boxed TODO is a shot I still have to take. It names the screen or the command. The Swing window and every command that needs a live key are in that list. Replacing the box is the remaining work. The checklist is Section~\ref{sec:shots}.
+The window figures were taken on this branch, signed in as \texttt{erdem.demo}, with the provider keys set. Passwords are masked. Section~\ref{sec:shots} indexes the files.
 
 \subsection{UC-01 Register account}
 \label{uc01}
@@ -130,7 +124,8 @@ Stage~1 described one registration flow and did not describe a second interface.
 \paragraph{Evidence.}
 \batchlines{1}{1}
 
-\todofig{Swing create-account screen}{Launch \texttt{java -jar target/Agent.jar --gui}. Open the create-account screen, enter a new username, type the password twice, and show the return to sign-on. The password must not appear in a status line.}
+\shot{uc01-a.png}{Create-account form for erdem.demo. The password and the confirmation are masked.}
+\shot{uc01-b.png}{Back on sign-on. The status says the account erdem.demo was created.}
 
 \subsection{UC-02 Log in}
 \label{uc02}
@@ -147,7 +142,8 @@ There is no \texttt{UserPreferences} class. Conversation rows are stored per use
 \paragraph{Evidence.}
 \batchlines{2}{12}
 
-\todofig{Swing sign-on screen}{On \texttt{--gui}, submit a wrong password and show the rejection, then sign in with a real account and show the desk. The message must not say which of the two fields was wrong.}
+\shot{uc02-a.png}{Rejected sign-on. The message does not say whether the name or the password was wrong.}
+\shot{uc02-b.png}{Signed-in home for erdem.demo. The tape is loaded and the portfolio is empty.}
 
 \subsection{UC-03 Log out}
 \label{uc03}
@@ -164,7 +160,7 @@ Portfolio and watchlist writes are persisted when the command runs, not again at
 \paragraph{Evidence.}
 \batchlines{69}{73}
 
-\todofig{Swing window after logout}{From a signed-in \texttt{--gui} session, run \texttt{LOGOUT} and show the sign-on screen again.}
+\shot{uc03-a.png}{Sign-on after logout. The status is signed out.}
 
 \subsection{UC-04 Get a market quote}
 \label{uc04}
@@ -176,10 +172,10 @@ Stage~1 UC-04. An authenticated user requests a quote by a command or by natural
 \texttt{quote NVDA}, or \texttt{QUOTE NVDA} in the window, is parsed by \texttt{CommandParser} or \texttt{DeskCommand}. \texttt{TerminalUI} builds a \texttt{ToolRequest} for \texttt{ActionType.MARKET\_QUOTE}. \texttt{MarketDataTool} checks the symbol and calls \texttt{ProviderRouter.getQuote}. Finnhub is registered first when \texttt{FINNHUB\_API\_KEY} is set. Twelve Data, then Alpha Vantage, are used only when an earlier adapter was never registered. A failed call does not hop to the next vendor. The screen shows price, previous close, and percent change. The symbol is remembered so a later ``it'' can use it. Gemini is not called. Batch mode runs this same handler and prints the result without clearing the screen.
 
 \paragraph{Deviation.}
-Stage~1 sent the research use cases through the model. A direct quote no longer does. The router is not a failover chain. On the free Finnhub plan a non-US symbol such as \texttt{XEQT.TO} stays unpriced and the screen says so. With no quote key, the tool is not registered and the command reports that, which is what the standard-error listing in Section~\ref{sec:batch-cli} shows. That line is not a successful quote.
+Stage~1 sent the research use cases through the model. A direct quote no longer does. The router is not a failover chain. On the free Finnhub plan a non-US symbol such as \texttt{XEQT.TO} stays unpriced and the screen says so. With no quote key, the tool is not registered and the command reports that, which is what the standard-error listing in Section~\ref{sec:batch-cli} shows. That line is the offline failure. The window figure below is the live quote.
 
 \paragraph{Evidence.}
-\todofig{quote NVDA with a live price}{Run \texttt{quote NVDA} in the terminal or type \texttt{QUOTE NVDA} in the Swing desk. The shot must show the symbol, the price, the previous close, and the percent change. Export a quote key first.}
+\shot{uc04-a.png}{QUOTE NVDA. Price 125.53, previous close 145.90, change $-14.0088\%$.}
 
 \subsection{UC-05 Get a security overview}
 \label{uc05}
@@ -194,7 +190,7 @@ Stage~1 UC-05. The user asks for an overview. The symbol is validated, \texttt{M
 Same as the quote: the model is not on this command. Alpha Vantage company overview is a premium endpoint, so it is not the source I rely on. If neither Finnhub nor Alpha Vantage is configured, the command says the overview is unavailable.
 
 \paragraph{Evidence.}
-\todofig{overview NVDA}{Run \texttt{overview NVDA} and show the name, exchange, currency, and industry label. Include the line that says the free profile has no company description, if that is what the provider returned.}
+\shot{uc05-a.png}{OVERVIEW NVDA. NVIDIA Corporation, NASDAQ NMS, USD, Semiconductors, and the Finnhub headquarters note.}
 
 \subsection{UC-06 Analyze ETF exposure}
 \label{uc06}
@@ -209,7 +205,9 @@ Stage~1 UC-06. The user asks for the sector or geographic composition of an ETF.
 Stage~1 ended this use case with an LLM explanation. I show the weights and stop. Country weights on the free plan are headquarters of the holdings I could look up. They are not the fund's factsheet and they are not revenue. Sector weights come from the provider's sector breakdown on the profile, not from a second invented allocation. Both \texttt{ALPHA\_VANTAGE\_API\_KEY} and \texttt{FINNHUB\_API\_KEY} are required for the headquarters fallback.
 
 \paragraph{Evidence.}
-\todofig{sector QQQ and geography QQQ}{Run \texttt{sector QQQ}, then \texttt{geography QQQ}. If the free country report is refused, the shot should show the headquarters note. Also run \texttt{geography NVDA} so the empty stock case is visible.}
+\shot{uc06-a.png}{SECTOR QQQ. Information technology leads at 52.70\%, then the remaining sectors.}
+\shot{uc06-b.png}{GEOGRAPHY QQQ. Headquarters weights, led by the United States, with the note that these are not the factsheet.}
+\shot{uc06-c.png}{GEOGRAPHY NVDA. A stock has no holdings list, so no country breakdown is estimated.}
 
 \subsection{UC-07 Compare securities}
 \label{uc07}
@@ -224,7 +222,7 @@ Stage~1 UC-07. The user names two symbols. The planner decides what to fetch, th
 The direct command does not go through \texttt{RequestPlanner} or the model. Stage~1 had the planner choose the tools. Here the verb selects \texttt{ActionType.SECURITY\_COMPARISON} itself. A follow-up sentence can still reach the same tool through UC-16, and that path still requires two symbols.
 
 \paragraph{Evidence.}
-\todofig{compare NVDA MSFT}{Run \texttt{compare NVDA MSFT} and show both quotes and the change gap.}
+\shot{uc07-a.png}{COMPARE NVDA MSFT. NVDA $-14.0088\%$, MSFT $-2.7954\%$, gap $-11.2134\%$.}
 
 \subsection{UC-08 Analyze ETF overlap}
 \label{uc08}
@@ -239,7 +237,8 @@ Stage~1 UC-08. The user names two ETFs. Holdings are loaded for each, \texttt{Ex
 Stage~1 said the result is explained. I display the overlap and the shared names, and I do not send them to the model. The holding source is Alpha Vantage, because Finnhub's fund datasets are not on the free plan this desk uses.
 
 \paragraph{Evidence.}
-\todofig{overlap QQQ SPY}{Run \texttt{overlap QQQ SPY} and show the overlap percent and the shared holdings.}
+\shot{uc08-a.png}{OVERLAP QQQ SPY, top of the result. Overlap 52.03\%, shared holdings starting with AAPL.}
+\shot{uc08-b.png}{The same overlap, scrolled to the end of the shared-holdings list.}
 
 \subsection{UC-09 Retrieve financial news}
 \label{uc09}
@@ -254,7 +253,7 @@ Stage~1 UC-09. The user asks for recent news. \texttt{NewsTool} validates the sy
 The news command does not ask Gemini to summarize the list. Stage~1 put a summary on this use case. A spoken reply on top of the articles, when the user types a sentence and Gemini is configured, is UC-16 and has to stick to the article text. With no news key the command says news is unavailable.
 
 \paragraph{Evidence.}
-\todofig{news NVDA}{Run \texttt{news NVDA} and show several headlines with source, published time, and URL.}
+\shot{uc09-a.png}{NEWS NVDA. Three headlines with source, published time, URL, and provider sentiment.}
 
 \subsection{UC-10 Explain a recent move}
 \label{uc10}
@@ -266,10 +265,10 @@ Stage~1 UC-10. The user asks why a price moved. The planner fetches a quote and 
 \texttt{why NVDA} and a sentence such as \texttt{why did microsoft fall} both land on this path. \texttt{why MSFT} is the symbol form. A longer sentence is a follow-up, not a ticker. \texttt{MarketMovementTool} loads the quote and up to three articles. \texttt{NewsTiming} marks anything published after the last trade. \texttt{MarketExplanationService.explain} calls \texttt{GeminiLLMClient.generate}, not the short call, and Flash-Lite is told to think as little as possible so the note is not cut off after the price. The note names the symbol, the price, and the percent change, then explains the move from what the articles say and attributes each reason to the reporting. An article after the last trade is later context, not proof it caused that print. If no article states a reason, the note says the evidence does not establish a cause. It does not recommend a buy or a sell. The answer is shown first. The quote and the sources follow. \texttt{nasdaq} is read as \texttt{QQQ}, and the note has to say QQQ is an ETF.
 
 \paragraph{Deviation.}
-Stage~1 had the composer ask the model even when evidence was missing. I load the quote and the news first, and I do not show a note that was cut off by the token limit. The shipped model is \texttt{gemini-3.5-flash-lite}. If \texttt{GEMINI\_MODEL} is set to \texttt{gemini-3.8-flash} or \texttt{gemini-2.5-flash}, unset it. The \texttt{-LLMAPI} flag records that this run expects the model. It does not carry the key. With no \texttt{GEMINI\_API\_KEY} the quote and the news still show, and the desk says the explanation is unavailable. This capture had no key, so it is not a picture of a finished note.
+Stage~1 had the composer ask the model even when evidence was missing. I load the quote and the news first, and I do not show a note that was cut off by the token limit. The shipped model is \texttt{gemini-3.5-flash-lite}. If \texttt{GEMINI\_MODEL} is set to \texttt{gemini-3.8-flash} or \texttt{gemini-2.5-flash}, unset it. The \texttt{-LLMAPI} flag records that this run expects the model. It does not carry the key. With no \texttt{GEMINI\_API\_KEY} the quote and the news still show, and the desk says the explanation is unavailable. The batch listing in Section~\ref{sec:batch-cli} had no key. The window figure below is a finished note from a run that had one.
 
 \paragraph{Evidence.}
-\todofig{why NVDA, or why did microsoft fall}{With quote, news, and \texttt{GEMINI\_API\_KEY} set, run \texttt{why NVDA} or \texttt{why did microsoft fall}. Show the note, the quote under it, and the source URLs. The note has to mention the articles.}
+\shot{uc10-a.png}{WHY NVDA. The note cites the articles. The quote and the numbered source URLs follow.}
 
 \subsection{UC-11 Add a portfolio position}
 \label{uc11}
@@ -286,7 +285,7 @@ Stage~1 put add on the agent tools. I moved it off the model so a sentence canno
 \paragraph{Evidence.}
 \batchlines{20}{35}
 
-\todofig{Swing Portfolio screen after an add}{In \texttt{--gui}, run \texttt{PORT ADD NVDA 10 STOCK} and show the Portfolio screen with that row. The terminal lines above are the batch run of the same command.}
+\shot{uc11-a.png}{Portfolio screen after PORT ADD NVDA 10 STOCK. The row is saved.}
 
 \subsection{UC-12 Remove a portfolio position}
 \label{uc12}
@@ -303,7 +302,8 @@ Same reason as add: removal is not an agent tool. Batch mode stops the file afte
 \paragraph{Evidence.}
 \batchlines{47}{57}
 
-\todofig{Swing Portfolio screen after a remove}{In \texttt{--gui}, remove a symbol that is held, then remove one that is not. Show both messages and the remaining rows.}
+\shot{uc12-a.png}{After PORT REMOVE MSFT. NVDA remains, and the status says the position was removed.}
+\shot{uc12-b.png}{After PORT REMOVE TSLA, which is not held. NVDA remains.}
 
 \subsection{UC-13 View the portfolio}
 \label{uc13}
@@ -321,7 +321,7 @@ Stage~1 described the terminal list. The window shows the same rows and, when qu
 \batchlines{14}{18}
 \batchlines{28}{35}
 
-\todofig{Swing Portfolio screen listing stored positions}{Open the Portfolio screen (F3) while at least one position is stored and show the rows. The terminal listing above is the batch run.}
+\shot{uc13-a.png}{Portfolio screen listing the stored NVDA position.}
 
 \subsection{UC-14 Manage the watchlist}
 \label{uc14}
@@ -339,7 +339,8 @@ There is no \texttt{WatchlistTool} on the agent. A sentence cannot add or remove
 \batchlines{37}{45}
 \batchlines{59}{67}
 
-\todofig{Swing Watchlist screen}{In \texttt{--gui}, add AAPL, show the Watchlist screen (F4), then remove it and show the empty list.}
+\shot{uc14-a.png}{Watchlist with AAPL added.}
+\shot{uc14-b.png}{Watchlist after AAPL was removed. The monitor is empty.}
 
 \subsection{UC-15 Analyze portfolio exposure}
 \label{uc15}
@@ -351,10 +352,12 @@ Stage~1 UC-15. The user's portfolio is loaded, stock and ETF positions are ident
 \texttt{portfolio exposure} and \texttt{EXPOSURE} call \texttt{PortfolioAnalysisTool} and \texttt{PortfolioExposureCalculator}. Value is price times quantity. Day move is the price change times quantity. Currencies stay in separate books. A position with no price is named and left out of the total. ETF sector weights are look-through when the holding list exists. If a sentence selects this action, the numbers still are not sent to the model. \texttt{PortfolioBook} is the home-screen summary of the same figures.
 
 \paragraph{Deviation.}
-Stage~1 had the model explain the exposure. The figure is arithmetic, and narrating it invited a recommendation, so Gemini does not see these numbers. The capture in this report has no quote key, so it cannot show a priced exposure. The command is local until it asks for quotes.
+Stage~1 had the model explain the exposure. The figure is arithmetic, and narrating it invited a recommendation, so Gemini does not see these numbers. The batch listing had no quote key. The window figures below are the priced exposure from a run that had one.
 
 \paragraph{Evidence.}
-\todofig{portfolio exposure with priced weights}{Hold at least two positions, export a quote key, and run \texttt{portfolio exposure} or \texttt{EXPOSURE}. Show the sector weights, the currency books, and any position that could not be priced.}
+\shot{uc15-a.png}{Portfolio with NVDA 10 STOCK and QQQ 3 ETF before the exposure report.}
+\shot{uc15-b.png}{EXPOSURE, top. USD book value 3,080.65 and the sector weights.}
+\shot{uc15-c.png}{EXPOSURE, bottom. Look-through holdings of QQQ and the currency note.}
 
 \subsection{UC-16 Ask a follow-up}
 \label{uc16}
@@ -366,10 +369,12 @@ Stage~1 UC-16. The user continues a conversation without repeating the entity. R
 The window's message box and a non-verb line in the terminal both call \texttt{ResearchGateway.ask} and \texttt{AgentController.handle}. \texttt{ConversationMemory} reads recent turns and the last symbol for that user. \texttt{RequestPlanner} always builds a keyword plan first. If Gemini is configured, it may replace that plan with one allowed JSON action. A bad reply falls back to the keywords. A lookup runs through \texttt{ToolManager}. A move plan then uses UC-10. ``Say that more simply'' is \texttt{DISCUSS}: nothing is fetched, and Gemini rewrites the stored exchange. Portfolio figures are left out of that prompt. Another user's rows are never read. A sentence that says to ignore previous instructions, or that looks like SQL, is rejected and does not run a tool. Compare and overlap still need two symbols. Home and tape refreshes do not replace the remembered symbol.
 
 \paragraph{Deviation.}
-The class is \texttt{ConversationMemory}, not a type named \texttt{MemoryService}. The model may only name an allowed action. Add, remove, and watchlist edits are not on that list. A rephrase does not run a tool. Stage~1 had the model more free to choose the next step. Keyword planning still works when \texttt{GEMINI\_API\_KEY} is unset. This capture did not type a sentence, because a useful reply needs a live tool result.
+The class is \texttt{ConversationMemory}, not a type named \texttt{MemoryService}. The model may only name an allowed action. Add, remove, and watchlist edits are not on that list. A rephrase does not run a tool. Stage~1 had the model more free to choose the next step. Keyword planning still works when \texttt{GEMINI\_API\_KEY} is unset. The window figures below are the live exchange: the sector question, a shorter wording, and a sentence that tries to override the instructions.
 
 \paragraph{Evidence.}
-\todofig{F5 chat follow-up}{Sign in, run \texttt{QUOTE NVDA}, then on F5 type \texttt{what about its sector exposure}. Show the reply. Then type a request to say that more simply, and show that no new quote was fetched. Then type a sentence that tells the desk to ignore its instructions, and show that no tool ran.}
+\shot{uc16-a.png}{Chat follow-up asking for the sector exposure of the last symbol. NVDA has no ETF weights.}
+\shot{uc16-b.png}{The same chat after ``say that more simply.'' The reply is shorter, and no new quote was fetched.}
+\shot{uc16-c.png}{A sentence that tells the desk to ignore its instructions. No tool ran.}
 
 \subsection{UC-17 Read financial statements}
 \label{uc17}
@@ -386,7 +391,8 @@ The method is \texttt{getFinancialStatements}. I show up to four annual periods 
 There was no Stage~1 requirement to depart from. The command does not replace a Stage~1 feature. It uses three provider calls on a plan of about 250 requests a day.
 
 \paragraph{Evidence.}
-\todofig{statements NVDA}{Export \texttt{FMP\_API\_KEY} and run \texttt{statements NVDA}. Show the annual income, balance sheet, and cash-flow lines.}
+\shot{uc17-a.png}{STATEMENTS NVDA, top. Annual figures from Financial Modeling Prep, including the latest two years.}
+\shot{uc17-b.png}{STATEMENTS NVDA, lower years. Income, balance sheet, and cash flow for the earlier filings.}
 
 \subsection{UC-18 Read price history}
 \label{uc18}
@@ -401,7 +407,7 @@ This was not a Stage~1 use case. I added it so the Twelve Data adapter is visibl
 There was no Stage~1 requirement to depart from. \texttt{history} is unavailable when \texttt{TWELVE\_DATA\_API\_KEY} is unset, and that does not remove quotes.
 
 \paragraph{Evidence.}
-\todofig{history NVDA}{Export \texttt{TWELVE\_DATA\_API\_KEY} and run \texttt{history NVDA}. Show the daily bars and the RSI.}
+\shot{uc18-a.png}{HISTORY NVDA. Eight daily bars and a 14-day RSI of 15.05 from Twelve Data.}
 
 \subsection{UC-19 Read sentiment}
 \label{uc19}
@@ -416,7 +422,7 @@ This was not a Stage~1 use case. I added it so the SentiSense adapter is visible
 There was no Stage~1 requirement to depart from. I did not buy a paid SentiSense plan. Without \texttt{SENTISENSE\_API\_KEY} the command says it is unavailable.
 
 \paragraph{Evidence.}
-\todofig{sentiment NVDA}{Export \texttt{SENTISENSE\_API\_KEY} and run \texttt{sentiment NVDA}. Show the score and the band label.}
+\shot{uc19-a.png}{SENTIMENT NVDA. Score about $-0.107$, labeled Neutral, from SentiSense.}
 
 \subsection{UC-20 View the home desk}
 \label{uc20}
@@ -428,10 +434,10 @@ This was not a Stage~1 use case. Stage~1 was a terminal. I added the home screen
 After sign-on, F1 shows market value, the day move, one row per position sorted by market value, a stacked allocation bar, and a tape of index quotes, portfolio quotes, and a few headlines. \texttt{DashboardPanel} asks \texttt{PortfolioBook} for the figures and \texttt{TapeLine} for the tape. Network calls run off the Swing thread through \texttt{BackgroundWork}. Unpriced positions stay named and are left out of the total. Holdings refresh on the same 90-second cadence as the tape. A later refresh keeps the last totals until the new quotes return. The terminal has no tape. The same positions are listed by \texttt{portfolio}.
 
 \paragraph{Deviation.}
-Stage~1 had no window, so this screen is new rather than a change to a specified flow. The terminal batch run cannot show it. F1 is the shot.
+Stage~1 had no window, so this screen is new rather than a change to a specified flow. The terminal batch run has no tape. The home figure below is the window.
 
 \paragraph{Evidence.}
-\todofig{F1 home desk}{Sign in on \texttt{--gui} with a portfolio that has at least one priced position. Show F1: market value, day move, the position rows, the allocation bar, and the tape.}
+\shot{uc20-a.png}{Home desk. Market value 3,080.65, day move $-314.27$ ($-9.26\%$), QQQ and NVDA rows, and the headline tape.}
 
 \section{Non-interactive command line}
 \label{sec:batch-cli}
@@ -454,35 +460,35 @@ The listing is the run named above. Standard error is the provider warnings from
 
 \VerbatimInput[fontsize=\footnotesize]{cli-batch-stderr.txt}
 
-\section{Screenshots still required}
+\section{Screenshot index}
 \label{sec:shots}
 
-The listings above are the runs I could capture without a provider key and without the Swing window. Each box in Section~\ref{sec:features} still has to be replaced with a screenshot of the screen or command named in that box.
+These are the window shots embedded beside each feature in Section~\ref{sec:features}. They were taken on this branch, signed in as \texttt{erdem.demo}, with the provider keys set. The password fields are masked. The files are in \texttt{docs/stage2/screenshots/}.
 
 \begin{itemize}
-\item UC-01. Swing create-account screen, password entered twice, then back on sign-on.
-\item UC-02. Swing sign-on: a rejected password, then a successful sign-in.
-\item UC-03. Swing window after \texttt{LOGOUT}, back on sign-on.
-\item UC-04. \texttt{quote NVDA} with price, previous close, and percent change.
-\item UC-05. \texttt{overview NVDA} with name, exchange, currency, and industry.
-\item UC-06. \texttt{sector QQQ} and \texttt{geography QQQ}, plus \texttt{geography NVDA}.
-\item UC-07. \texttt{compare NVDA MSFT} with both quotes and the gap.
-\item UC-08. \texttt{overlap QQQ SPY} with the shared holdings.
-\item UC-09. \texttt{news NVDA} with headlines, sources, times, and URLs.
-\item UC-10. \texttt{why NVDA} or \texttt{why did microsoft fall}, with the note and the sources.
-\item UC-11. Swing Portfolio screen after \texttt{PORT ADD NVDA 10 STOCK}.
-\item UC-12. Swing Portfolio screen after a real remove and a missing symbol.
-\item UC-13. Swing Portfolio screen listing the stored positions.
-\item UC-14. Swing Watchlist screen after an add and a remove.
-\item UC-15. \texttt{portfolio exposure} with priced weights.
-\item UC-16. F5 chat: sector of the last symbol, a simpler wording, then a rejected instruction.
-\item UC-17. \texttt{statements NVDA}.
-\item UC-18. \texttt{history NVDA}, bars and RSI.
-\item UC-19. \texttt{sentiment NVDA}, score and band.
-\item UC-20. F1 home desk: value, day move, position rows, and the tape.
+\item UC-01. \texttt{uc01-a.png} create-account form. \texttt{uc01-b.png} return to sign-on.
+\item UC-02. \texttt{uc02-a.png} rejected sign-on. \texttt{uc02-b.png} signed-in home.
+\item UC-03. \texttt{uc03-a.png} sign-on after logout.
+\item UC-04. \texttt{uc04-a.png} \texttt{QUOTE NVDA}.
+\item UC-05. \texttt{uc05-a.png} \texttt{OVERVIEW NVDA}.
+\item UC-06. \texttt{uc06-a.png} \texttt{SECTOR QQQ}. \texttt{uc06-b.png} \texttt{GEOGRAPHY QQQ}. \texttt{uc06-c.png} \texttt{GEOGRAPHY NVDA}.
+\item UC-07. \texttt{uc07-a.png} \texttt{COMPARE NVDA MSFT}.
+\item UC-08. \texttt{uc08-a.png} and \texttt{uc08-b.png}. \texttt{OVERLAP QQQ SPY}, top and bottom of the list.
+\item UC-09. \texttt{uc09-a.png} \texttt{NEWS NVDA}.
+\item UC-10. \texttt{uc10-a.png} \texttt{WHY NVDA}.
+\item UC-11. \texttt{uc11-a.png} portfolio after \texttt{PORT ADD NVDA 10 STOCK}.
+\item UC-12. \texttt{uc12-a.png} a held symbol removed. \texttt{uc12-b.png} a missing symbol.
+\item UC-13. \texttt{uc13-a.png} the stored portfolio.
+\item UC-14. \texttt{uc14-a.png} watchlist with AAPL. \texttt{uc14-b.png} the empty watchlist.
+\item UC-15. \texttt{uc15-a.png} the two positions. \texttt{uc15-b.png} and \texttt{uc15-c.png} the priced exposure.
+\item UC-16. \texttt{uc16-a.png} the sector follow-up. \texttt{uc16-b.png} a shorter wording. \texttt{uc16-c.png} a rejected instruction.
+\item UC-17. \texttt{uc17-a.png} and \texttt{uc17-b.png}. \texttt{STATEMENTS NVDA}.
+\item UC-18. \texttt{uc18-a.png} \texttt{HISTORY NVDA}.
+\item UC-19. \texttt{uc19-a.png} \texttt{SENTIMENT NVDA}.
+\item UC-20. \texttt{uc20-a.png} the home desk.
 \end{itemize}
 
-The batch transcript does not need to be photographed again. It is already in Section~\ref{sec:batch-cli}.
+The batch transcript in Section~\ref{sec:batch-cli} is a separate offline run of \texttt{task.txt}. It does not use these keys.
 
 \section{Implemented design patterns}
 
@@ -701,7 +707,7 @@ The move note stopped mid-word after the price, because Flash-Lite was spending 
 A news answer said the articles did not explain the day's move, even when they discussed the 40\% correction, demand, and guidance. A question about a price rising or falling stays a movement explanation, and the note has to use what the articles say.
 
 \subsection{Still open}
-The recording is public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say. The boxed TODO figures in Section~\ref{sec:shots} are the screenshots that still need a live window or a provider key. The batch transcript is already in the report.
+The recording is public. Country exposure on this plan is headquarters, and that is the behavior, not a placeholder. The heavier testing and the KUMA checks are Stage~3, which is what the Stage~2 instructions say. The window shots are in Section~\ref{sec:shots}. The batch transcript is the offline run.
 
 \section{Demonstration index}
 \label{sec:demos}
