@@ -30,6 +30,13 @@
   \caption{#2}
   \end{figure}
 }
+\newcommand{\termshot}[2]{%
+  \begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,height=0.82\textheight,keepaspectratio]{#1}
+  \caption{#2}
+  \end{figure}
+}
 \newcommand{\batchlines}[2]{%
   \VerbatimInput[fontsize=\footnotesize,firstline=#1,lastline=#2]{cli-batch-stdout.txt}
 }
@@ -105,7 +112,7 @@ Each feature below states the original requirement, how this desk implements it,
 
 The process used a fresh SQLite file and no API keys. The terminal draws boxes and a bullet between quantity and type. This PDF replaces those characters so pdfLaTeX can embed the same text. The unmodified capture is \texttt{docs/stage2/cli-batch-transcript.txt}. Standard error from that run is included with the batch-CLI feature.
 
-The window figures were taken on this branch, signed in as \texttt{erdem.demo}, with the provider keys set. Passwords are masked. Section~\ref{sec:shots} indexes the files.
+The window figures were taken on this branch, signed in as \texttt{erdem.demo}, with the provider keys set. Passwords are masked. The terminal figures in Section~\ref{sec:batch-cli} are the same jar with those keys. Section~\ref{sec:shots} indexes the files.
 
 \subsection{UC-01 Register account}
 \label{uc01}
@@ -454,16 +461,23 @@ The interactive menu and the Swing window are the same paths as before when no b
 The jar is \texttt{target/Agent.jar}, not a file named \texttt{Agent.jar} dropped in the working directory. The command to build it, and the working example, are in the README. \texttt{-LLMAPI} does not take a key on the command line. A key in the process list would be a secret, so the Gemini key stays in \texttt{GEMINI\_API\_KEY}. If the flag is set and the key is missing, the run says so and continues. There is no HTTP endpoint on this desk, so ``an API call'' is not a fourth transport. The supported inputs are a file, standard input, and one inline command. Batch mode cannot stop at the login menu. When no account is given, it signs in as the local demo user \texttt{guest} with password \texttt{guest-demo}, creating that row in SQLite if needed. That password is a local demo password, not an API key. \texttt{--user} or \texttt{MI\_USERNAME} overrides it.
 
 \paragraph{Evidence.}
-The listing is the run named above. Standard error is the provider warnings from the same process. No key value is in either listing.
+The listing is the offline run named above, from a fresh database with no provider keys. Standard error is the provider warnings from that process. No key value is in either listing. The figures after it are \texttt{target/Agent.jar} on this branch with the keys set. The password is not on screen.
 
 \VerbatimInput[fontsize=\footnotesize]{cli-batch-stdout.txt}
 
 \VerbatimInput[fontsize=\footnotesize]{cli-batch-stderr.txt}
 
+\termshot{cli-01-batch.png}{\texttt{java -jar target/Agent.jar -LLMAPI -input task.txt}. The demo account runs the task file and exits.}
+\termshot{cli-02-quote.png}{\texttt{-c "quote NVDA"}. Live price 125.53, previous close 145.98, change $-14.0088\%$.}
+\termshot{cli-03-news.png}{\texttt{-c "news NVDA"}. Three headlines with source, time, sentiment, and URL.}
+\termshot{cli-04-why.png}{\texttt{-c "why NVDA"}. The Gemini note, the quote, and the numbered sources.}
+\termshot{cli-05-stdin.png}{A pipe into \texttt{-input -}. \texttt{quote MSFT} prints the live quote and the process exits.}
+\termshot{cli-06-interactive.png}{Interactive REPL. Guest signs in and \texttt{quote NVDA} prints the live price.}
+
 \section{Screenshot index}
 \label{sec:shots}
 
-These are the window shots embedded beside each feature in Section~\ref{sec:features}. They were taken on this branch, signed in as \texttt{erdem.demo}, with the provider keys set. The password fields are masked. The files are in \texttt{docs/stage2/screenshots/}.
+The window shots sit beside each feature in Section~\ref{sec:features}. The terminal shots sit in Section~\ref{sec:batch-cli}. They were taken on this branch with the provider keys set. The window session is \texttt{erdem.demo}. The terminal session is the local demo user \texttt{guest}. Password fields are masked, and no key is on screen. The files are in \texttt{docs/stage2/screenshots/}.
 
 \begin{itemize}
 \item UC-01. \texttt{uc01-a.png} create-account form. \texttt{uc01-b.png} return to sign-on.
@@ -486,9 +500,10 @@ These are the window shots embedded beside each feature in Section~\ref{sec:feat
 \item UC-18. \texttt{uc18-a.png} \texttt{HISTORY NVDA}.
 \item UC-19. \texttt{uc19-a.png} \texttt{SENTIMENT NVDA}.
 \item UC-20. \texttt{uc20-a.png} the home desk.
+\item CLI. \texttt{cli-01-batch.png} the task file. \texttt{cli-02-quote.png} \texttt{quote NVDA}. \texttt{cli-03-news.png} \texttt{news NVDA}. \texttt{cli-04-why.png} \texttt{why NVDA}. \texttt{cli-05-stdin.png} a pipe into \texttt{-input -}. \texttt{cli-06-interactive.png} the interactive REPL.
 \end{itemize}
 
-The batch transcript in Section~\ref{sec:batch-cli} is a separate offline run of \texttt{task.txt}. It does not use these keys.
+The text listing in Section~\ref{sec:batch-cli} is a separate offline run of \texttt{task.txt}. The six terminal figures after it are the keyed runs.
 
 \section{Implemented design patterns}
 
