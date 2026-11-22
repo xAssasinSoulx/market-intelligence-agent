@@ -45,6 +45,7 @@ import java.io.Console;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -70,6 +71,10 @@ public class TerminalUI
     private final Scanner scanner;
 
     private boolean running = true;
+
+    private boolean batchMode;
+
+    private boolean commandFailed;
 
 
     public TerminalUI(
@@ -175,6 +180,72 @@ public class TerminalUI
                     "Market Intelligence Agent closed."
             );
         }
+    }
+
+    /**
+     * Runs commands that were already read from a file, a pipe,
+     * or {@code -c}. Does not switch to the alternate screen
+     * and does not wait for a keystroke. The caller signs in first.
+     *
+     * @return 0 when every command succeeded, otherwise 1
+     */
+    public int runBatch(List<String> lines) {
+
+        batchMode = true;
+        int failures = 0;
+
+        try {
+
+            if (lines == null) {
+                return 0;
+            }
+
+            for (String raw : lines) {
+
+                if (!running) {
+                    break;
+                }
+
+                String line = raw == null
+                        ? ""
+                        : raw.trim();
+
+                if (line.isEmpty()
+                        || line.startsWith("#")) {
+                    continue;
+                }
+
+                System.out.println();
+                System.out.println("> " + line);
+
+                try {
+                    executeLine(line);
+                } catch (RuntimeException exception) {
+                    if (!commandFailed) {
+                        String message = exception.getMessage();
+                        displayError(
+                                message == null || message.isBlank()
+                                        ? "Command failed."
+                                        : message
+                        );
+                    }
+                }
+
+                if (commandFailed) {
+                    failures++;
+                }
+            }
+
+        } finally {
+            batchMode = false;
+        }
+
+        System.out.println();
+        System.out.println(
+                "Market Intelligence Agent closed."
+        );
+
+        return failures == 0 ? 0 : 1;
     }
 
     private void showAuthenticationMenu() {
@@ -525,6 +596,13 @@ public class TerminalUI
             return;
         }
 
+        executeLine(input);
+    }
+
+    private void executeLine(String input) {
+
+        commandFailed = false;
+
         if (commandParser
                 .isCommand(input)) {
 
@@ -541,6 +619,7 @@ public class TerminalUI
         System.out.println();
 
         if (followUp == null) {
+            commandFailed = true;
             System.out.println(TerminalTheme.bold("Desk"));
             System.out.println(TerminalTheme.yellow(
                     "Natural-language follow-up is not connected."
@@ -566,12 +645,10 @@ public class TerminalUI
                             input
                     );
 
-            /*
-             * New command = new screen.
-             */
-            TerminalTheme.clearScreen();
-
-            displayTerminalHeader();
+            if (!batchMode) {
+                TerminalTheme.clearScreen();
+                displayTerminalHeader();
+            }
 
             switch (
                     parsed.getCommand()) {
@@ -674,9 +751,10 @@ public class TerminalUI
         } catch (
                 IllegalArgumentException e) {
 
-            TerminalTheme.clearScreen();
-
-            displayTerminalHeader();
+            if (!batchMode) {
+                TerminalTheme.clearScreen();
+                displayTerminalHeader();
+            }
 
             displayError(
                     e.getMessage()
@@ -2811,6 +2889,23 @@ public class TerminalUI
 
         sessionManager.endSession();
 
+        if (batchMode) {
+
+            System.out.println();
+
+            System.out.println(
+                    TerminalTheme.green(
+                            "✓ Logged out "
+                                    + username
+                                    + "."
+                    )
+            );
+
+            running = false;
+
+            return;
+        }
+
         TerminalTheme.clearScreen();
 
         printBanner();
@@ -3077,6 +3172,8 @@ public class TerminalUI
     @Override
     public void displayError(
             String message) {
+
+        commandFailed = true;
 
         System.out.println();
 

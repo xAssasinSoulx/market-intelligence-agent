@@ -63,6 +63,10 @@ export MI_SCROLLBACK=1                    # optional
 | `GEMINI_MODEL` | Model name. Omit it to use the client default |
 | `MI_SCROLLBACK` | Set to `1` to keep terminal history. Otherwise each view clears the screen |
 | `RUN_GEMINI_LIVE_TEST` | Set to `1`, with `GEMINI_API_KEY`, to run the live Gemini smoke test |
+| `MI_USERNAME` | Batch-mode account. Used when `--user` is omitted |
+| `MI_PASSWORD` | Password for `MI_USERNAME` or for `--user` when `--password` is omitted |
+| `MI_GUEST` | Set to `1` to force the local demo account in batch mode |
+| `MI_DATABASE` | SQLite file, or a `jdbc:sqlite:` URL. Default is `data/market-intelligence.db` |
 
 `./mvnw test` does not call live APIs.
 
@@ -103,7 +107,67 @@ Financial Modeling Prep returns up to four annual periods. A line the filing did
 ./mvnw compile exec:java -Dexec.args="--gui"
 ```
 
-With no arguments, the process starts the command-line interface. The window does not need an interactive terminal after it opens. Both interfaces use `data/market-intelligence.db`.
+With no arguments, the process starts the interactive command-line interface. The window does not need an interactive terminal after it opens. Both interfaces use `data/market-intelligence.db`.
+
+## Standalone jar and batch mode
+
+`./mvnw -DskipTests package` writes a runnable jar at `target/Agent.jar`. The manifest `Main-Class` is `com.marketintel.Main`. Dependencies, including the SQLite driver, are inside that jar.
+
+Run a task file from the repository root. This is the form the course asks for. It does not prompt:
+
+```bash
+./mvnw -DskipTests package
+java -jar target/Agent.jar -LLMAPI -input task.txt
+```
+
+`task.txt` in the repository root is a working example. It signs in, prints the session, adds and removes a portfolio position, adds and removes a watchlist symbol, and logs out. Those commands stay on the local database. Market-data lines in that file are comments, so `./mvnw test` and this example do not call a live API. Delete the leading `#` on a `quote` or `news` line only after the matching key is exported.
+
+The same verbs as the interactive terminal are accepted, one command per line. A blank line is skipped. A line that starts with `#` is a comment. A sentence that is not a verb is a follow-up, the same way the interactive terminal treats it. Results are printed to standard output and the process then exits. `logout` or `exit` ends the run. Later lines in the file are not executed.
+
+### Options
+
+| Option | Meaning |
+| --- | --- |
+| `--cli`, `-cli` | Interactive terminal. This is the default when nothing is piped |
+| `--gui`, `-gui` | Swing window. Sign-in stays on that window. Do not combine it with `-input` |
+| `-input`, `--input` `<file>` | Read commands from `file` and exit |
+| `-input -` | Read commands from standard input and exit |
+| `--batch`, `-batch` | Read commands from standard input and exit |
+| `-c`, `--command` `<text>` | Run one command and exit. Repeat the flag for another command |
+| `-LLMAPI`, `--LLMAPI`, `--llm` | Marks the run as an LLM run. It does not take a key. Movement notes still need `GEMINI_API_KEY` |
+| `--guest`, `-guest` | Force the local demo account |
+| `--user`, `-user` `<name>` | Use this account instead of the demo account |
+| `--password`, `-password` `<value>` | Password for `--user`. Prefer `MI_PASSWORD` so the shell history stays empty |
+| `--register`, `-register` | Create `--user` when that account is not already in the database |
+| `--database`, `-database` `<path>` | SQLite file for this run. `MI_DATABASE` is the same setting |
+| `--help`, `-h` | Print the option list and exit |
+
+A pipe selects batch mode on its own. `-input -` reads standard input as well. `--cli` forces the interactive menu even when standard input is a pipe.
+
+```bash
+cat task.txt | java -jar target/Agent.jar
+java -jar target/Agent.jar -c "portfolio"
+java -jar target/Agent.jar --help
+```
+
+Exit status `0` means every command succeeded. `1` means at least one command failed and the rest were still attempted. `2` means the arguments, the file, or the sign-in could not be used.
+
+### Batch sign-in
+
+The interactive terminal still asks for a username and a password. Batch mode does not.
+
+When `-input`, `-c`, `--batch`, or a pipe is used and no account is given, the process signs in as the local demo user `guest` with password `guest-demo`. The account is created in the SQLite file on first use. This is a row in the local database, not a remote login, and the password is not an API key. The run prints that it used the demo account. Give `--user` and `--password`, or export `MI_USERNAME` and `MI_PASSWORD`, to use a different account. `--register` creates that account the first time. `MI_GUEST=1` or `--guest` forces the demo account even if `MI_USERNAME` is set.
+
+```bash
+java -jar target/Agent.jar --user grader --password grader-demo --register -c "whoami"
+export MI_USERNAME=grader
+export MI_PASSWORD=grader-demo
+java -jar target/Agent.jar -LLMAPI -input task.txt
+```
+
+Do not put `GEMINI_API_KEY` or any other provider key on the command line. `-LLMAPI` only records that the run expects LLM features. If the key is unset, the desk says so and still runs the other commands.
+
+`java -jar target/Agent.jar` and `java -jar target/Agent.jar --gui` behave like `./mvnw compile exec:java` with `--cli` and `--gui`. An explicit `--guest` or `--user` before an interactive launch signs that session in and skips the menu.
 
 ## Command line
 
@@ -240,7 +304,8 @@ src/main/java/com/marketintel/
   services/        validation, exposure arithmetic, conversation memory
   tools/           research tools
   gui/             Swing desk
-  ui/              terminal
+  ui/              terminal, including the batch runner's command output
+  bootstrap/       wiring, launch options, and the non-interactive sign-in
 docs/stage2/uml/     Stage 2 PlantUML sources and rendered figures
 docs/Stage1-pdfs/  rendered Stage 1 diagrams, kept for comparison
 docs/stage2/stage2-report.pdf
